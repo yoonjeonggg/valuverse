@@ -1,0 +1,54 @@
+# ===== 보안 / 환경 변수 =====
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets.*
+credentials.*
+
+# ===== 데이터베이스 / 로컬 데이터 =====
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+
+# ===== Python =====
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+build/
+dist/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# ===== 가상환경 =====
+venv/
+.venv/
+env/
+ENV/
+
+# ===== Claude / AI 도구 설정 =====
+.claude/
+CLAUDE.md
+CLAUDE.local.md
+.claude.json
+.mcp.json
+.cursor/
+.cursorrules
+.aider*
+.windsurf/
+.github/copilot-instructions.md
+
+# ===== 에디터 / OS =====
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db

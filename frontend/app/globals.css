@@ -1,0 +1,28 @@
+/* 연동 확인용 최소 스타일. 디자인 없음. */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
+  color: #111;
+  background: #fff;
+  line-height: 1.5;
+}
+
+a {
+  color: #0645ad;
+}
+
+button {
+  padding: 4px 10px;
+  margin: 2px 4px 2px 0;
+  cursor: pointer;
+}
+
+h1,
+h2,
+h3 {
+  line-height: 1.3;
+}

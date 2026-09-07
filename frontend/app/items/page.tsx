@@ -1,0 +1,221 @@
+"use client";
+
+import { useState } from "react";
+import { api } from "../lib/api";
+import { Field, Result, Section, useCall } from "../lib/ui";
+
+function toIso(local: string): string | undefined {
+  if (!local) return undefined;
+  const d = new Date(local);
+  return isNaN(d.getTime()) ? undefined : d.toISOString();
+}
+
+export default function ItemsPage() {
+  // 목록 필터
+  const [category, setCategory] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+
+  // 생성 폼
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [createCategory, setCreateCategory] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
+  const [startPrice, setStartPrice] = useState("1000");
+  const [buyNowPrice, setBuyNowPrice] = useState("");
+  const [endTime, setEndTime] = useState("");
+
+  // 대상 아이템 / 입찰
+  const [itemId, setItemId] = useState("");
+  const [bidAmount, setBidAmount] = useState("");
+  const [blindAmount, setBlindAmount] = useState("");
+  const [bidId, setBidId] = useState("");
+  const [blindBidId, setBlindBidId] = useState("");
+  const [patchTitle, setPatchTitle] = useState("");
+
+  const list = useCall(() =>
+    api("/items", {
+      query: { category, status: statusFilter },
+    }),
+  );
+  const create = useCall(() =>
+    api("/items", {
+      method: "POST",
+      auth: true,
+      body: {
+        title,
+        description: description || undefined,
+        category: createCategory || undefined,
+        image_url: imageUrl || undefined,
+        start_price: Number(startPrice),
+        buy_now_price: buyNowPrice ? Number(buyNowPrice) : undefined,
+        end_time: toIso(endTime),
+      },
+    }),
+  );
+  const getOne = useCall(() => api(`/items/${Number(itemId)}`));
+  const patch = useCall(() =>
+    api(`/items/${Number(itemId)}`, {
+      method: "PATCH",
+      auth: true,
+      body: { title: patchTitle || undefined },
+    }),
+  );
+  const del = useCall(() =>
+    api(`/items/${Number(itemId)}`, { method: "DELETE", auth: true }),
+  );
+
+  const createBid = useCall(() =>
+    api(`/items/${Number(itemId)}/bids`, {
+      method: "POST",
+      auth: true,
+      body: { amount: Number(bidAmount) },
+    }),
+  );
+  const listBids = useCall(() => api(`/items/${Number(itemId)}/bids`));
+  const myBids = useCall(() => api("/users/me/bids", { auth: true }));
+  const cancelBid = useCall(() =>
+    api(`/bids/${Number(bidId)}`, { method: "DELETE", auth: true }),
+  );
+
+  const createBlind = useCall(() =>
+    api(`/items/${Number(itemId)}/blind-bids`, {
+      method: "POST",
+      auth: true,
+      body: { amount: Number(blindAmount) },
+    }),
+  );
+  const myRank = useCall(() =>
+    api(`/items/${Number(itemId)}/blind-bids/my-rank`, { auth: true }),
+  );
+  const blindResults = useCall(() =>
+    api(`/items/${Number(itemId)}/blind-bids/results`),
+  );
+  const cancelBlind = useCall(() =>
+    api(`/blind-bids/${Number(blindBidId)}`, { method: "DELETE", auth: true }),
+  );
+
+  return (
+    <div>
+      <h1>일반경매 (Item / Bid / Blind Bid)</h1>
+
+      <Section title="GET /items">
+        <Field
+          label="category"
+          value={category}
+          onChange={(e) => setCategory(e.target.value)}
+        />
+        <Field
+          label="status"
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+        />
+        <button onClick={() => list.run()}>목록 조회</button>
+        <Result data={list.data} error={list.error} loading={list.loading} />
+      </Section>
+
+      <Section title="POST /items (인증 필요)">
+        <Field label="title" value={title} onChange={(e) => setTitle(e.target.value)} />
+        <Field
+          label="description"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+        />
+        <Field
+          label="category"
+          value={createCategory}
+          onChange={(e) => setCreateCategory(e.target.value)}
+        />
+        <Field
+          label="image_url"
+          value={imageUrl}
+          onChange={(e) => setImageUrl(e.target.value)}
+        />
+        <Field
+          label="start_price"
+          type="number"
+          value={startPrice}
+          onChange={(e) => setStartPrice(e.target.value)}
+        />
+        <Field
+          label="buy_now_price"
+          type="number"
+          value={buyNowPrice}
+          onChange={(e) => setBuyNowPrice(e.target.value)}
+        />
+        <Field
+          label="end_time"
+          type="datetime-local"
+          value={endTime}
+          onChange={(e) => setEndTime(e.target.value)}
+        />
+        <button onClick={() => create.run()}>등록</button>
+        <Result data={create.data} error={create.error} loading={create.loading} />
+      </Section>
+
+      <Section title="대상 아이템 ID">
+        <Field
+          label="item_id"
+          value={itemId}
+          onChange={(e) => setItemId(e.target.value)}
+        />
+        <div>
+          <button onClick={() => getOne.run()}>GET /items/{"{id}"}</button>
+          <button onClick={() => del.run()}>DELETE (인증)</button>
+        </div>
+        <Field
+          label="patch title"
+          value={patchTitle}
+          onChange={(e) => setPatchTitle(e.target.value)}
+        />
+        <button onClick={() => patch.run()}>PATCH title (인증)</button>
+        <Result data={getOne.data} error={getOne.error} loading={getOne.loading} />
+        <Result data={patch.data} error={patch.error} loading={patch.loading} />
+        <Result data={del.data} error={del.error} loading={del.loading} />
+      </Section>
+
+      <Section title="입찰 (Bid) — 위 item_id 사용">
+        <Field
+          label="amount"
+          type="number"
+          value={bidAmount}
+          onChange={(e) => setBidAmount(e.target.value)}
+        />
+        <button onClick={() => createBid.run()}>POST /items/{"{id}"}/bids (인증)</button>
+        <button onClick={() => listBids.run()}>GET /items/{"{id}"}/bids</button>
+        <button onClick={() => myBids.run()}>GET /users/me/bids (인증)</button>
+        <Result data={createBid.data} error={createBid.error} loading={createBid.loading} />
+        <Result data={listBids.data} error={listBids.error} loading={listBids.loading} />
+        <Result data={myBids.data} error={myBids.error} loading={myBids.loading} />
+        <Field label="bid_id" value={bidId} onChange={(e) => setBidId(e.target.value)} />
+        <button onClick={() => cancelBid.run()}>DELETE /bids/{"{id}"} (인증)</button>
+        <Result data={cancelBid.data} error={cancelBid.error} loading={cancelBid.loading} />
+      </Section>
+
+      <Section title="블라인드 입찰 (Blind Bid) — 위 item_id 사용">
+        <Field
+          label="amount"
+          type="number"
+          value={blindAmount}
+          onChange={(e) => setBlindAmount(e.target.value)}
+        />
+        <button onClick={() => createBlind.run()}>
+          POST /items/{"{id}"}/blind-bids (인증)
+        </button>
+        <button onClick={() => myRank.run()}>my-rank (인증)</button>
+        <button onClick={() => blindResults.run()}>results</button>
+        <Result data={createBlind.data} error={createBlind.error} loading={createBlind.loading} />
+        <Result data={myRank.data} error={myRank.error} loading={myRank.loading} />
+        <Result data={blindResults.data} error={blindResults.error} loading={blindResults.loading} />
+        <Field
+          label="blind_bid_id"
+          value={blindBidId}
+          onChange={(e) => setBlindBidId(e.target.value)}
+        />
+        <button onClick={() => cancelBlind.run()}>
+          DELETE /blind-bids/{"{id}"} (인증)
+        </button>
+        <Result data={cancelBlind.data} error={cancelBlind.error} loading={cancelBlind.loading} />
+      </Section>
+    </div>
+  );
+}
