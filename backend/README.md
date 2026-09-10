@@ -79,6 +79,7 @@ app/
 | 광고 보상 | `POST /points/ad-reward` | 하루 N회 한도 내 포인트 지급 (FR-PRD-07) |
 | 상단 노출권 | `POST /items/{id}/spotlight` | 포인트로 구매, 24시간 동안 목록 상단 노출 (FR-PRD-08) |
 | 알림 | `GET /users/me/notifications`, `POST /notifications/{id}/read`, `POST /notifications/read-all` | 입찰 경쟁·낙찰·스킬 정산·예측 정산 시 자동 생성 (FR-COM-03) |
+| 신고 처리 | `PATCH /reports/{id}` (status=resolved) | 인용 시 대상 제재 - 상품/리뷰 삭제, 회원은 누적 신고 시 자동 비활성화 (FR-COM-04) |
 
 - 상품 등록 시 `auction_type`(`general`/`blind`)을 지정한다. 타입이 맞지 않는 입찰은 거부된다.
 - 블라인드 경매 낙찰 규칙은 `blind_price_rule` 로 정한다: `first`(제시가 그대로) / `second`(Vickrey, 2위 금액으로 결제, FR-BLD-04). 입찰자가 1명이면 본인 제시가.

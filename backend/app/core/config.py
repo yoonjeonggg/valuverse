@@ -32,6 +32,9 @@ class Settings(BaseSettings):
     spotlight_cost: int = 100             # 상단 노출권 가격
     spotlight_hours: int = 24             # 상단 노출 지속 시간
 
+    # 신고 - 처리 완료된 신고가 이 수 이상 쌓이면 대상 계정을 자동 비활성화
+    report_auto_deactivate_threshold: int = 3
+
     # CORS - 프론트엔드 오리진. 쉼표로 구분. 운영에서는 .env 로 재정의할 것
     cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
 

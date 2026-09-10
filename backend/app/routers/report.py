@@ -22,10 +22,21 @@ def create_report(
 @router.get("", response_model=list[ReportResponse])
 def list_reports(
     status_filter: str | None = Query(default=None, alias="status"),
+    target_type: str | None = None,
+    target_id: int | None = None,
     db: Session = Depends(get_db),
     admin: User = Depends(get_current_admin),
 ):
-    return report_service.list_reports(db, status_filter)
+    return report_service.list_reports(db, status_filter, target_type, target_id)
+
+
+@router.get("/{report_id}", response_model=ReportResponse)
+def get_report(
+    report_id: int,
+    db: Session = Depends(get_db),
+    admin: User = Depends(get_current_admin),
+):
+    return report_service.get_report(db, report_id)
 
 
 @router.patch("/{report_id}", response_model=ReportResponse)
