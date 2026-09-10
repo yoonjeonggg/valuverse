@@ -21,6 +21,9 @@ class Settings(BaseSettings):
     # 운영/마이그레이션 사용 시 False 로 두고 `alembic upgrade head` 를 쓴다.
     auto_create_tables: bool = True
 
+    # Redis (실시간 순위/캐시용, 현재 미사용 - 예약)
+    redis_url: str = "redis://localhost:6379/0"
+
     # 경매 - 마감 임박 입찰 시 자동 연장 (스나이핑 방지, FR-AUC-03)
     auction_extend_window_seconds: int = 180
     auction_extend_by_seconds: int = 180

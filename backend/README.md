@@ -36,6 +36,11 @@ alembic revision --autogenerate -m "설명"   # 모델 변경 후 새 리비전 
 - API 문서: http://127.0.0.1:8000/docs
 - 헬스체크: http://127.0.0.1:8000/health
 
+### Docker
+
+`Dockerfile` 은 기동 시 `alembic upgrade head` 후 uvicorn 을 실행한다. 전체 스택은
+저장소 루트의 `docker compose up` 참고 (PostgreSQL + Redis 포함).
+
 ## 환경 변수 (`.env`)
 
 `.env` 는 git 에 커밋되지 않는다. `.env.example` 을 복사해서 사용한다.
@@ -47,6 +52,7 @@ alembic revision --autogenerate -m "설명"   # 모델 변경 후 새 리비전 
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | 액세스 토큰 만료(분) | `1440` |
 | `DATABASE_URL` | DB 접속 URL | `sqlite:///./auction.db` |
 | `AUTO_CREATE_TABLES` | 시작 시 테이블 자동 생성 (alembic 사용 시 `false`) | `true` |
+| `REDIS_URL` | Redis 주소 (현재 미사용, 예약) | `redis://localhost:6379/0` |
 | `AUCTION_EXTEND_WINDOW_SECONDS` | 마감 임박 판정 구간(초) | `180` |
 | `AUCTION_EXTEND_BY_SECONDS` | 자동 연장 시간(초) | `180` |
 | `AUCTION_MAX_EXTENSIONS` | 자동 연장 최대 횟수 | `10` |

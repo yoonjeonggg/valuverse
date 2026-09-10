@@ -46,6 +46,20 @@ npm run dev                                        # http://localhost:3000
 
 백엔드 API 문서: http://localhost:8000/docs
 
+## Docker
+
+전체 스택(PostgreSQL + Redis + 백엔드 + 프론트엔드)을 한 번에 띄운다.
+
+```bash
+docker compose up --build          # http://localhost:3000 , API http://localhost:8000
+docker compose down -v             # 정리 (DB 볼륨 포함)
+```
+
+- 백엔드 컨테이너는 기동 시 `alembic upgrade head` 로 스키마를 맞춘 뒤 실행된다.
+- 호스트 포트 충돌 시 `DB_PORT` / `BACKEND_PORT` / `FRONTEND_PORT` 로 재지정한다
+  (예: `DB_PORT=55432 docker compose up`).
+- `SECRET_KEY` 는 환경변수로 주입한다 (미지정 시 개발용 기본값).
+
 ## 참고
 
 - 프론트엔드는 각 API 엔드포인트를 호출해 응답(JSON)을 그대로 보여주는 수준입니다. UI/디자인 작업은 하지 않았습니다.
