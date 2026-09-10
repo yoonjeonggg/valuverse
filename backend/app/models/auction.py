@@ -34,6 +34,8 @@ class Item(Base):
     final_price = Column(Integer, nullable=True)
     # 마감 임박 입찰로 자동 연장된 횟수 (스나이핑 방지)
     extended_count = Column(Integer, nullable=False, default=0)
+    # 상단 노출권 만료 시각. 이 시각 이전이면 목록 상단에 노출된다 (FR-PRD-08).
+    spotlight_until = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 

@@ -27,3 +27,39 @@ class PointTransactionResponse(ORMModel):
 class PointBalanceResponse(BaseModel):
     user_id: int
     balance: int
+
+
+# ----- 포인트 이코노미 (적립/소모) -----
+class CheckInResponse(BaseModel):
+    check_date: str
+    streak: int
+    reward: int
+    balance: int
+
+
+class MissionStatus(BaseModel):
+    key: str
+    description: str
+    reward: int
+    achieved: bool
+    claimed: bool
+
+
+class MissionClaimResponse(BaseModel):
+    key: str
+    reward: int
+    balance: int
+
+
+class AdRewardResponse(BaseModel):
+    reward: int
+    views_today: int
+    daily_limit: int
+    balance: int
+
+
+class SpotlightResponse(BaseModel):
+    item_id: int
+    spotlight_until: datetime
+    cost: int
+    balance: int

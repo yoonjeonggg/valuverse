@@ -41,6 +41,7 @@ class ItemResponse(ORMModel):
     winner_id: Optional[int] = None
     final_price: Optional[int] = None
     extended_count: int = 0
+    spotlight_until: Optional[datetime] = None
     created_at: datetime
 
 

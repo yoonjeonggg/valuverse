@@ -1,11 +1,14 @@
 from datetime import timedelta
 
 from fastapi import HTTPException, status
+from sqlalchemy import case
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.timeutils import now, aware, is_past
 from app.models.auction import Item, Bid, BlindBid
+from app.models.point import PointTransaction
+from app.models.user import User
 from app.schemas.auction import (
     ItemCreate,
     ItemUpdate,
@@ -92,12 +95,56 @@ def list_items(
     q = db.query(Item).filter(Item.is_deleted.is_(False))
     if category:
         q = q.filter(Item.category == category)
-    items = q.order_by(Item.created_at.desc()).offset(skip).limit(limit).all()
+
+    # 상단 노출권이 살아있는 상품을 먼저 정렬한다 (FR-PRD-08).
+    now_naive = now().replace(tzinfo=None)
+    spotlighted = case(
+        (Item.spotlight_until.is_(None), 0),
+        (Item.spotlight_until < now_naive, 0),
+        else_=1,
+    )
+    items = (
+        q.order_by(spotlighted.desc(), Item.created_at.desc(), Item.id.desc())
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
     for item in items:
         _finalize_if_ended(db, item)
     if status_filter:
         items = [i for i in items if i.status == status_filter]
     return items
+
+
+def buy_spotlight(db: Session, item_id: int, user: User) -> Item:
+    """포인트로 상단 노출권을 구매한다 (FR-PRD-08)."""
+    item = get_item(db, item_id)
+    if item.seller_id != user.id:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "본인 상품만 노출할 수 있습니다.")
+    if item.status != "ongoing":
+        raise HTTPException(status.HTTP_409_CONFLICT, "진행중인 경매만 노출할 수 있습니다.")
+    if user.points < settings.spotlight_cost:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "보유 포인트가 부족합니다.")
+
+    base = now()
+    current = aware(item.spotlight_until)
+    if current and current > base:
+        base = current  # 남은 시간에 이어붙인다
+    item.spotlight_until = base + timedelta(hours=settings.spotlight_hours)
+
+    user.points -= settings.spotlight_cost
+    db.add(
+        PointTransaction(
+            user_id=user.id,
+            amount=-settings.spotlight_cost,
+            type="spend",
+            memo=f"상단 노출권 구매 #{item.id}",
+            balance_after=user.points,
+        )
+    )
+    db.commit()
+    db.refresh(item)
+    return item
 
 
 def get_item(db: Session, item_id: int) -> Item:

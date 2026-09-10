@@ -74,11 +74,16 @@ app/
 | 스킬 예약(낙찰) | `POST /skill-bookings` | 판매자가 낙찰가로 예약 생성. 구매자 포인트가 차감돼 에스크로에 보관 (FR-SKL-02·03) |
 | 스킬 완료 정산 | `POST /skill-bookings/{id}/complete` | 구매자가 완료 확인 → 에스크로를 판매자에게 정산 |
 | 스킬 노쇼 | `POST /skill-bookings/{id}/no-show` | 판매자 노쇼면 구매자 환불, 구매자 노쇼면 판매자 정산 (FR-SKL-05) |
+| 출석 체크 | `POST /points/check-in` | 하루 1회, 연속 출석 보너스 (FR-PRD-05) |
+| 미션 | `GET /points/missions`, `POST /points/missions/{key}/claim` | 첫 입찰·첫 등록·첫 리뷰 달성 시 보상 (FR-PRD-06) |
+| 광고 보상 | `POST /points/ad-reward` | 하루 N회 한도 내 포인트 지급 (FR-PRD-07) |
+| 상단 노출권 | `POST /items/{id}/spotlight` | 포인트로 구매, 24시간 동안 목록 상단 노출 (FR-PRD-08) |
 
 - 블라인드 경매는 마감 시 1st-price(제시가 그대로) 로 낙찰한다.
 - 정산 시 승리 포지션 풀이 비어 있으면 전원 원금 환불한다.
 - 스킬 예약 취소(`DELETE /skill-bookings/{id}`) 시 보관중 에스크로는 구매자에게 환불된다.
 - 에스크로 상태 변경(`PATCH /escrows/{id}`)은 실제 포인트 이동을 동반한다.
+- 포인트는 출석·미션·광고로만 적립된다. 수동 조정(`POST /point-transactions`)은 관리자 전용이다.
 
 ## 테스트
 

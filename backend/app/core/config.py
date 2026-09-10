@@ -23,6 +23,15 @@ class Settings(BaseSettings):
     auction_extend_by_seconds: int = 180
     auction_max_extensions: int = 10
 
+    # 포인트 이코노미 (FR-PRD-05~08)
+    point_checkin_base: int = 10          # 출석 기본 지급
+    point_checkin_streak_bonus: int = 2   # 연속 출석 1일당 추가 (상한 아래)
+    point_checkin_streak_cap: int = 7     # 보너스가 붙는 최대 연속일수
+    point_ad_reward: int = 5              # 광고 1회 시청 지급
+    point_ad_daily_limit: int = 5         # 하루 광고 보상 횟수 상한
+    spotlight_cost: int = 100             # 상단 노출권 가격
+    spotlight_hours: int = 24             # 상단 노출 지속 시간
+
     # CORS - 프론트엔드 오리진. 쉼표로 구분. 운영에서는 .env 로 재정의할 것
     cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
 

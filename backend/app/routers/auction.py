@@ -15,6 +15,8 @@ from app.schemas.auction import (
     BlindBidRankResponse,
     BlindBidResultRow,
 )
+from app.schemas.point import SpotlightResponse
+from app.core.config import settings
 from app.services import auction_service
 
 item_router = APIRouter(prefix="/items", tags=["Item / Auction"])
@@ -87,6 +89,21 @@ def buy_now(
         buyer_id=user.id,
         final_price=item.final_price,
         status=item.status,
+    )
+
+
+@item_router.post("/{item_id}/spotlight", response_model=SpotlightResponse)
+def buy_spotlight(
+    item_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    item = auction_service.buy_spotlight(db, item_id, user)
+    return SpotlightResponse(
+        item_id=item.id,
+        spotlight_until=item.spotlight_until,
+        cost=settings.spotlight_cost,
+        balance=user.points,
     )
 
 
