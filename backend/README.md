@@ -116,3 +116,4 @@ db=SessionLocal(); db.query(User).filter(User.email=='you@example.com').update({
   `POST /ai/abuse-check`(규칙 기반 어뷰징 문구 탐지, FR-AI-03). LLM 없이 통계/규칙으로 구현했으며,
   개발명세서의 Ollama LLM/RAG/CV Gateway 는 별도 서비스로 분리 예정.
 - 블라인드 입찰 금액은 마감 전까지 응답에 노출하지 않는다(접근 제어).
+- 동시 입찰 정합성(NFR-02): 입찰 처리 시 상품 행을 `SELECT ... FOR UPDATE` 로 잠근다(SQLite 는 미지원이라 생략).

@@ -273,8 +273,22 @@ def buy_now(db: Session, item_id: int, buyer_id: int) -> Item:
 
 
 # ==================== Bid ====================
+def _lock_item(db: Session, item_id: int) -> Item:
+    """입찰 처리 동안 상품 행을 잠근다 (NFR-02, 동시 입찰 정합성).
+
+    SQLite 는 행 잠금을 지원하지 않으므로 그 경우엔 일반 조회로 대체한다.
+    """
+    q = db.query(Item).filter(Item.id == item_id, Item.is_deleted.is_(False))
+    if db.bind and db.bind.dialect.name != "sqlite":
+        q = q.with_for_update()
+    item = q.first()
+    if not item:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "상품을 찾을 수 없습니다.")
+    return _finalize_if_ended(db, item)
+
+
 def create_bid(db: Session, item_id: int, bidder_id: int, payload: BidCreate) -> Bid:
-    item = get_item(db, item_id)
+    item = _lock_item(db, item_id)
     if item.auction_type != "general":
         raise HTTPException(
             status.HTTP_409_CONFLICT, "블라인드 경매는 비공개 입찰을 사용하세요."
