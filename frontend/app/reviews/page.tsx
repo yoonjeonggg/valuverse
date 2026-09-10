@@ -59,7 +59,8 @@ export default function ReviewsPage() {
     <div>
       <h1>리뷰 (Review)</h1>
       <p style={{ fontSize: 13 }}>
-        생성 시 item_id 또는 skill_item_id 중 정확히 하나만 지정하세요.
+        생성 시 item_id 또는 skill_item_id 중 정확히 하나만 지정하세요. 리뷰는
+        <b> 완료된 거래(낙찰/스킬 완료)의 당사자</b>만, 거래당 1회 작성할 수 있습니다.
       </p>
 
       <Section title="POST /reviews (인증)">

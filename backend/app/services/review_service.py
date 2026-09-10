@@ -3,12 +3,59 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core.timeutils import now, aware
+from app.models.auction import Item
 from app.models.review import Review
+from app.models.skill import SkillBooking, SkillItem
 from app.models.user import User
 from app.schemas.review import ReviewCreate, ReviewUpdate
 
 # 작성 후 수정 가능 기간(일)
 EDIT_WINDOW_DAYS = 7
+
+
+def _assert_traded(
+    db: Session, author_id: int, target_id: int, payload: ReviewCreate
+) -> None:
+    """작성자와 대상이 완료된 거래로 엮여 있는지 검증한다 (일반/스킬)."""
+    if payload.item_id:
+        item = db.get(Item, payload.item_id)
+        if not item or item.status != "closed" or not item.winner_id:
+            raise HTTPException(
+                status.HTTP_409_CONFLICT, "낙찰이 완료된 거래에만 리뷰를 남길 수 있습니다."
+            )
+        parties = {item.seller_id, item.winner_id}
+        if author_id not in parties or target_id not in parties:
+            raise HTTPException(
+                status.HTTP_403_FORBIDDEN, "해당 거래의 당사자만 리뷰를 남길 수 있습니다."
+            )
+        dup_col = Review.item_id == payload.item_id
+    else:
+        booking = (
+            db.query(SkillBooking)
+            .filter(
+                SkillBooking.skill_item_id == payload.skill_item_id,
+                SkillBooking.status == "completed",
+            )
+            .first()
+        )
+        if not booking:
+            raise HTTPException(
+                status.HTTP_409_CONFLICT, "완료된 스킬 거래에만 리뷰를 남길 수 있습니다."
+            )
+        parties = {booking.seller_id, booking.buyer_id}
+        if author_id not in parties or target_id not in parties:
+            raise HTTPException(
+                status.HTTP_403_FORBIDDEN, "해당 거래의 당사자만 리뷰를 남길 수 있습니다."
+            )
+        dup_col = Review.skill_item_id == payload.skill_item_id
+
+    dup = (
+        db.query(Review.id)
+        .filter(Review.author_id == author_id, dup_col, Review.is_deleted.is_(False))
+        .first()
+    )
+    if dup:
+        raise HTTPException(status.HTTP_409_CONFLICT, "이미 이 거래에 리뷰를 남겼습니다.")
 
 
 def _recalc_rating(db: Session, target_user_id: int) -> None:
@@ -30,6 +77,8 @@ def create_review(db: Session, author: User, payload: ReviewCreate) -> Review:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "본인에게 리뷰를 남길 수 없습니다.")
     if not db.query(User.id).filter(User.id == payload.target_user_id).first():
         raise HTTPException(status.HTTP_404_NOT_FOUND, "대상 사용자를 찾을 수 없습니다.")
+
+    _assert_traded(db, author.id, payload.target_user_id, payload)
 
     review = Review(
         author_id=author.id,

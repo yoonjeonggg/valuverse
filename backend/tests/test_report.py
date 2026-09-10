@@ -86,6 +86,8 @@ def test_resolve_review_report_deletes_and_recalcs_rating(client, make_user):
     target_h, target = make_user()
 
     item = _item(client, target_h)
+    client.post(f"/items/{item['id']}/bids", json={"amount": 2000}, headers=author_h)
+    client.post(f"/items/{item['id']}/close", headers=target_h)
     resp = client.post(
         "/reviews",
         json={

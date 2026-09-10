@@ -85,6 +85,7 @@ app/
 - 상품 등록 시 `auction_type`(`general`/`blind`)을 지정한다. 타입이 맞지 않는 입찰은 거부된다.
 - 블라인드 경매 낙찰 규칙은 `blind_price_rule` 로 정한다: `first`(제시가 그대로) / `second`(Vickrey, 2위 금액으로 결제, FR-BLD-04). 입찰자가 1명이면 본인 제시가.
 - 정산 시 승리 포지션 풀이 비어 있으면 전원 원금 환불한다.
+- 리뷰(`POST /reviews`)는 낙찰이 완료된 일반 경매 또는 완료된 스킬 거래의 당사자만, 거래당 1회 작성할 수 있다 (FR-SKL-04).
 - 스킬 예약 취소(`DELETE /skill-bookings/{id}`) 시 보관중 에스크로는 구매자에게 환불된다.
 - 에스크로 상태 변경(`PATCH /escrows/{id}`)은 실제 포인트 이동을 동반한다.
 - 포인트는 출석·미션·광고로만 적립된다. 수동 조정(`POST /point-transactions`)은 관리자 전용이다.
