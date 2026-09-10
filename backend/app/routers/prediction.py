@@ -10,6 +10,9 @@ from app.schemas.prediction import (
     PredictionResponse,
     PredictionBetCreate,
     PredictionBetResponse,
+    PredictionOddsResponse,
+    PredictionSettleRequest,
+    PredictionSettleResponse,
 )
 from app.services import prediction_service
 
@@ -40,6 +43,23 @@ def list_predictions(
 @prediction_router.get("/{prediction_id}", response_model=PredictionResponse)
 def get_prediction(prediction_id: int, db: Session = Depends(get_db)):
     return prediction_service.get_prediction(db, prediction_id)
+
+
+@prediction_router.get("/{prediction_id}/odds", response_model=PredictionOddsResponse)
+def get_odds(prediction_id: int, db: Session = Depends(get_db)):
+    return prediction_service.get_odds(db, prediction_id)
+
+
+@prediction_router.post(
+    "/{prediction_id}/settle", response_model=PredictionSettleResponse
+)
+def settle_prediction(
+    prediction_id: int,
+    payload: PredictionSettleRequest,
+    db: Session = Depends(get_db),
+    admin: User = Depends(get_current_admin),
+):
+    return prediction_service.settle_prediction(db, prediction_id, payload)
 
 
 @prediction_router.patch("/{prediction_id}", response_model=PredictionResponse)

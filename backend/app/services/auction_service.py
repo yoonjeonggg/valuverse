@@ -1,6 +1,9 @@
+from datetime import timedelta
+
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.core.timeutils import now, aware, is_past
 from app.models.auction import Item, Bid, BlindBid
 from app.schemas.auction import (
@@ -9,6 +12,54 @@ from app.schemas.auction import (
     BidCreate,
     BlindBidCreate,
 )
+
+
+# ==================== 낙찰/마감 ====================
+def _top_bid(db: Session, item_id: int) -> Bid | None:
+    return (
+        db.query(Bid)
+        .filter(Bid.item_id == item_id, Bid.is_cancelled.is_(False))
+        .order_by(Bid.amount.desc(), Bid.created_at.asc())
+        .first()
+    )
+
+
+def _top_blind_bid(db: Session, item_id: int) -> BlindBid | None:
+    return (
+        db.query(BlindBid)
+        .filter(BlindBid.item_id == item_id, BlindBid.is_cancelled.is_(False))
+        .order_by(BlindBid.amount.desc(), BlindBid.created_at.asc())
+        .first()
+    )
+
+
+def _finalize(db: Session, item: Item) -> Item:
+    """경매를 마감 상태로 확정한다. 최고 입찰자를 낙찰자로 기록.
+
+    일반 입찰(Bid)과 블라인드 입찰(BlindBid) 중 존재하는 쪽을 사용하며,
+    블라인드는 1st-price(제시가 그대로 낙찰)로 처리한다. 입찰이 없으면 유찰.
+    """
+    top = _top_bid(db, item.id)
+    if top is None:
+        blind = _top_blind_bid(db, item.id)
+        if blind is not None:
+            item.winner_id = blind.bidder_id
+            item.final_price = blind.amount
+            item.current_price = blind.amount
+    else:
+        item.winner_id = top.bidder_id
+        item.final_price = top.amount
+
+    item.status = "closed"
+    db.commit()
+    db.refresh(item)
+    return item
+
+
+def _finalize_if_ended(db: Session, item: Item) -> Item:
+    if item.status == "ongoing" and is_past(item.end_time):
+        return _finalize(db, item)
+    return item
 
 
 # ==================== Item ====================
@@ -41,16 +92,19 @@ def list_items(
     q = db.query(Item).filter(Item.is_deleted.is_(False))
     if category:
         q = q.filter(Item.category == category)
+    items = q.order_by(Item.created_at.desc()).offset(skip).limit(limit).all()
+    for item in items:
+        _finalize_if_ended(db, item)
     if status_filter:
-        q = q.filter(Item.status == status_filter)
-    return q.order_by(Item.created_at.desc()).offset(skip).limit(limit).all()
+        items = [i for i in items if i.status == status_filter]
+    return items
 
 
 def get_item(db: Session, item_id: int) -> Item:
     item = db.query(Item).filter(Item.id == item_id, Item.is_deleted.is_(False)).first()
     if not item:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "상품을 찾을 수 없습니다.")
-    return item
+    return _finalize_if_ended(db, item)
 
 
 def _has_bids(db: Session, item_id: int) -> bool:
@@ -91,6 +145,41 @@ def delete_item(db: Session, item_id: int, user_id: int) -> None:
         db.commit()
 
 
+def close_item(db: Session, item_id: int, user_id: int) -> Item:
+    """판매자가 경매를 조기 마감하고 낙찰자를 확정한다."""
+    item = get_item(db, item_id)
+    if item.seller_id != user_id:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "본인 상품만 마감할 수 있습니다.")
+    if item.status != "ongoing":
+        raise HTTPException(status.HTTP_409_CONFLICT, "이미 마감된 경매입니다.")
+    return _finalize(db, item)
+
+
+def buy_now(db: Session, item_id: int, buyer_id: int) -> Item:
+    """즉시구매가로 경매를 즉시 낙찰 처리한다."""
+    item = get_item(db, item_id)
+    if item.buy_now_price is None:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "즉시구매가 없는 상품입니다.")
+    if item.seller_id == buyer_id:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "본인 상품은 구매할 수 없습니다.")
+    if item.status != "ongoing" or is_past(item.end_time):
+        raise HTTPException(status.HTTP_409_CONFLICT, "마감된 경매입니다.")
+    if item.current_price >= item.buy_now_price:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, "현재가가 즉시구매가 이상입니다."
+        )
+
+    price = item.buy_now_price
+    db.add(Bid(item_id=item_id, bidder_id=buyer_id, amount=price))
+    item.current_price = price
+    item.status = "closed"
+    item.winner_id = buyer_id
+    item.final_price = price
+    db.commit()
+    db.refresh(item)
+    return item
+
+
 # ==================== Bid ====================
 def create_bid(db: Session, item_id: int, bidder_id: int, payload: BidCreate) -> Bid:
     item = get_item(db, item_id)
@@ -107,9 +196,26 @@ def create_bid(db: Session, item_id: int, bidder_id: int, payload: BidCreate) ->
     bid = Bid(item_id=item_id, bidder_id=bidder_id, amount=payload.amount)
     item.current_price = payload.amount
     db.add(bid)
+
+    # 스나이핑 방지: 마감 임박 입찰이면 마감시간을 연장한다 (FR-AUC-03)
+    _maybe_extend(item)
+
     db.commit()
     db.refresh(bid)
     return bid
+
+
+def _maybe_extend(item: Item) -> None:
+    end = aware(item.end_time)
+    if end is None:
+        return
+    remaining = (end - now()).total_seconds()
+    if (
+        0 < remaining <= settings.auction_extend_window_seconds
+        and item.extended_count < settings.auction_max_extensions
+    ):
+        item.end_time = end + timedelta(seconds=settings.auction_extend_by_seconds)
+        item.extended_count += 1
 
 
 def list_bids_for_item(db: Session, item_id: int) -> list[Bid]:

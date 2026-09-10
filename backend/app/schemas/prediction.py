@@ -51,5 +51,34 @@ class PredictionBetResponse(ORMModel):
     position: str
     amount: int
     result: str
+    payout: int = 0
     is_cancelled: bool
     created_at: datetime
+
+
+# ----- 파리뮤추얼 배당 / 정산 -----
+class PredictionOddsResponse(BaseModel):
+    prediction_id: int
+    yes_pool: int
+    no_pool: int
+    total_pool: int
+    yes_backers: int
+    no_backers: int
+    # 배당 배수(원금 포함). 해당 포지션 풀이 비어 있으면 null.
+    yes_odds: Optional[float] = None
+    no_odds: Optional[float] = None
+
+
+class PredictionSettleRequest(BaseModel):
+    result: Literal["yes", "no"]
+
+
+class PredictionSettleResponse(BaseModel):
+    prediction_id: int
+    result: str
+    total_pool: int
+    winning_pool: int
+    winners: int
+    losers: int
+    total_payout: int
+    refunded: bool

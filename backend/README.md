@@ -36,6 +36,9 @@ uvicorn app.main:app --reload
 | `ALGORITHM` | JWT 알고리즘 | `HS256` |
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | 액세스 토큰 만료(분) | `1440` |
 | `DATABASE_URL` | DB 접속 URL | `sqlite:///./auction.db` |
+| `AUCTION_EXTEND_WINDOW_SECONDS` | 마감 임박 판정 구간(초) | `180` |
+| `AUCTION_EXTEND_BY_SECONDS` | 자동 연장 시간(초) | `180` |
+| `AUCTION_MAX_EXTENSIONS` | 자동 연장 최대 횟수 | `10` |
 
 키 생성:
 
@@ -55,6 +58,31 @@ app/
   database.py  엔진 / 세션
   main.py      앱 엔트리포인트
 ```
+
+## 낙찰/정산 로직 (CRUD 이후 추가)
+
+기본 CRUD 위에 「개발명세서」 Phase 1~3 / 「기획서」 로드맵 1·2·4단계의 정산 로직을 얹었다.
+
+| 기능 | 엔드포인트 | 설명 |
+|---|---|---|
+| 즉시구매 | `POST /items/{id}/buy-now` | 즉시구매가로 즉시 낙찰, 경매 마감 |
+| 조기 마감 | `POST /items/{id}/close` | 판매자가 경매를 마감하고 최고 입찰자를 낙찰자로 확정 |
+| 자동 연장 | (입찰 시 자동) | 마감 임박 입찰이면 마감시간을 연장 (FR-AUC-03, 스나이핑 방지) |
+| 자동 마감 | (조회 시 자동) | `end_time` 이 지난 경매는 조회 시 낙찰 확정 처리 |
+| 배당률 조회 | `GET /predictions/{id}/odds` | 현재 베팅 풀 기준 파리뮤추얼 배당 배수 (FR-PRD-03) |
+| 명제 정산 | `POST /predictions/{id}/settle` | 관리자, 결과 확정 후 승자에게 파리뮤추얼 배당 포인트 지급 (FR-PRD-04) |
+
+- 블라인드 경매는 마감 시 1st-price(제시가 그대로) 로 낙찰한다.
+- 정산 시 승리 포지션 풀이 비어 있으면 전원 원금 환불한다.
+
+## 테스트
+
+```bash
+pip install -r requirements.txt   # pytest 포함
+pytest
+```
+
+`tests/` 는 인메모리 SQLite 로 격리 실행된다. 낙찰·자동연장·파리뮤추얼 정산 시나리오를 커버한다.
 
 ## 관리자 계정
 

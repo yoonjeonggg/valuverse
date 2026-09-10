@@ -9,7 +9,19 @@ from app.schemas.prediction import (
     PredictionCreate,
     PredictionUpdate,
     PredictionBetCreate,
+    PredictionSettleRequest,
 )
+
+
+def _active_bets(db: Session, prediction_id: int) -> list[PredictionBet]:
+    return (
+        db.query(PredictionBet)
+        .filter(
+            PredictionBet.prediction_id == prediction_id,
+            PredictionBet.is_cancelled.is_(False),
+        )
+        .all()
+    )
 
 
 # ==================== Prediction ====================
@@ -117,6 +129,110 @@ def create_bet(
     db.commit()
     db.refresh(bet)
     return bet
+
+
+def get_odds(db: Session, prediction_id: int) -> dict:
+    """현재 베팅 풀 기준 파리뮤추얼 배당 배수를 계산한다 (FR-PRD-03)."""
+    get_prediction(db, prediction_id)
+    bets = [b for b in _active_bets(db, prediction_id) if b.result == "pending"]
+    yes = [b for b in bets if b.position == "yes"]
+    no = [b for b in bets if b.position == "no"]
+    yes_pool = sum(b.amount for b in yes)
+    no_pool = sum(b.amount for b in no)
+    total = yes_pool + no_pool
+    return {
+        "prediction_id": prediction_id,
+        "yes_pool": yes_pool,
+        "no_pool": no_pool,
+        "total_pool": total,
+        "yes_backers": len(yes),
+        "no_backers": len(no),
+        "yes_odds": round(total / yes_pool, 2) if yes_pool else None,
+        "no_odds": round(total / no_pool, 2) if no_pool else None,
+    }
+
+
+def settle_prediction(
+    db: Session, prediction_id: int, payload: PredictionSettleRequest
+) -> dict:
+    """명제를 정산한다. 승리 포지션 베팅자에게 파리뮤추얼 방식으로 배당 (FR-PRD-04).
+
+    - 승리 풀이 비어 있으면(아무도 정답을 고르지 않음) 전원 원금 환불.
+    - 그 외에는 승자가 전체 풀을 자기 지분 비율로 나눠 가진다.
+    """
+    prediction = get_prediction(db, prediction_id)
+    if prediction.status == "settled":
+        raise HTTPException(status.HTTP_409_CONFLICT, "이미 정산된 명제입니다.")
+    if not is_past(prediction.end_time):
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, "마감 시간 전에는 정산할 수 없습니다."
+        )
+
+    bets = [b for b in _active_bets(db, prediction_id) if b.result == "pending"]
+    total_pool = sum(b.amount for b in bets)
+    winners = [b for b in bets if b.position == payload.result]
+    losers = [b for b in bets if b.position != payload.result]
+    winning_pool = sum(b.amount for b in winners)
+
+    total_payout = 0
+    refunded = winning_pool == 0
+
+    users = {b.user_id: db.get(User, b.user_id) for b in bets}
+
+    if refunded:
+        for b in bets:
+            _pay(db, users[b.user_id], b, b.amount, "refunded", "refund",
+                 f"예측 정산 환불 #{prediction_id}")
+            total_payout += b.amount
+    else:
+        for b in winners:
+            amount = b.amount * total_pool // winning_pool
+            _pay(db, users[b.user_id], b, amount, "won", "bet",
+                 f"예측 정산 배당 #{prediction_id}")
+            total_payout += amount
+        for b in losers:
+            b.result = "lost"
+            b.payout = 0
+
+    prediction.status = "settled"
+    prediction.result = payload.result
+    db.commit()
+
+    return {
+        "prediction_id": prediction_id,
+        "result": payload.result,
+        "total_pool": total_pool,
+        "winning_pool": winning_pool,
+        "winners": len(winners),
+        "losers": len(losers),
+        "total_payout": total_payout,
+        "refunded": refunded,
+    }
+
+
+def _pay(
+    db: Session,
+    user: User,
+    bet: PredictionBet,
+    amount: int,
+    bet_result: str,
+    tx_type: str,
+    memo: str,
+) -> None:
+    bet.result = bet_result
+    bet.payout = amount
+    if amount <= 0 or user is None:
+        return
+    user.points += amount
+    db.add(
+        PointTransaction(
+            user_id=user.id,
+            amount=amount,
+            type=tx_type,
+            memo=memo,
+            balance_after=user.points,
+        )
+    )
 
 
 def list_my_bets(db: Session, user_id: int) -> list[PredictionBet]:

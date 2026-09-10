@@ -38,12 +38,22 @@ class ItemResponse(ORMModel):
     current_price: int
     end_time: datetime
     status: str
+    winner_id: Optional[int] = None
+    final_price: Optional[int] = None
+    extended_count: int = 0
     created_at: datetime
 
 
 # ----- Bid -----
 class BidCreate(BaseModel):
     amount: int = Field(gt=0)
+
+
+class BuyNowResponse(ORMModel):
+    item_id: int
+    buyer_id: int
+    final_price: int
+    status: str
 
 
 class BidResponse(ORMModel):

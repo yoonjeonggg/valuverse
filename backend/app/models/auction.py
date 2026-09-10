@@ -29,6 +29,11 @@ class Item(Base):
     # ongoing | closed
     status = Column(String(20), nullable=False, default="ongoing", index=True)
     is_deleted = Column(Boolean, nullable=False, default=False)
+    # 낙찰 확정 결과 (마감/즉시구매 시 채워짐). 유찰이면 winner_id 는 NULL 로 남는다.
+    winner_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
+    final_price = Column(Integer, nullable=True)
+    # 마감 임박 입찰로 자동 연장된 횟수 (스나이핑 방지)
+    extended_count = Column(Integer, nullable=False, default=0)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 

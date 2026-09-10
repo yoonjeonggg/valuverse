@@ -8,6 +8,7 @@ from app.schemas.auction import (
     ItemCreate,
     ItemUpdate,
     ItemResponse,
+    BuyNowResponse,
     BidCreate,
     BidResponse,
     BlindBidCreate,
@@ -63,6 +64,30 @@ def delete_item(
     user: User = Depends(get_current_user),
 ):
     auction_service.delete_item(db, item_id, user.id)
+
+
+@item_router.post("/{item_id}/close", response_model=ItemResponse)
+def close_item(
+    item_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    return auction_service.close_item(db, item_id, user.id)
+
+
+@item_router.post("/{item_id}/buy-now", response_model=BuyNowResponse)
+def buy_now(
+    item_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    item = auction_service.buy_now(db, item_id, user.id)
+    return BuyNowResponse(
+        item_id=item.id,
+        buyer_id=user.id,
+        final_price=item.final_price,
+        status=item.status,
+    )
 
 
 # ==================== Bid ====================

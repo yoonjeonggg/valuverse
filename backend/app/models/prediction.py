@@ -43,5 +43,7 @@ class PredictionBet(Base):
     amount = Column(Integer, nullable=False)  # 차감된 포인트
     # pending | won | lost | refunded
     result = Column(String(10), nullable=False, default="pending")
+    # 정산 시 지급된 포인트 (원금 + 배당). 미정산/패배는 0.
+    payout = Column(Integer, nullable=False, default=0)
     is_cancelled = Column(Boolean, nullable=False, default=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

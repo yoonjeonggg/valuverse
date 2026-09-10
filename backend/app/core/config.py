@@ -18,6 +18,11 @@ class Settings(BaseSettings):
     # DB
     database_url: str = "sqlite:///./auction.db"
 
+    # 경매 - 마감 임박 입찰 시 자동 연장 (스나이핑 방지, FR-AUC-03)
+    auction_extend_window_seconds: int = 180
+    auction_extend_by_seconds: int = 180
+    auction_max_extensions: int = 10
+
     # CORS - 프론트엔드 오리진. 쉼표로 구분. 운영에서는 .env 로 재정의할 것
     cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
 
