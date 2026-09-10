@@ -5,24 +5,12 @@ from datetime import timedelta
 import pytest
 
 from app.core.timeutils import now
-from tests.conftest import TestingSessionLocal
 
 
 @pytest.fixture
-def move_deadline():
-    """predictions.end_time 을 현재 기준 delta 만큼 이동시킨다."""
-
-    def _move(prediction_id: int, seconds: int):
-        session = TestingSessionLocal()
-        from app.models.prediction import Prediction
-
-        session.query(Prediction).filter(Prediction.id == prediction_id).update(
-            {"end_time": now() + timedelta(seconds=seconds)}
-        )
-        session.commit()
-        session.close()
-
-    return _move
+def move_deadline(move_pred):
+    """predictions.end_time 이동 (conftest.move_pred 위임)."""
+    return move_pred
 
 
 def _create_prediction(client, admin_h, **overrides):

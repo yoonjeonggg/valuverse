@@ -5,24 +5,12 @@ from datetime import timedelta
 import pytest
 
 from app.core.timeutils import now
-from tests.conftest import TestingSessionLocal
 
 
 @pytest.fixture
-def move_deadline():
-    """items.end_time 을 현재 기준 delta 만큼 이동시킨다 (마감 시뮬레이션)."""
-
-    def _move(item_id: int, seconds: int):
-        session = TestingSessionLocal()
-        from app.models.auction import Item
-
-        session.query(Item).filter(Item.id == item_id).update(
-            {"end_time": now() + timedelta(seconds=seconds)}
-        )
-        session.commit()
-        session.close()
-
-    return _move
+def move_deadline(move_item):
+    """items.end_time 이동 (conftest.move_item 위임)."""
+    return move_item
 
 
 def _create_item(client, headers, **overrides):

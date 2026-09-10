@@ -6,6 +6,30 @@ from app.models.user import User
 from app.schemas.point import PointTransactionCreate
 
 
+def apply_delta(
+    db: Session,
+    user: User,
+    amount: int,
+    tx_type: str,
+    memo: str | None = None,
+) -> PointTransaction:
+    """사용자 포인트를 `amount` 만큼 조정하고 이력 트랜잭션을 남긴다.
+
+    잔액/권한 검증은 호출자 책임이며, 커밋도 호출자가 한다.
+    (양수=적립, 음수=차감. `type` 예: attendance|mission|ad|bet|spend|refund|etc)
+    """
+    user.points += amount
+    tx = PointTransaction(
+        user_id=user.id,
+        amount=amount,
+        type=tx_type,
+        memo=memo,
+        balance_after=user.points,
+    )
+    db.add(tx)
+    return tx
+
+
 def create_transaction(
     db: Session, requester: User, payload: PointTransactionCreate
 ) -> PointTransaction:
@@ -21,19 +45,10 @@ def create_transaction(
     if not target:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "대상 사용자를 찾을 수 없습니다.")
 
-    new_balance = target.points + payload.amount
-    if new_balance < 0:
+    if target.points + payload.amount < 0:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "보유 포인트가 부족합니다.")
 
-    target.points = new_balance
-    tx = PointTransaction(
-        user_id=target.id,
-        amount=payload.amount,
-        type=payload.type,
-        memo=payload.memo,
-        balance_after=new_balance,
-    )
-    db.add(tx)
+    tx = apply_delta(db, target, payload.amount, payload.type, payload.memo)
     db.commit()
     db.refresh(tx)
     return tx

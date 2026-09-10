@@ -7,9 +7,8 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core.timeutils import now, aware, is_past
 from app.models.auction import Item, Bid, BlindBid
-from app.models.point import PointTransaction
 from app.models.user import User
-from app.services import notification_service
+from app.services import notification_service, point_service
 from app.services.ws_manager import manager as ws_manager
 
 
@@ -157,15 +156,8 @@ def buy_spotlight(db: Session, item_id: int, user: User) -> Item:
         base = current  # 남은 시간에 이어붙인다
     item.spotlight_until = base + timedelta(hours=settings.spotlight_hours)
 
-    user.points -= settings.spotlight_cost
-    db.add(
-        PointTransaction(
-            user_id=user.id,
-            amount=-settings.spotlight_cost,
-            type="spend",
-            memo=f"상단 노출권 구매 #{item.id}",
-            balance_after=user.points,
-        )
+    point_service.apply_delta(
+        db, user, -settings.spotlight_cost, "spend", f"상단 노출권 구매 #{item.id}"
     )
     db.commit()
     db.refresh(item)

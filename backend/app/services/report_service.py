@@ -9,7 +9,7 @@ from app.models.skill import SkillItem
 from app.models.user import User
 from app.schemas.report import ReportCreate, ReportUpdate
 from app.services import notification_service
-from app.services.review_service import _recalc_rating
+from app.services.review_service import recalc_rating
 
 _TARGET_MODELS = {
     "user": User,
@@ -153,7 +153,7 @@ def _apply_sanction(db: Session, report: Report) -> None:
     elif report.target_type == "review":
         target.is_deleted = True
         db.flush()
-        _recalc_rating(db, target.target_user_id)
+        recalc_rating(db, target.target_user_id)
         notification_service.notify(
             db, target.author_id, "sanction",
             "신고 인용으로 작성한 리뷰가 삭제되었습니다.", "review", target.id,

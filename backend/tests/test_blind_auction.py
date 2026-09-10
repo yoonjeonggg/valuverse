@@ -3,18 +3,6 @@
 from datetime import timedelta
 
 from app.core.timeutils import now
-from tests.conftest import TestingSessionLocal
-
-
-def _move_deadline(item_id: int, seconds: int):
-    session = TestingSessionLocal()
-    from app.models.auction import Item
-
-    session.query(Item).filter(Item.id == item_id).update(
-        {"end_time": now() + timedelta(seconds=seconds)}
-    )
-    session.commit()
-    session.close()
 
 
 def _create(client, headers, **ov):
@@ -61,7 +49,7 @@ def test_buy_now_rejected_on_blind_item(client, make_user):
 
 
 # ---------- 1st-price ----------
-def test_first_price_winner_pays_own_bid(client, make_user):
+def test_first_price_winner_pays_own_bid(client, make_user, move_item):
     seller_h, _ = make_user()
     b1_h, b1 = make_user()
     b2_h, b2 = make_user()
@@ -69,14 +57,14 @@ def test_first_price_winner_pays_own_bid(client, make_user):
     _blind_bid(client, b1_h, item["id"], 5000)
     _blind_bid(client, b2_h, item["id"], 8000)
 
-    _move_deadline(item["id"], -1)
+    move_item(item["id"], -1)
     got = client.get(f"/items/{item['id']}").json()
     assert got["winner_id"] == b2["id"]
     assert got["final_price"] == 8000
 
 
 # ---------- Vickrey 2nd-price ----------
-def test_vickrey_winner_pays_second_price(client, make_user):
+def test_vickrey_winner_pays_second_price(client, make_user, move_item):
     seller_h, _ = make_user()
     b1_h, b1 = make_user()
     b2_h, b2 = make_user()
@@ -86,19 +74,19 @@ def test_vickrey_winner_pays_second_price(client, make_user):
     _blind_bid(client, b2_h, item["id"], 9000)
     _blind_bid(client, b3_h, item["id"], 7000)
 
-    _move_deadline(item["id"], -1)
+    move_item(item["id"], -1)
     got = client.get(f"/items/{item['id']}").json()
     assert got["winner_id"] == b2["id"]      # 최고가 제시자가 낙찰
     assert got["final_price"] == 7000        # 2위 금액으로 결제
 
 
-def test_vickrey_single_bidder_pays_own_bid(client, make_user):
+def test_vickrey_single_bidder_pays_own_bid(client, make_user, move_item):
     seller_h, _ = make_user()
     b1_h, b1 = make_user()
     item = _create(client, seller_h, auction_type="blind", blind_price_rule="second")
     _blind_bid(client, b1_h, item["id"], 5000)
 
-    _move_deadline(item["id"], -1)
+    move_item(item["id"], -1)
     got = client.get(f"/items/{item['id']}").json()
     assert got["winner_id"] == b1["id"]
     assert got["final_price"] == 5000

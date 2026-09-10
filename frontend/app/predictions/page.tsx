@@ -2,13 +2,8 @@
 
 import { useState } from "react";
 import { api } from "../lib/api";
+import { toIso } from "../lib/format";
 import { Field, Result, Section, useCall } from "../lib/ui";
-
-function toIso(local: string): string | undefined {
-  if (!local) return undefined;
-  const d = new Date(local);
-  return isNaN(d.getTime()) ? undefined : d.toISOString();
-}
 
 export default function PredictionsPage() {
   const [statusFilter, setStatusFilter] = useState("");

@@ -1,7 +1,6 @@
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.models.point import PointTransaction
 from app.models.skill import SkillItem, SkillBooking, Escrow
 from app.models.user import User
 from app.schemas.skill import (
@@ -13,19 +12,7 @@ from app.schemas.skill import (
     EscrowUpdate,
 )
 from app.services import notification_service
-
-
-def _move_points(db: Session, user: User, amount: int, tx_type: str, memo: str) -> None:
-    user.points += amount
-    db.add(
-        PointTransaction(
-            user_id=user.id,
-            amount=amount,
-            type=tx_type,
-            memo=memo,
-            balance_after=user.points,
-        )
-    )
+from app.services.point_service import apply_delta as _move_points
 
 
 def _settle_escrow(db: Session, escrow: Escrow) -> None:

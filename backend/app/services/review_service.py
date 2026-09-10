@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from app.core.timeutils import now, aware
 from app.models.auction import Item
 from app.models.review import Review
-from app.models.skill import SkillBooking, SkillItem
+from app.models.skill import SkillBooking
 from app.models.user import User
 from app.schemas.review import ReviewCreate, ReviewUpdate
 
@@ -58,7 +58,7 @@ def _assert_traded(
         raise HTTPException(status.HTTP_409_CONFLICT, "이미 이 거래에 리뷰를 남겼습니다.")
 
 
-def _recalc_rating(db: Session, target_user_id: int) -> None:
+def recalc_rating(db: Session, target_user_id: int) -> None:
     avg = (
         db.query(func.avg(Review.rating))
         .filter(
@@ -90,7 +90,7 @@ def create_review(db: Session, author: User, payload: ReviewCreate) -> Review:
     )
     db.add(review)
     db.flush()
-    _recalc_rating(db, payload.target_user_id)
+    recalc_rating(db, payload.target_user_id)
     db.commit()
     db.refresh(review)
     return review
@@ -138,7 +138,7 @@ def update_review(
     for field, value in payload.model_dump(exclude_unset=True).items():
         setattr(review, field, value)
     db.flush()
-    _recalc_rating(db, review.target_user_id)
+    recalc_rating(db, review.target_user_id)
     db.commit()
     db.refresh(review)
     return review
@@ -152,5 +152,5 @@ def delete_review(db: Session, review_id: int, user: User) -> None:
         )
     review.is_deleted = True
     db.flush()
-    _recalc_rating(db, review.target_user_id)
+    recalc_rating(db, review.target_user_id)
     db.commit()

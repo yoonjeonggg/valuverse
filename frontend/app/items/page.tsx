@@ -2,13 +2,8 @@
 
 import { useRef, useState } from "react";
 import { api, API_BASE_URL, getToken } from "../lib/api";
+import { toIso } from "../lib/format";
 import { Field, Result, Section, useCall } from "../lib/ui";
-
-function toIso(local: string): string | undefined {
-  if (!local) return undefined;
-  const d = new Date(local);
-  return isNaN(d.getTime()) ? undefined : d.toISOString();
-}
 
 export default function ItemsPage() {
   // 목록 필터

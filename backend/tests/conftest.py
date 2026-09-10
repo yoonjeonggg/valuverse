@@ -121,21 +121,33 @@ def get_points(client):
     return _get
 
 
-@pytest.fixture
-def move_pred():
-    """predictions.end_time 을 현재 기준 delta(초) 만큼 이동."""
+def _deadline_mover(model):
     from datetime import timedelta
 
     from app.core.timeutils import now
 
-    def _move(prediction_id: int, seconds: int):
+    def _move(row_id: int, seconds: int):
         session = TestingSessionLocal()
-        from app.models.prediction import Prediction
-
-        session.query(Prediction).filter(Prediction.id == prediction_id).update(
+        session.query(model).filter(model.id == row_id).update(
             {"end_time": now() + timedelta(seconds=seconds)}
         )
         session.commit()
         session.close()
 
     return _move
+
+
+@pytest.fixture
+def move_pred():
+    """predictions.end_time 을 현재 기준 delta(초) 만큼 이동."""
+    from app.models.prediction import Prediction
+
+    return _deadline_mover(Prediction)
+
+
+@pytest.fixture
+def move_item():
+    """items.end_time 을 현재 기준 delta(초) 만큼 이동."""
+    from app.models.auction import Item
+
+    return _deadline_mover(Item)

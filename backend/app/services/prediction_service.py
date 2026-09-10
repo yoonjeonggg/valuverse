@@ -3,7 +3,6 @@ from sqlalchemy.orm import Session
 
 from app.core.timeutils import is_past
 from app.models.prediction import Prediction, PredictionBet
-from app.models.point import PointTransaction
 from app.models.user import User
 from app.schemas.prediction import (
     PredictionCreate,
@@ -12,6 +11,7 @@ from app.schemas.prediction import (
     PredictionSettleRequest,
 )
 from app.services import notification_service
+from app.services.point_service import apply_delta
 
 
 def _active_bets(db: Session, prediction_id: int) -> list[PredictionBet]:
@@ -109,7 +109,6 @@ def create_bet(
     if user.points < payload.amount:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "보유 포인트가 부족합니다.")
 
-    user.points -= payload.amount
     bet = PredictionBet(
         prediction_id=prediction_id,
         user_id=user.id,
@@ -118,15 +117,7 @@ def create_bet(
         result="pending",
     )
     db.add(bet)
-    db.add(
-        PointTransaction(
-            user_id=user.id,
-            amount=-payload.amount,
-            type="bet",
-            memo=f"예측 베팅 #{prediction_id}",
-            balance_after=user.points,
-        )
-    )
+    apply_delta(db, user, -payload.amount, "bet", f"예측 베팅 #{prediction_id}")
     db.commit()
     db.refresh(bet)
     return bet
@@ -239,16 +230,7 @@ def _pay(
     bet.payout = amount
     if amount <= 0 or user is None:
         return
-    user.points += amount
-    db.add(
-        PointTransaction(
-            user_id=user.id,
-            amount=amount,
-            type=tx_type,
-            memo=memo,
-            balance_after=user.points,
-        )
-    )
+    apply_delta(db, user, amount, tx_type, memo)
 
 
 def list_my_bets(db: Session, user_id: int) -> list[PredictionBet]:
@@ -275,14 +257,7 @@ def cancel_bet(db: Session, bet_id: int, user: User) -> None:
 
     bet.is_cancelled = True
     bet.result = "refunded"
-    user.points += bet.amount
-    db.add(
-        PointTransaction(
-            user_id=user.id,
-            amount=bet.amount,
-            type="refund",
-            memo=f"예측 베팅 취소 #{bet.prediction_id}",
-            balance_after=user.points,
-        )
+    apply_delta(
+        db, user, bet.amount, "refund", f"예측 베팅 취소 #{bet.prediction_id}"
     )
     db.commit()

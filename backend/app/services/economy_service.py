@@ -17,20 +17,7 @@ from app.models.economy import Attendance, Coupon, MissionClaim
 from app.models.point import PointTransaction
 from app.models.review import Review
 from app.models.user import User
-
-
-def _grant(db: Session, user: User, amount: int, tx_type: str, memo: str) -> None:
-    user.points += amount
-    db.add(
-        PointTransaction(
-            user_id=user.id,
-            amount=amount,
-            type=tx_type,
-            memo=memo,
-            balance_after=user.points,
-        )
-    )
-
+from app.services.point_service import apply_delta as _grant
 
 # ==================== 출석 체크 ====================
 def check_in(db: Session, user: User) -> dict:
