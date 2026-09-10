@@ -47,18 +47,23 @@ async def auction_bid_ws(
     try:
         try:
             item = await run_in_threadpool(auction_service.get_item, db, item_id)
+            snapshot = _snapshot(item)
         except Exception:
             await websocket.send_json(
                 {"type": "error", "detail": "상품을 찾을 수 없습니다."}
             )
             return
+        finally:
+            # 읽기 트랜잭션을 즉시 닫아 다른 요청과의 경합을 피한다.
+            db.rollback()
 
-        await websocket.send_json(_snapshot(item))
+        await websocket.send_json(snapshot)
 
         while True:
             msg = await websocket.receive_json()
             token = msg.get("token") or websocket.query_params.get("token")
             user = _user_from_token(db, token)
+            db.rollback()
             if not user:
                 await websocket.send_json(
                     {"type": "error", "detail": "인증이 필요합니다."}
@@ -82,6 +87,7 @@ async def auction_bid_ws(
                     BidCreate(amount=amount),
                 )
             except Exception as exc:
+                db.rollback()
                 detail = getattr(exc, "detail", str(exc))
                 await websocket.send_json({"type": "error", "detail": detail})
     except WebSocketDisconnect:

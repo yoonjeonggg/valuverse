@@ -11,6 +11,7 @@ export default function MePage() {
   const [userId, setUserId] = useState("");
 
   const me = useCall(() => api("/users/me", { auth: true }));
+  const dashboard = useCall(() => api("/users/me/dashboard", { auth: true }));
   const update = useCall(() =>
     api("/users/me", {
       method: "PATCH",
@@ -34,6 +35,11 @@ export default function MePage() {
       <Section title="GET /users/me (인증 필요)">
         <button onClick={() => me.run()}>조회</button>
         <Result data={me.data} error={me.error} loading={me.loading} />
+      </Section>
+
+      <Section title="GET /users/me/dashboard (마이페이지 요약, 인증)">
+        <button onClick={() => dashboard.run()}>요약 조회</button>
+        <Result data={dashboard.data} error={dashboard.error} loading={dashboard.loading} />
       </Section>
 
       <Section title="PATCH /users/me (인증 필요)">

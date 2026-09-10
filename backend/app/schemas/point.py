@@ -63,3 +63,21 @@ class SpotlightResponse(BaseModel):
     spotlight_until: datetime
     cost: int
     balance: int
+
+
+class CouponCatalogRow(BaseModel):
+    key: str
+    cost: int
+    discount_percent: int
+    description: str
+
+
+class CouponResponse(ORMModel):
+    id: int
+    catalog_key: str
+    discount_percent: int
+    cost: int
+    is_used: bool
+    used_at: Optional[datetime] = None
+    expires_at: datetime
+    created_at: datetime

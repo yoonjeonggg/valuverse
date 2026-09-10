@@ -11,9 +11,9 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.core.timeutils import now
+from app.core.timeutils import now, is_past
 from app.models.auction import Bid, Item
-from app.models.economy import Attendance, MissionClaim
+from app.models.economy import Attendance, Coupon, MissionClaim
 from app.models.point import PointTransaction
 from app.models.review import Review
 from app.models.user import User
@@ -140,6 +140,67 @@ def claim_mission(db: Session, user: User, key: str) -> dict:
     _grant(db, user, reward, "mission", f"미션 보상: {MISSIONS[key][1]}")
     db.commit()
     return {"key": key, "reward": reward, "balance": user.points}
+
+
+# ==================== 쿠폰 교환 (포인트 소모처) ====================
+# key -> (가격, 할인율(%), 설명)
+COUPON_CATALOG: dict[str, tuple[int, int, str]] = {
+    "fee_5": (200, 5, "수수료 5% 할인 쿠폰"),
+    "fee_10": (350, 10, "수수료 10% 할인 쿠폰"),
+    "fee_20": (600, 20, "수수료 20% 할인 쿠폰"),
+}
+
+
+def list_coupon_catalog() -> list[dict]:
+    return [
+        {"key": k, "cost": c, "discount_percent": d, "description": desc}
+        for k, (c, d, desc) in COUPON_CATALOG.items()
+    ]
+
+
+def redeem_coupon(db: Session, user: User, key: str) -> Coupon:
+    if key not in COUPON_CATALOG:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "존재하지 않는 쿠폰입니다.")
+    cost, discount, desc = COUPON_CATALOG[key]
+    if user.points < cost:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "보유 포인트가 부족합니다.")
+
+    _grant(db, user, -cost, "spend", f"쿠폰 교환: {desc}")
+    coupon = Coupon(
+        user_id=user.id,
+        catalog_key=key,
+        discount_percent=discount,
+        cost=cost,
+        expires_at=now() + timedelta(days=settings.coupon_valid_days),
+    )
+    db.add(coupon)
+    db.commit()
+    db.refresh(coupon)
+    return coupon
+
+
+def list_my_coupons(db: Session, user_id: int, unused_only: bool = False) -> list[Coupon]:
+    q = db.query(Coupon).filter(Coupon.user_id == user_id)
+    if unused_only:
+        q = q.filter(Coupon.is_used.is_(False))
+    return q.order_by(Coupon.created_at.desc()).all()
+
+
+def use_coupon(db: Session, coupon_id: int, user_id: int) -> Coupon:
+    coupon = db.query(Coupon).filter(Coupon.id == coupon_id).first()
+    if not coupon:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "쿠폰을 찾을 수 없습니다.")
+    if coupon.user_id != user_id:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "본인 쿠폰만 사용할 수 있습니다.")
+    if coupon.is_used:
+        raise HTTPException(status.HTTP_409_CONFLICT, "이미 사용한 쿠폰입니다.")
+    if is_past(coupon.expires_at):
+        raise HTTPException(status.HTTP_409_CONFLICT, "유효기간이 지난 쿠폰입니다.")
+    coupon.is_used = True
+    coupon.used_at = now()
+    db.commit()
+    db.refresh(coupon)
+    return coupon
 
 
 # ==================== 광고 보상 ====================

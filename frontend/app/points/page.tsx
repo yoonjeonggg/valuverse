@@ -11,6 +11,8 @@ export default function PointsPage() {
   const [targetUserId, setTargetUserId] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
   const [missionKey, setMissionKey] = useState("first_bid");
+  const [couponKey, setCouponKey] = useState("fee_10");
+  const [couponId, setCouponId] = useState("");
 
   const balance = useCall(() =>
     api("/users/me/points/balance", { auth: true }),
@@ -24,6 +26,14 @@ export default function PointsPage() {
   );
   const adReward = useCall(() =>
     api("/points/ad-reward", { method: "POST", auth: true }),
+  );
+  const couponCatalog = useCall(() => api("/points/coupons/catalog"));
+  const redeemCoupon = useCall(() =>
+    api(`/points/coupons/${couponKey}/redeem`, { method: "POST", auth: true }),
+  );
+  const myCoupons = useCall(() => api("/users/me/coupons", { auth: true }));
+  const useCoupon = useCall(() =>
+    api(`/points/coupons/${Number(couponId)}/use`, { method: "POST", auth: true }),
   );
   const listTx = useCall(() =>
     api("/users/me/point-transactions", {
@@ -69,6 +79,31 @@ export default function PointsPage() {
         <Result data={claimMission.data} error={claimMission.error} loading={claimMission.loading} />
         <button onClick={() => adReward.run()}>POST /points/ad-reward</button>
         <Result data={adReward.data} error={adReward.error} loading={adReward.loading} />
+      </Section>
+
+      <Section title="소모 — 수수료 할인 쿠폰 (FR-PRD-08)">
+        <button onClick={() => couponCatalog.run()}>GET /points/coupons/catalog</button>
+        <Result data={couponCatalog.data} error={couponCatalog.error} loading={couponCatalog.loading} />
+        <Field
+          label="catalog key (fee_5/fee_10/fee_20)"
+          value={couponKey}
+          onChange={(e) => setCouponKey(e.target.value)}
+        />
+        <button onClick={() => redeemCoupon.run()}>
+          POST /points/coupons/{"{key}"}/redeem (인증)
+        </button>
+        <Result data={redeemCoupon.data} error={redeemCoupon.error} loading={redeemCoupon.loading} />
+        <button onClick={() => myCoupons.run()}>GET /users/me/coupons (인증)</button>
+        <Result data={myCoupons.data} error={myCoupons.error} loading={myCoupons.loading} />
+        <Field
+          label="coupon_id"
+          value={couponId}
+          onChange={(e) => setCouponId(e.target.value)}
+        />
+        <button onClick={() => useCoupon.run()}>
+          POST /points/coupons/{"{id}"}/use (인증)
+        </button>
+        <Result data={useCoupon.data} error={useCoupon.error} loading={useCoupon.loading} />
       </Section>
 
       <Section title="POST /point-transactions (관리자 전용)">

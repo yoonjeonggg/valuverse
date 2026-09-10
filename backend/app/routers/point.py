@@ -12,6 +12,8 @@ from app.schemas.point import (
     MissionStatus,
     MissionClaimResponse,
     AdRewardResponse,
+    CouponCatalogRow,
+    CouponResponse,
 )
 from app.services import point_service, economy_service
 
@@ -78,3 +80,36 @@ def claim_mission(
 @router.post("/points/ad-reward", response_model=AdRewardResponse)
 def ad_reward(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     return economy_service.ad_reward(db, user)
+
+
+# ==================== 소모 (쿠폰 교환) ====================
+@router.get("/points/coupons/catalog", response_model=list[CouponCatalogRow])
+def coupon_catalog():
+    return economy_service.list_coupon_catalog()
+
+
+@router.post("/points/coupons/{key}/redeem", response_model=CouponResponse)
+def redeem_coupon(
+    key: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    return economy_service.redeem_coupon(db, user, key)
+
+
+@router.get("/users/me/coupons", response_model=list[CouponResponse])
+def list_my_coupons(
+    unused_only: bool = Query(default=False, alias="unused"),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    return economy_service.list_my_coupons(db, user.id, unused_only)
+
+
+@router.post("/points/coupons/{coupon_id}/use", response_model=CouponResponse)
+def use_coupon(
+    coupon_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    return economy_service.use_coupon(db, coupon_id, user.id)

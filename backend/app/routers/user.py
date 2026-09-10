@@ -10,7 +10,7 @@ from app.schemas.user import (
     PublicProfileResponse,
     TokenResponse,
 )
-from app.services import user_service
+from app.services import user_service, dashboard_service
 from app.core.security import create_access_token
 from app.core.deps import get_current_user
 from app.models.user import User
@@ -39,6 +39,14 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)):
 @user_router.get("/me", response_model=UserResponse)
 def get_my_info(current_user: User = Depends(get_current_user)):
     return current_user
+
+
+@user_router.get("/me/dashboard")
+def get_my_dashboard(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    return dashboard_service.get_dashboard(db, current_user)
 
 
 @user_router.patch("/me", response_model=UserResponse)

@@ -31,6 +31,7 @@ class Settings(BaseSettings):
     point_ad_daily_limit: int = 5         # 하루 광고 보상 횟수 상한
     spotlight_cost: int = 100             # 상단 노출권 가격
     spotlight_hours: int = 24             # 상단 노출 지속 시간
+    coupon_valid_days: int = 30           # 교환한 쿠폰 유효기간(일)
 
     # 신고 - 처리 완료된 신고가 이 수 이상 쌓이면 대상 계정을 자동 비활성화
     report_auto_deactivate_threshold: int = 3

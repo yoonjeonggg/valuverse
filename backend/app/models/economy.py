@@ -1,4 +1,5 @@
 from sqlalchemy import (
+    Boolean,
     Column,
     Integer,
     String,
@@ -36,4 +37,20 @@ class MissionClaim(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     mission_key = Column(String(40), nullable=False)
     reward = Column(Integer, nullable=False, default=0)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class Coupon(Base):
+    """포인트로 교환한 수수료 할인 쿠폰 (FR-PRD-08)."""
+
+    __tablename__ = "coupons"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    catalog_key = Column(String(40), nullable=False)
+    discount_percent = Column(Integer, nullable=False)
+    cost = Column(Integer, nullable=False)
+    is_used = Column(Boolean, nullable=False, default=False, index=True)
+    used_at = Column(DateTime(timezone=True), nullable=True)
+    expires_at = Column(DateTime(timezone=True), nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
