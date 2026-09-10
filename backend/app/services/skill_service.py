@@ -12,6 +12,7 @@ from app.schemas.skill import (
     EscrowCreate,
     EscrowUpdate,
 )
+from app.services import notification_service
 
 
 def _move_points(db: Session, user: User, amount: int, tx_type: str, memo: str) -> None:
@@ -160,6 +161,11 @@ def create_booking(
         )
     )
     skill_item.status = "awarded"
+    notification_service.notify(
+        db, buyer.id, "booking",
+        f"'{skill_item.title}' 스킬 예약이 확정되었습니다.",
+        "skill_item", skill_item.id,
+    )
     db.commit()
     db.refresh(booking)
     return booking
@@ -180,6 +186,11 @@ def complete_booking(db: Session, booking_id: int, user: User) -> SkillBooking:
         _settle_escrow(db, escrow)
     booking.status = "completed"
     _close_skill_item(db, booking.skill_item_id)
+    notification_service.notify(
+        db, booking.seller_id, "settlement",
+        f"스킬 거래가 완료되어 {booking.amount} 포인트가 정산되었습니다.",
+        "skill_item", booking.skill_item_id,
+    )
     db.commit()
     db.refresh(booking)
     return booking
@@ -205,6 +216,14 @@ def no_show_booking(
             _settle_escrow(db, escrow)
     booking.status = "no_show"
     _close_skill_item(db, booking.skill_item_id)
+
+    victim = booking.buyer_id if party == "seller" else booking.seller_id
+    who = "판매자" if party == "seller" else "구매자"
+    notification_service.notify(
+        db, victim, "no_show",
+        f"스킬 예약이 {who} 노쇼로 종료되었습니다.",
+        "skill_item", booking.skill_item_id,
+    )
     db.commit()
     db.refresh(booking)
     return booking

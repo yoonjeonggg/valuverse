@@ -119,3 +119,23 @@ def get_points(client):
         return r.json()["points"]
 
     return _get
+
+
+@pytest.fixture
+def move_pred():
+    """predictions.end_time 을 현재 기준 delta(초) 만큼 이동."""
+    from datetime import timedelta
+
+    from app.core.timeutils import now
+
+    def _move(prediction_id: int, seconds: int):
+        session = TestingSessionLocal()
+        from app.models.prediction import Prediction
+
+        session.query(Prediction).filter(Prediction.id == prediction_id).update(
+            {"end_time": now() + timedelta(seconds=seconds)}
+        )
+        session.commit()
+        session.close()
+
+    return _move

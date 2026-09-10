@@ -78,6 +78,7 @@ app/
 | 미션 | `GET /points/missions`, `POST /points/missions/{key}/claim` | 첫 입찰·첫 등록·첫 리뷰 달성 시 보상 (FR-PRD-06) |
 | 광고 보상 | `POST /points/ad-reward` | 하루 N회 한도 내 포인트 지급 (FR-PRD-07) |
 | 상단 노출권 | `POST /items/{id}/spotlight` | 포인트로 구매, 24시간 동안 목록 상단 노출 (FR-PRD-08) |
+| 알림 | `GET /users/me/notifications`, `POST /notifications/{id}/read`, `POST /notifications/read-all` | 입찰 경쟁·낙찰·스킬 정산·예측 정산 시 자동 생성 (FR-COM-03) |
 
 - 블라인드 경매는 마감 시 1st-price(제시가 그대로) 로 낙찰한다.
 - 정산 시 승리 포지션 풀이 비어 있으면 전원 원금 환불한다.

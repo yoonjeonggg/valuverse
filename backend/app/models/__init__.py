@@ -6,6 +6,7 @@ from app.models.skill import SkillItem, SkillBooking, Escrow
 from app.models.prediction import Prediction, PredictionBet
 from app.models.point import PointTransaction
 from app.models.economy import Attendance, MissionClaim
+from app.models.notification import Notification
 from app.models.review import Review
 from app.models.report import Report
 
@@ -22,6 +23,7 @@ __all__ = [
     "PointTransaction",
     "Attendance",
     "MissionClaim",
+    "Notification",
     "Review",
     "Report",
 ]

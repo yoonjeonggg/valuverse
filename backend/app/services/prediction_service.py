@@ -11,6 +11,7 @@ from app.schemas.prediction import (
     PredictionBetCreate,
     PredictionSettleRequest,
 )
+from app.services import notification_service
 
 
 def _active_bets(db: Session, prediction_id: int) -> list[PredictionBet]:
@@ -184,15 +185,30 @@ def settle_prediction(
             _pay(db, users[b.user_id], b, b.amount, "refunded", "refund",
                  f"예측 정산 환불 #{prediction_id}")
             total_payout += b.amount
+            notification_service.notify(
+                db, b.user_id, "bet_result",
+                f"'{prediction.title}' 정산: 승자가 없어 {b.amount} 포인트를 환불했습니다.",
+                "prediction", prediction_id,
+            )
     else:
         for b in winners:
             amount = b.amount * total_pool // winning_pool
             _pay(db, users[b.user_id], b, amount, "won", "bet",
                  f"예측 정산 배당 #{prediction_id}")
             total_payout += amount
+            notification_service.notify(
+                db, b.user_id, "bet_result",
+                f"'{prediction.title}' 베팅에 적중해 {amount} 포인트를 받았습니다.",
+                "prediction", prediction_id,
+            )
         for b in losers:
             b.result = "lost"
             b.payout = 0
+            notification_service.notify(
+                db, b.user_id, "bet_result",
+                f"'{prediction.title}' 베팅이 빗나갔습니다.",
+                "prediction", prediction_id,
+            )
 
     prediction.status = "settled"
     prediction.result = payload.result

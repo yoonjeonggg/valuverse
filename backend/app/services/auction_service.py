@@ -9,6 +9,7 @@ from app.core.timeutils import now, aware, is_past
 from app.models.auction import Item, Bid, BlindBid
 from app.models.point import PointTransaction
 from app.models.user import User
+from app.services import notification_service
 from app.schemas.auction import (
     ItemCreate,
     ItemUpdate,
@@ -54,6 +55,17 @@ def _finalize(db: Session, item: Item) -> Item:
         item.final_price = top.amount
 
     item.status = "closed"
+    if item.winner_id:
+        notification_service.notify(
+            db, item.winner_id, "won",
+            f"'{item.title}' 경매에 낙찰되었습니다. (낙찰가 {item.final_price})",
+            "item", item.id,
+        )
+        notification_service.notify(
+            db, item.seller_id, "sold",
+            f"'{item.title}' 경매가 낙찰되었습니다. (낙찰가 {item.final_price})",
+            "item", item.id,
+        )
     db.commit()
     db.refresh(item)
     return item
@@ -222,6 +234,11 @@ def buy_now(db: Session, item_id: int, buyer_id: int) -> Item:
     item.status = "closed"
     item.winner_id = buyer_id
     item.final_price = price
+    notification_service.notify(
+        db, item.seller_id, "sold",
+        f"'{item.title}' 상품이 즉시구매로 판매되었습니다. (금액 {price})",
+        "item", item.id,
+    )
     db.commit()
     db.refresh(item)
     return item
@@ -240,9 +257,19 @@ def create_bid(db: Session, item_id: int, bidder_id: int, payload: BidCreate) ->
             f"현재가({item.current_price})보다 높은 금액이어야 합니다.",
         )
 
+    # 직전 최고 입찰자 (경쟁 알림 대상)
+    prev_top = _top_bid(db, item_id)
+
     bid = Bid(item_id=item_id, bidder_id=bidder_id, amount=payload.amount)
     item.current_price = payload.amount
     db.add(bid)
+
+    if prev_top and prev_top.bidder_id != bidder_id:
+        notification_service.notify(
+            db, prev_top.bidder_id, "bid_outbid",
+            f"'{item.title}' 경매에서 더 높은 입찰가가 등장했습니다. (현재가 {payload.amount})",
+            "item", item.id,
+        )
 
     # 스나이핑 방지: 마감 임박 입찰이면 마감시간을 연장한다 (FR-AUC-03)
     _maybe_extend(item)

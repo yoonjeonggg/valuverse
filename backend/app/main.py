@@ -11,6 +11,7 @@ from app.routers.prediction import prediction_router, bet_router
 from app.routers.point import router as point_router
 from app.routers.review import router as review_router
 from app.routers.report import router as report_router
+from app.routers.notification import router as notification_router
 
 Base.metadata.create_all(bind=engine)
 
@@ -39,6 +40,7 @@ app.include_router(bet_router)
 app.include_router(point_router)
 app.include_router(review_router)
 app.include_router(report_router)
+app.include_router(notification_router)
 
 
 @app.get("/health")
