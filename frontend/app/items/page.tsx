@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { api } from "../lib/api";
+import { useRef, useState } from "react";
+import { api, API_BASE_URL, getToken } from "../lib/api";
 import { Field, Result, Section, useCall } from "../lib/ui";
 
 function toIso(local: string): string | undefined {
@@ -106,6 +106,31 @@ export default function ItemsPage() {
   const cancelBlind = useCall(() =>
     api(`/blind-bids/${Number(blindBidId)}`, { method: "DELETE", auth: true }),
   );
+
+  // --- 실시간 입찰 WebSocket ---
+  const wsRef = useRef<WebSocket | null>(null);
+  const [wsLog, setWsLog] = useState<string[]>([]);
+  const [wsAmount, setWsAmount] = useState("");
+  const pushLog = (line: string) =>
+    setWsLog((prev) => [`${new Date().toLocaleTimeString()}  ${line}`, ...prev].slice(0, 30));
+
+  const wsConnect = () => {
+    if (!itemId) return;
+    wsRef.current?.close();
+    const base = API_BASE_URL.replace(/^http/, "ws");
+    const ws = new WebSocket(`${base}/items/${Number(itemId)}/bid`);
+    wsRef.current = ws;
+    ws.onopen = () => pushLog("연결됨");
+    ws.onclose = () => pushLog("연결 종료");
+    ws.onerror = () => pushLog("에러");
+    ws.onmessage = (e) => pushLog(e.data);
+  };
+  const wsDisconnect = () => wsRef.current?.close();
+  const wsSendBid = () => {
+    const ws = wsRef.current;
+    if (!ws || ws.readyState !== WebSocket.OPEN) return pushLog("먼저 연결하세요");
+    ws.send(JSON.stringify({ token: getToken(), amount: Number(wsAmount) }));
+  };
 
   return (
     <div>
@@ -255,6 +280,33 @@ export default function ItemsPage() {
           DELETE /blind-bids/{"{id}"} (인증)
         </button>
         <Result data={cancelBlind.data} error={cancelBlind.error} loading={cancelBlind.loading} />
+      </Section>
+
+      <Section title="실시간 입찰 WS /items/{id}/bid — 위 item_id 사용">
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+          <button onClick={wsConnect}>연결</button>
+          <button onClick={wsDisconnect}>끊기</button>
+        </div>
+        <Field
+          label="amount"
+          type="number"
+          value={wsAmount}
+          onChange={(e) => setWsAmount(e.target.value)}
+        />
+        <button onClick={wsSendBid}>WS 입찰 전송 (토큰 포함)</button>
+        <pre
+          style={{
+            background: "#f4f4f4",
+            color: "#111",
+            padding: 8,
+            marginTop: 8,
+            maxHeight: 240,
+            overflowY: "auto",
+            fontSize: 12,
+          }}
+        >
+          {wsLog.join("\n") || "(로그 없음)"}
+        </pre>
       </Section>
     </div>
   );

@@ -73,6 +73,7 @@ app/
 | 명제 정산 | `POST /predictions/{id}/settle` | 관리자, 결과 확정 후 승자에게 파리뮤추얼 배당 포인트 지급 (FR-PRD-04) |
 | 스킬 예약(낙찰) | `POST /skill-bookings` | 판매자가 낙찰가로 예약 생성. 구매자 포인트가 차감돼 에스크로에 보관 (FR-SKL-02·03) |
 | 스킬 완료 정산 | `POST /skill-bookings/{id}/complete` | 구매자가 완료 확인 → 에스크로를 판매자에게 정산 |
+| 실시간 입찰 | `WS /items/{id}/bid` | 접속 시 스냅샷 수신, `{token, amount}` 로 입찰, 입찰/마감 이벤트를 방 전체에 브로드캐스트 (FR-AUC-02) |
 | 스킬 노쇼 | `POST /skill-bookings/{id}/no-show` | 판매자 노쇼면 구매자 환불, 구매자 노쇼면 판매자 정산 (FR-SKL-05) |
 | 출석 체크 | `POST /points/check-in` | 하루 1회, 연속 출석 보너스 (FR-PRD-05) |
 | 미션 | `GET /points/missions`, `POST /points/missions/{key}/claim` | 첫 입찰·첫 등록·첫 리뷰 달성 시 보상 (FR-PRD-06) |

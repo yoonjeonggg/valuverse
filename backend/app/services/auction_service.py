@@ -10,6 +10,11 @@ from app.models.auction import Item, Bid, BlindBid
 from app.models.point import PointTransaction
 from app.models.user import User
 from app.services import notification_service
+from app.services.ws_manager import manager as ws_manager
+
+
+def _iso(dt) -> str | None:
+    return dt.isoformat() if dt else None
 from app.schemas.auction import (
     ItemCreate,
     ItemUpdate,
@@ -64,6 +69,16 @@ def _finalize(db: Session, item: Item) -> Item:
         )
     db.commit()
     db.refresh(item)
+    ws_manager.broadcast(
+        item.id,
+        {
+            "type": "closed",
+            "item_id": item.id,
+            "status": item.status,
+            "winner_id": item.winner_id,
+            "final_price": item.final_price,
+        },
+    )
     return item
 
 
@@ -243,6 +258,17 @@ def buy_now(db: Session, item_id: int, buyer_id: int) -> Item:
     )
     db.commit()
     db.refresh(item)
+    ws_manager.broadcast(
+        item.id,
+        {
+            "type": "closed",
+            "item_id": item.id,
+            "status": item.status,
+            "winner_id": item.winner_id,
+            "final_price": item.final_price,
+            "reason": "buy_now",
+        },
+    )
     return item
 
 
@@ -282,6 +308,19 @@ def create_bid(db: Session, item_id: int, bidder_id: int, payload: BidCreate) ->
 
     db.commit()
     db.refresh(bid)
+    ws_manager.broadcast(
+        item_id,
+        {
+            "type": "bid",
+            "item_id": item_id,
+            "bid_id": bid.id,
+            "bidder_id": bidder_id,
+            "amount": bid.amount,
+            "current_price": item.current_price,
+            "end_time": _iso(item.end_time),
+            "extended_count": item.extended_count,
+        },
+    )
     return bid
 
 

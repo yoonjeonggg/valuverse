@@ -1,0 +1,90 @@
+"""실시간 입찰 WebSocket 엔드포인트: WS /items/{id}/bid (FR-AUC-02)."""
+
+from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
+from sqlalchemy.orm import Session
+from starlette.concurrency import run_in_threadpool
+
+from app.core.security import decode_access_token
+from app.database import get_db
+from app.models.user import User
+from app.schemas.auction import BidCreate
+from app.services import auction_service
+from app.services.ws_manager import manager
+
+router = APIRouter()
+
+
+def _snapshot(item) -> dict:
+    return {
+        "type": "snapshot",
+        "item_id": item.id,
+        "title": item.title,
+        "current_price": item.current_price,
+        "status": item.status,
+        "end_time": item.end_time.isoformat() if item.end_time else None,
+        "extended_count": item.extended_count,
+        "auction_type": item.auction_type,
+    }
+
+
+def _user_from_token(db: Session, token: str | None) -> User | None:
+    if not token:
+        return None
+    email = decode_access_token(token)
+    if not email:
+        return None
+    user = db.query(User).filter(User.email == email).first()
+    if user and user.is_active:
+        return user
+    return None
+
+
+@router.websocket("/items/{item_id}/bid")
+async def auction_bid_ws(
+    websocket: WebSocket, item_id: int, db: Session = Depends(get_db)
+):
+    await manager.connect(item_id, websocket)
+    try:
+        try:
+            item = await run_in_threadpool(auction_service.get_item, db, item_id)
+        except Exception:
+            await websocket.send_json(
+                {"type": "error", "detail": "상품을 찾을 수 없습니다."}
+            )
+            return
+
+        await websocket.send_json(_snapshot(item))
+
+        while True:
+            msg = await websocket.receive_json()
+            token = msg.get("token") or websocket.query_params.get("token")
+            user = _user_from_token(db, token)
+            if not user:
+                await websocket.send_json(
+                    {"type": "error", "detail": "인증이 필요합니다."}
+                )
+                continue
+            try:
+                amount = int(msg["amount"])
+            except (KeyError, TypeError, ValueError):
+                await websocket.send_json(
+                    {"type": "error", "detail": "amount 가 올바르지 않습니다."}
+                )
+                continue
+
+            try:
+                # create_bid 가 성공 시 방 전체에 브로드캐스트한다.
+                await run_in_threadpool(
+                    auction_service.create_bid,
+                    db,
+                    item_id,
+                    user.id,
+                    BidCreate(amount=amount),
+                )
+            except Exception as exc:
+                detail = getattr(exc, "detail", str(exc))
+                await websocket.send_json({"type": "error", "detail": detail})
+    except WebSocketDisconnect:
+        pass
+    finally:
+        manager.disconnect(item_id, websocket)
