@@ -1,24 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import "./globals.css";
+import { SiteNav, HeaderAuth } from "./site-chrome";
 
 export const metadata: Metadata = {
-  title: "Valuverse - 백엔드 연동",
-  description: "백엔드 API 연동 확인용 최소 프론트엔드",
+  title: "Valuverse — 경매 플랫폼",
+  description:
+    "실시간 경매, 밀봉 입찰, 재능 거래, 포인트 예측시장을 한곳에서. Valuverse.",
 };
-
-const NAV: [string, string][] = [
-  ["/", "홈"],
-  ["/auth", "회원/인증"],
-  ["/me", "내 정보"],
-  ["/items", "일반경매"],
-  ["/skill-items", "스킬상품"],
-  ["/predictions", "예측/베팅"],
-  ["/points", "포인트"],
-  ["/notifications", "알림"],
-  ["/reviews", "리뷰"],
-  ["/reports", "신고"],
-];
 
 export default function RootLayout({
   children,
@@ -28,17 +17,50 @@ export default function RootLayout({
   return (
     <html lang="ko">
       <body>
-        <header style={{ borderBottom: "1px solid #ccc", padding: 8 }}>
-          <strong>Valuverse</strong> — 백엔드 연동 확인용
-          <nav style={{ marginTop: 6, display: "flex", flexWrap: "wrap", gap: 12 }}>
-            {NAV.map(([href, label]) => (
-              <Link key={href} href={href}>
-                {label}
-              </Link>
-            ))}
-          </nav>
+        <header className="site-header">
+          <div className="site-header__bar">
+            <Link href="/" className="wordmark">
+              Valu<b>verse</b>
+            </Link>
+            <SiteNav />
+            <HeaderAuth />
+          </div>
         </header>
-        <main style={{ padding: 12, maxWidth: 900 }}>{children}</main>
+
+        <main className="shell">{children}</main>
+
+        <footer className="site-footer">
+          <div className="site-footer__inner">
+            <div>
+              <b>Valuverse</b>
+              차별화된 경매 메커니즘과
+              <br />
+              포인트 이코노미를 결합한 거래 플랫폼.
+            </div>
+            <div>
+              <b>거래</b>
+              <Link href="/items">일반·블라인드 경매</Link>
+              <br />
+              <Link href="/skill-items">스킬 경매 / 에스크로</Link>
+            </div>
+            <div>
+              <b>리텐션</b>
+              <Link href="/predictions">예측시장</Link>
+              <br />
+              <Link href="/points">포인트 · 쿠폰</Link>
+            </div>
+            <div>
+              <b>개발</b>
+              <a
+                href="http://localhost:8000/docs"
+                target="_blank"
+                rel="noreferrer"
+              >
+                API 문서 (Swagger)
+              </a>
+            </div>
+          </div>
+        </footer>
       </body>
     </html>
   );

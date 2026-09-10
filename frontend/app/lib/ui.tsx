@@ -1,10 +1,9 @@
 "use client";
 
-// 연동 확인용 최소 UI 헬퍼. 스타일은 의도적으로 최소화.
-
 import { useCallback, useState } from "react";
 import { ApiError } from "./api";
 
+/* ---------- data-fetching hook ---------- */
 export function useCall<TArgs extends unknown[], TResult>(
   fn: (...args: TArgs) => Promise<TResult>,
 ) {
@@ -40,6 +39,7 @@ export function useCall<TArgs extends unknown[], TResult>(
   return { data, error, loading, run, setData };
 }
 
+/* ---------- response inspector ---------- */
 export function Result({
   data,
   error,
@@ -49,58 +49,138 @@ export function Result({
   error?: string | null;
   loading?: boolean;
 }) {
+  if (loading) return <div className="resp resp--loading">요청 중…</div>;
+  if (error)
+    return (
+      <div className="resp">
+        <div className="resp__label is-error">
+          <span className="dot" />
+          오류
+        </div>
+        <pre>{error}</pre>
+      </div>
+    );
+  if (data === null || data === undefined) return null;
   return (
-    <div style={{ marginTop: 8 }}>
-      {loading && <p>로딩 중…</p>}
-      {error && (
-        <pre style={{ color: "crimson", whiteSpace: "pre-wrap" }}>{error}</pre>
-      )}
-      {data !== null && data !== undefined && (
-        <pre
-          style={{
-            background: "#f4f4f4",
-            color: "#111",
-            padding: 8,
-            overflowX: "auto",
-            fontSize: 12,
-          }}
-        >
-          {JSON.stringify(data, null, 2)}
-        </pre>
-      )}
+    <div className="resp">
+      <div className="resp__label">
+        <span className="dot" />
+        응답
+      </div>
+      <pre>{JSON.stringify(data, null, 2)}</pre>
     </div>
   );
 }
 
+/* ---------- labelled input row ---------- */
 export function Field({
   label,
   ...props
 }: { label: string } & React.InputHTMLAttributes<HTMLInputElement>) {
   return (
-    <label style={{ display: "block", margin: "4px 0" }}>
-      <span style={{ display: "inline-block", minWidth: 160 }}>{label}</span>
-      <input {...props} style={{ padding: 4, minWidth: 240 }} />
+    <label className="field">
+      <span>{label}</span>
+      <input {...props} />
     </label>
   );
 }
 
+/* ---------- panel (endpoint group) ---------- */
 export function Section({
   title,
+  method,
   children,
 }: {
   title: string;
+  method?: string;
   children: React.ReactNode;
 }) {
   return (
-    <section
-      style={{
-        border: "1px solid #ccc",
-        padding: 12,
-        margin: "12px 0",
-      }}
-    >
-      <h3 style={{ margin: "0 0 8px" }}>{title}</h3>
-      {children}
+    <section className="panel">
+      <div className="panel__head">
+        {method && <span className="panel__method">{method}</span>}
+        <h3>{title}</h3>
+      </div>
+      <div className="panel__body">{children}</div>
     </section>
+  );
+}
+
+/* ---------- page header ---------- */
+export function PageHeader({
+  eyebrow,
+  title,
+  children,
+}: {
+  eyebrow?: string;
+  title: string;
+  children?: React.ReactNode;
+}) {
+  return (
+    <header className="page-head">
+      {eyebrow && <div className="eyebrow">{eyebrow}</div>}
+      <h1>{title}</h1>
+      {children}
+    </header>
+  );
+}
+
+/* ---------- inline icon set (SVG, not emoji) ---------- */
+const PATHS: Record<string, React.ReactNode> = {
+  gavel: (
+    <>
+      <path d="m14 4 6 6-3 3-6-6z" />
+      <path d="m8 10 6 6" />
+      <path d="m5 13 5 5-2 2-5-5z" />
+      <path d="M4 21h9" />
+    </>
+  ),
+  bolt: <path d="M13 2 4 14h7l-1 8 9-12h-7z" />,
+  clock: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7v5l3 2" />
+    </>
+  ),
+  bell: (
+    <>
+      <path d="M6 9a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6" />
+      <path d="M10 20a2 2 0 0 0 4 0" />
+    </>
+  ),
+  coin: (
+    <>
+      <ellipse cx="12" cy="7" rx="7" ry="3" />
+      <path d="M5 7v6c0 1.7 3.1 3 7 3s7-1.3 7-3V7" />
+      <path d="M5 13v4c0 1.7 3.1 3 7 3s7-1.3 7-3v-4" />
+    </>
+  ),
+  shield: <path d="M12 3 5 6v5c0 5 3 8 7 10 4-2 7-5 7-10V6z" />,
+  spark: (
+    <>
+      <path d="M12 3v4M12 17v4M3 12h4M17 12h4" />
+      <path d="m6 6 2.5 2.5M15.5 15.5 18 18M18 6l-2.5 2.5M8.5 15.5 6 18" />
+    </>
+  ),
+  arrow: <path d="M5 12h14M13 6l6 6-6 6" />,
+};
+
+export function Icon({
+  name,
+  size = 18,
+}: {
+  name: keyof typeof PATHS;
+  size?: number;
+}) {
+  return (
+    <svg
+      className="icon"
+      viewBox="0 0 24 24"
+      width={size}
+      height={size}
+      aria-hidden="true"
+    >
+      {PATHS[name]}
+    </svg>
   );
 }

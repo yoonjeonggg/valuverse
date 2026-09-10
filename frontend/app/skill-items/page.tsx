@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { api } from "../lib/api";
 import { toIso } from "../lib/format";
-import { Field, Result, Section, useCall } from "../lib/ui";
+import { Field, PageHeader, Result, Section, useCall } from "../lib/ui";
 
 export default function SkillItemsPage() {
   const [category, setCategory] = useState("");
@@ -126,20 +126,27 @@ export default function SkillItemsPage() {
 
   return (
     <div>
-      <h1>스킬상품 (Skill Item / Booking / Escrow)</h1>
+      <PageHeader eyebrow="Skill Auction" title="스킬 경매">
+        <p>
+          무형의 재능을 거래합니다. 예약 생성이 곧 낙찰이며, 낙찰금은
+          에스크로에 보관됐다가 완료·노쇼에 따라 정산·환불됩니다.
+        </p>
+      </PageHeader>
 
-      <Section title="GET /skill-items">
+      <Section title="스킬 상품 목록" method="GET /skill-items">
         <Field label="category" value={category} onChange={(e) => setCategory(e.target.value)} />
         <Field
           label="status"
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
         />
-        <button onClick={() => list.run()}>목록 조회</button>
+        <div className="actions">
+          <button onClick={() => list.run()}>목록 조회</button>
+        </div>
         <Result data={list.data} error={list.error} loading={list.loading} />
       </Section>
 
-      <Section title="POST /skill-items (인증 필요)">
+      <Section title="스킬 상품 등록" method="POST /skill-items">
         <Field label="title" value={title} onChange={(e) => setTitle(e.target.value)} />
         <Field
           label="description"
@@ -168,32 +175,39 @@ export default function SkillItemsPage() {
           value={availableSchedule}
           onChange={(e) => setAvailableSchedule(e.target.value)}
         />
-        <button onClick={() => create.run()}>등록</button>
+        <div className="actions">
+          <button className="btn-primary" onClick={() => create.run()}>
+            등록
+          </button>
+        </div>
         <Result data={create.data} error={create.error} loading={create.loading} />
       </Section>
 
-      <Section title="대상 skill_item_id">
+      <Section title="대상 스킬 상품 선택" method="GET · PATCH · DELETE /skill-items/{id}">
         <Field
           label="skill_item_id"
           value={skillItemId}
           onChange={(e) => setSkillItemId(e.target.value)}
         />
-        <button onClick={() => getOne.run()}>GET</button>
-        <button onClick={() => del.run()}>DELETE (인증)</button>
         <Field
           label="patch title"
           value={patchTitle}
           onChange={(e) => setPatchTitle(e.target.value)}
         />
-        <button onClick={() => patch.run()}>PATCH title (인증)</button>
+        <div className="actions">
+          <button onClick={() => getOne.run()}>조회</button>
+          <button onClick={() => patch.run()}>제목 수정</button>
+          <button onClick={() => del.run()}>삭제</button>
+        </div>
         <Result data={getOne.data} error={getOne.error} loading={getOne.loading} />
         <Result data={patch.data} error={patch.error} loading={patch.loading} />
         <Result data={del.data} error={del.error} loading={del.loading} />
       </Section>
 
-      <Section title="예약 (Booking) — 위 skill_item_id 사용">
-        <p style={{ fontSize: 13 }}>
-          예약 생성 = 낙찰. buyer 포인트가 amount 만큼 차감되어 에스크로에 보관됩니다.
+      <Section title="예약 · 정산" method="POST /skill-bookings · /complete · /no-show">
+        <p className="hint">
+          예약 생성 = 낙찰. 구매자 포인트가 amount 만큼 차감되어 에스크로에
+          보관됩니다.
         </p>
         <Field label="buyer_id" value={buyerId} onChange={(e) => setBuyerId(e.target.value)} />
         <Field
@@ -208,8 +222,12 @@ export default function SkillItemsPage() {
           value={scheduledAt}
           onChange={(e) => setScheduledAt(e.target.value)}
         />
-        <button onClick={() => createBooking.run()}>POST /skill-bookings (판매자)</button>
-        <button onClick={() => myBookings.run()}>GET /skill-bookings (인증)</button>
+        <div className="actions">
+          <button className="btn-primary" onClick={() => createBooking.run()}>
+            예약 생성 (판매자)
+          </button>
+          <button onClick={() => myBookings.run()}>내 예약</button>
+        </div>
         <Result data={createBooking.data} error={createBooking.error} loading={createBooking.loading} />
         <Result data={myBookings.data} error={myBookings.error} loading={myBookings.loading} />
         <Field
@@ -218,24 +236,24 @@ export default function SkillItemsPage() {
           onChange={(e) => setBookingId(e.target.value)}
         />
         <Field
-          label="scheduled_at 변경용 status (참고용)"
+          label="일정 변경용 status"
           value={bookingStatus}
           onChange={(e) => setBookingStatus(e.target.value)}
         />
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 4 }}>
-          <button onClick={() => getBooking.run()}>GET</button>
-          <button onClick={() => patchBooking.run()}>PATCH (일정 변경)</button>
-          <button onClick={() => completeBooking.run()}>
-            POST /complete (구매자, 정산)
-          </button>
-          <button onClick={() => cancelBooking.run()}>DELETE (취소·환불)</button>
+        <div className="actions">
+          <button onClick={() => getBooking.run()}>조회</button>
+          <button onClick={() => patchBooking.run()}>일정 변경</button>
+          <button onClick={() => completeBooking.run()}>완료 (구매자, 정산)</button>
+          <button onClick={() => cancelBooking.run()}>취소 · 환불</button>
         </div>
         <Field
-          label="no-show party (seller/buyer)"
+          label="노쇼 당사자 (seller/buyer)"
           value={noShowParty}
           onChange={(e) => setNoShowParty(e.target.value)}
         />
-        <button onClick={() => noShowBooking.run()}>POST /no-show</button>
+        <div className="actions">
+          <button onClick={() => noShowBooking.run()}>노쇼 처리</button>
+        </div>
         <Result data={getBooking.data} error={getBooking.error} loading={getBooking.loading} />
         <Result data={patchBooking.data} error={patchBooking.error} loading={patchBooking.loading} />
         <Result data={completeBooking.data} error={completeBooking.error} loading={completeBooking.loading} />
@@ -243,7 +261,11 @@ export default function SkillItemsPage() {
         <Result data={noShowBooking.data} error={noShowBooking.error} loading={noShowBooking.loading} />
       </Section>
 
-      <Section title="에스크로 (Escrow)">
+      <Section title="에스크로" method="POST · GET · PATCH /escrows">
+        <p className="hint">
+          상태 변경(PATCH)은 실제 포인트 이동을 동반합니다 —
+          settled=판매자 정산, refunded=구매자 환불.
+        </p>
         <Field
           label="booking_id (선택)"
           value={escrowBookingId}
@@ -260,7 +282,9 @@ export default function SkillItemsPage() {
           value={escrowAmount}
           onChange={(e) => setEscrowAmount(e.target.value)}
         />
-        <button onClick={() => createEscrow.run()}>POST /escrows (인증)</button>
+        <div className="actions">
+          <button onClick={() => createEscrow.run()}>에스크로 생성</button>
+        </div>
         <Result data={createEscrow.data} error={createEscrow.error} loading={createEscrow.loading} />
         <Field
           label="escrow_id"
@@ -272,8 +296,10 @@ export default function SkillItemsPage() {
           value={escrowStatus}
           onChange={(e) => setEscrowStatus(e.target.value)}
         />
-        <button onClick={() => getEscrow.run()}>GET</button>
-        <button onClick={() => patchEscrow.run()}>PATCH status</button>
+        <div className="actions">
+          <button onClick={() => getEscrow.run()}>조회</button>
+          <button onClick={() => patchEscrow.run()}>상태 변경</button>
+        </div>
         <Result data={getEscrow.data} error={getEscrow.error} loading={getEscrow.loading} />
         <Result data={patchEscrow.data} error={patchEscrow.error} loading={patchEscrow.loading} />
       </Section>

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { api } from "../lib/api";
-import { Field, Result, Section, useCall } from "../lib/ui";
+import { Field, PageHeader, Result, Section, useCall } from "../lib/ui";
 
 export default function MePage() {
   const [nickname, setNickname] = useState("");
@@ -30,51 +30,70 @@ export default function MePage() {
 
   return (
     <div>
-      <h1>내 정보</h1>
+      <PageHeader eyebrow="Account" title="내 계정">
+        <p>프로필 조회·수정, 마이페이지 활동 요약, 공개 프로필 확인.</p>
+      </PageHeader>
 
-      <Section title="GET /users/me (인증 필요)">
-        <button onClick={() => me.run()}>조회</button>
+      <Section title="내 정보" method="GET /users/me">
+        <div className="actions">
+          <button onClick={() => me.run()}>조회</button>
+        </div>
         <Result data={me.data} error={me.error} loading={me.loading} />
       </Section>
 
-      <Section title="GET /users/me/dashboard (마이페이지 요약, 인증)">
-        <button onClick={() => dashboard.run()}>요약 조회</button>
-        <Result data={dashboard.data} error={dashboard.error} loading={dashboard.loading} />
+      <Section title="마이페이지 요약" method="GET /users/me/dashboard">
+        <div className="actions">
+          <button onClick={() => dashboard.run()}>요약 조회</button>
+        </div>
+        <Result
+          data={dashboard.data}
+          error={dashboard.error}
+          loading={dashboard.loading}
+        />
       </Section>
 
-      <Section title="PATCH /users/me (인증 필요)">
+      <Section title="정보 수정" method="PATCH /users/me">
         <Field
-          label="nickname"
+          label="닉네임"
           value={nickname}
           onChange={(e) => setNickname(e.target.value)}
         />
         <Field
-          label="profile_image (URL)"
+          label="프로필 이미지 (URL)"
           value={profileImage}
           onChange={(e) => setProfileImage(e.target.value)}
         />
         <Field
-          label="password"
+          label="비밀번호"
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
         />
-        <button onClick={() => update.run()}>수정</button>
+        <div className="actions">
+          <button className="btn-primary" onClick={() => update.run()}>
+            수정
+          </button>
+        </div>
         <Result data={update.data} error={update.error} loading={update.loading} />
       </Section>
 
-      <Section title="DELETE /users/me (인증 필요, 계정 비활성화)">
-        <button onClick={() => remove.run()}>탈퇴</button>
+      <Section title="회원 탈퇴" method="DELETE /users/me">
+        <p className="hint">계정이 비활성화됩니다(소프트 삭제).</p>
+        <div className="actions">
+          <button onClick={() => remove.run()}>탈퇴</button>
+        </div>
         <Result data={remove.data} error={remove.error} loading={remove.loading} />
       </Section>
 
-      <Section title="GET /users/{id} (공개 프로필)">
+      <Section title="공개 프로필" method="GET /users/{id}">
         <Field
           label="user_id"
           value={userId}
           onChange={(e) => setUserId(e.target.value)}
         />
-        <button onClick={() => profile.run()}>조회</button>
+        <div className="actions">
+          <button onClick={() => profile.run()}>조회</button>
+        </div>
         <Result data={profile.data} error={profile.error} loading={profile.loading} />
       </Section>
     </div>

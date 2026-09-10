@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { api, API_BASE_URL, getToken } from "../lib/api";
 import { toIso } from "../lib/format";
-import { Field, Result, Section, useCall } from "../lib/ui";
+import { Field, PageHeader, Result, Section, useCall } from "../lib/ui";
 
 export default function ItemsPage() {
   // 목록 필터
@@ -139,9 +139,14 @@ export default function ItemsPage() {
 
   return (
     <div>
-      <h1>일반경매 (Item / Bid / Blind Bid)</h1>
+      <PageHeader eyebrow="Auction" title="일반 · 블라인드 경매">
+        <p>
+          공개 실시간 입찰과 밀봉 입찰을 한 화면에서 다룹니다. 상품 등록 시
+          auction_type 으로 방식을, blind_price_rule 로 낙찰 규칙을 정합니다.
+        </p>
+      </PageHeader>
 
-      <Section title="GET /items">
+      <Section title="상품 목록" method="GET /items">
         <Field
           label="category"
           value={category}
@@ -152,11 +157,13 @@ export default function ItemsPage() {
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
         />
-        <button onClick={() => list.run()}>목록 조회</button>
+        <div className="actions">
+          <button onClick={() => list.run()}>목록 조회</button>
+        </div>
         <Result data={list.data} error={list.error} loading={list.loading} />
       </Section>
 
-      <Section title="POST /items (인증 필요)">
+      <Section title="상품 등록" method="POST /items">
         <Field label="title" value={title} onChange={(e) => setTitle(e.target.value)} />
         <Field
           label="description"
@@ -201,78 +208,86 @@ export default function ItemsPage() {
           value={endTime}
           onChange={(e) => setEndTime(e.target.value)}
         />
-        <button onClick={() => create.run()}>등록</button>
+        <div className="actions">
+          <button className="btn-primary" onClick={() => create.run()}>
+            등록
+          </button>
+        </div>
         <Result data={create.data} error={create.error} loading={create.loading} />
       </Section>
 
-      <Section title="대상 아이템 ID">
+      <Section title="대상 상품 선택" method="GET · PATCH · DELETE /items/{id}">
         <Field
           label="item_id"
           value={itemId}
           onChange={(e) => setItemId(e.target.value)}
         />
-        <div>
-          <button onClick={() => getOne.run()}>GET /items/{"{id}"}</button>
-          <button onClick={() => del.run()}>DELETE (인증)</button>
-        </div>
         <Field
           label="patch title"
           value={patchTitle}
           onChange={(e) => setPatchTitle(e.target.value)}
         />
-        <button onClick={() => patch.run()}>PATCH title (인증)</button>
+        <div className="actions">
+          <button onClick={() => getOne.run()}>조회</button>
+          <button onClick={() => patch.run()}>제목 수정</button>
+          <button onClick={() => del.run()}>삭제</button>
+        </div>
         <Result data={getOne.data} error={getOne.error} loading={getOne.loading} />
         <Result data={patch.data} error={patch.error} loading={patch.loading} />
         <Result data={del.data} error={del.error} loading={del.loading} />
       </Section>
 
-      <Section title="낙찰 / 즉시구매 / 노출 — 위 item_id 사용">
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-          <button onClick={() => closeItem.run()}>
-            POST /items/{"{id}"}/close (판매자)
+      <Section title="낙찰 · 즉시구매 · 노출" method="POST /items/{id}/close · buy-now · spotlight">
+        <div className="actions">
+          <button onClick={() => closeItem.run()}>조기 마감 (판매자)</button>
+          <button className="btn-primary" onClick={() => buyNow.run()}>
+            즉시구매
           </button>
-          <button onClick={() => buyNow.run()}>
-            POST /items/{"{id}"}/buy-now (인증)
-          </button>
-          <button onClick={() => spotlight.run()}>
-            POST /items/{"{id}"}/spotlight (포인트 차감)
-          </button>
+          <button onClick={() => spotlight.run()}>상단 노출권 (포인트)</button>
         </div>
         <Result data={closeItem.data} error={closeItem.error} loading={closeItem.loading} />
         <Result data={buyNow.data} error={buyNow.error} loading={buyNow.loading} />
         <Result data={spotlight.data} error={spotlight.error} loading={spotlight.loading} />
       </Section>
 
-      <Section title="입찰 (Bid) — 위 item_id 사용">
+      <Section title="입찰 — 일반 경매" method="POST /items/{id}/bids">
         <Field
-          label="amount"
+          label="입찰가"
           type="number"
           value={bidAmount}
           onChange={(e) => setBidAmount(e.target.value)}
         />
-        <button onClick={() => createBid.run()}>POST /items/{"{id}"}/bids (인증)</button>
-        <button onClick={() => listBids.run()}>GET /items/{"{id}"}/bids</button>
-        <button onClick={() => myBids.run()}>GET /users/me/bids (인증)</button>
+        <div className="actions">
+          <button className="btn-primary" onClick={() => createBid.run()}>
+            입찰
+          </button>
+          <button onClick={() => listBids.run()}>입찰 이력</button>
+          <button onClick={() => myBids.run()}>내 입찰</button>
+        </div>
         <Result data={createBid.data} error={createBid.error} loading={createBid.loading} />
         <Result data={listBids.data} error={listBids.error} loading={listBids.loading} />
         <Result data={myBids.data} error={myBids.error} loading={myBids.loading} />
         <Field label="bid_id" value={bidId} onChange={(e) => setBidId(e.target.value)} />
-        <button onClick={() => cancelBid.run()}>DELETE /bids/{"{id}"} (인증)</button>
+        <div className="actions">
+          <button onClick={() => cancelBid.run()}>입찰 취소</button>
+        </div>
         <Result data={cancelBid.data} error={cancelBid.error} loading={cancelBid.loading} />
       </Section>
 
-      <Section title="블라인드 입찰 (Blind Bid) — 위 item_id 사용">
+      <Section title="입찰 — 블라인드 경매" method="POST /items/{id}/blind-bids">
         <Field
-          label="amount"
+          label="입찰가 (비공개)"
           type="number"
           value={blindAmount}
           onChange={(e) => setBlindAmount(e.target.value)}
         />
-        <button onClick={() => createBlind.run()}>
-          POST /items/{"{id}"}/blind-bids (인증)
-        </button>
-        <button onClick={() => myRank.run()}>my-rank (인증)</button>
-        <button onClick={() => blindResults.run()}>results</button>
+        <div className="actions">
+          <button className="btn-primary" onClick={() => createBlind.run()}>
+            밀봉 입찰
+          </button>
+          <button onClick={() => myRank.run()}>내 순위</button>
+          <button onClick={() => blindResults.run()}>결과 (마감 후)</button>
+        </div>
         <Result data={createBlind.data} error={createBlind.error} loading={createBlind.loading} />
         <Result data={myRank.data} error={myRank.error} loading={myRank.loading} />
         <Result data={blindResults.data} error={blindResults.error} loading={blindResults.loading} />
@@ -281,58 +296,66 @@ export default function ItemsPage() {
           value={blindBidId}
           onChange={(e) => setBlindBidId(e.target.value)}
         />
-        <button onClick={() => cancelBlind.run()}>
-          DELETE /blind-bids/{"{id}"} (인증)
-        </button>
+        <div className="actions">
+          <button onClick={() => cancelBlind.run()}>입찰 취소</button>
+        </div>
         <Result data={cancelBlind.data} error={cancelBlind.error} loading={cancelBlind.loading} />
       </Section>
 
-      <Section title="AI 보조 (통계·규칙 기반)">
+      <Section title="AI 보조" method="GET /ai/price-suggestion · POST /ai/abuse-check">
+        <p className="hint">
+          LLM 없이 과거 낙찰가 통계와 규칙 기반으로 시세·어뷰징 여부를
+          제안합니다.
+        </p>
         <Field
           label="category"
           value={aiCategory}
           onChange={(e) => setAiCategory(e.target.value)}
         />
-        <button onClick={() => priceSuggestion.run()}>
-          GET /ai/price-suggestion (시세 추천)
-        </button>
+        <div className="actions">
+          <button onClick={() => priceSuggestion.run()}>시세 추천</button>
+        </div>
         <Result data={priceSuggestion.data} error={priceSuggestion.error} loading={priceSuggestion.loading} />
         <Field
-          label="text (설명 문구)"
+          label="설명 문구"
           value={aiText}
           onChange={(e) => setAiText(e.target.value)}
         />
-        <button onClick={() => abuseCheck.run()}>
-          POST /ai/abuse-check (어뷰징 문구 탐지, 인증)
-        </button>
+        <div className="actions">
+          <button onClick={() => abuseCheck.run()}>어뷰징 문구 탐지</button>
+        </div>
         <Result data={abuseCheck.data} error={abuseCheck.error} loading={abuseCheck.loading} />
       </Section>
 
-      <Section title="실시간 입찰 WS /items/{id}/bid — 위 item_id 사용">
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+      <Section title="실시간 입찰" method="WS /items/{id}/bid">
+        <p className="hint">
+          연결하면 스냅샷을 받고, 다른 탭·사용자의 입찰이 실시간으로
+          로그에 들어옵니다.
+        </p>
+        <div className="actions">
           <button onClick={wsConnect}>연결</button>
           <button onClick={wsDisconnect}>끊기</button>
         </div>
         <Field
-          label="amount"
+          label="입찰가"
           type="number"
           value={wsAmount}
           onChange={(e) => setWsAmount(e.target.value)}
         />
-        <button onClick={wsSendBid}>WS 입찰 전송 (토큰 포함)</button>
-        <pre
-          style={{
-            background: "#f4f4f4",
-            color: "#111",
-            padding: 8,
-            marginTop: 8,
-            maxHeight: 240,
-            overflowY: "auto",
-            fontSize: 12,
-          }}
-        >
-          {wsLog.join("\n") || "(로그 없음)"}
-        </pre>
+        <div className="actions">
+          <button className="btn-primary" onClick={wsSendBid}>
+            WS 입찰 전송
+          </button>
+        </div>
+        <div className="resp">
+          <div className="resp__label">
+            <span className="dot" />
+            WS 로그
+          </div>
+          <pre style={{ maxHeight: 220, overflowY: "auto" }}>
+            {wsLog.join("\n") || "연결 대기 중…"}
+          </pre>
+        </div>
       </Section>
     </div>
   );

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { api } from "../lib/api";
-import { Field, Result, Section, useCall } from "../lib/ui";
+import { Field, PageHeader, Result, Section, useCall } from "../lib/ui";
 
 export default function ReviewsPage() {
   const [targetUserId, setTargetUserId] = useState("");
@@ -57,13 +57,14 @@ export default function ReviewsPage() {
 
   return (
     <div>
-      <h1>리뷰 (Review)</h1>
-      <p style={{ fontSize: 13 }}>
-        생성 시 item_id 또는 skill_item_id 중 정확히 하나만 지정하세요. 리뷰는
-        <b> 완료된 거래(낙찰/스킬 완료)의 당사자</b>만, 거래당 1회 작성할 수 있습니다.
-      </p>
+      <PageHeader eyebrow="Trust" title="리뷰">
+        <p>
+          <b>완료된 거래(낙찰 / 스킬 완료)의 당사자</b>만, 거래당 1회 작성할 수
+          있습니다. 생성 시 item_id 또는 skill_item_id 중 하나만 지정하세요.
+        </p>
+      </PageHeader>
 
-      <Section title="POST /reviews (인증)">
+      <Section title="리뷰 작성" method="POST /reviews">
         <Field
           label="target_user_id"
           value={targetUserId}
@@ -76,17 +77,21 @@ export default function ReviewsPage() {
           onChange={(e) => setSkillItemId(e.target.value)}
         />
         <Field
-          label="rating (1~5)"
+          label="평점 (1~5)"
           type="number"
           value={rating}
           onChange={(e) => setRating(e.target.value)}
         />
-        <Field label="content" value={content} onChange={(e) => setContent(e.target.value)} />
-        <button onClick={() => create.run()}>작성</button>
+        <Field label="내용" value={content} onChange={(e) => setContent(e.target.value)} />
+        <div className="actions">
+          <button className="btn-primary" onClick={() => create.run()}>
+            작성
+          </button>
+        </div>
         <Result data={create.data} error={create.error} loading={create.loading} />
       </Section>
 
-      <Section title="GET /reviews">
+      <Section title="리뷰 조회" method="GET /reviews">
         <Field
           label="target_user_id"
           value={filterTargetUserId}
@@ -102,29 +107,33 @@ export default function ReviewsPage() {
           value={filterSkillItemId}
           onChange={(e) => setFilterSkillItemId(e.target.value)}
         />
-        <button onClick={() => list.run()}>목록 조회</button>
+        <div className="actions">
+          <button onClick={() => list.run()}>목록 조회</button>
+        </div>
         <Result data={list.data} error={list.error} loading={list.loading} />
       </Section>
 
-      <Section title="대상 review_id">
+      <Section title="리뷰 수정 / 삭제" method="PATCH · DELETE /reviews/{id}">
         <Field
           label="review_id"
           value={reviewId}
           onChange={(e) => setReviewId(e.target.value)}
         />
         <Field
-          label="patch rating"
+          label="평점"
           type="number"
           value={patchRating}
           onChange={(e) => setPatchRating(e.target.value)}
         />
         <Field
-          label="patch content"
+          label="내용"
           value={patchContent}
           onChange={(e) => setPatchContent(e.target.value)}
         />
-        <button onClick={() => patch.run()}>PATCH (인증)</button>
-        <button onClick={() => del.run()}>DELETE (인증)</button>
+        <div className="actions">
+          <button onClick={() => patch.run()}>수정</button>
+          <button onClick={() => del.run()}>삭제</button>
+        </div>
         <Result data={patch.data} error={patch.error} loading={patch.loading} />
         <Result data={del.data} error={del.error} loading={del.loading} />
       </Section>

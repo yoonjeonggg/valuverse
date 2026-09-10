@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { api } from "../lib/api";
 import { toIso } from "../lib/format";
-import { Field, Result, Section, useCall } from "../lib/ui";
+import { Field, PageHeader, Result, Section, useCall } from "../lib/ui";
 
 export default function PredictionsPage() {
   const [statusFilter, setStatusFilter] = useState("");
@@ -53,9 +53,7 @@ export default function PredictionsPage() {
   const del = useCall(() =>
     api(`/predictions/${Number(predictionId)}`, { method: "DELETE", auth: true }),
   );
-  const odds = useCall(() =>
-    api(`/predictions/${Number(predictionId)}/odds`),
-  );
+  const odds = useCall(() => api(`/predictions/${Number(predictionId)}/odds`));
   const settle = useCall(() =>
     api(`/predictions/${Number(predictionId)}/settle`, {
       method: "POST",
@@ -80,30 +78,34 @@ export default function PredictionsPage() {
 
   return (
     <div>
-      <h1>예측 / 베팅 (Prediction / Bet)</h1>
-      <p style={{ fontSize: 13 }}>
-        명제 생성/수정/삭제는 관리자(is_admin) 계정 토큰이 필요합니다.
-      </p>
+      <PageHeader eyebrow="Prediction Market" title="예측시장">
+        <p>
+          Yes / No 명제에 포인트를 베팅하고, 파리뮤추얼 방식으로 정산받습니다.
+          명제 등록·수정·정산은 관리자 계정이 필요합니다.
+        </p>
+      </PageHeader>
 
-      <Section title="GET /predictions">
+      <Section title="명제 목록" method="GET /predictions">
         <Field
           label="status (ongoing/closed/settled)"
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
         />
-        <button onClick={() => list.run()}>목록 조회</button>
+        <div className="actions">
+          <button onClick={() => list.run()}>목록 조회</button>
+        </div>
         <Result data={list.data} error={list.error} loading={list.loading} />
       </Section>
 
-      <Section title="POST /predictions (관리자)">
-        <Field label="title" value={title} onChange={(e) => setTitle(e.target.value)} />
+      <Section title="명제 등록" method="POST /predictions · 관리자">
+        <Field label="제목" value={title} onChange={(e) => setTitle(e.target.value)} />
         <Field
-          label="description"
+          label="설명"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
         />
         <Field
-          label="end_time"
+          label="마감 시간"
           type="datetime-local"
           value={endTime}
           onChange={(e) => setEndTime(e.target.value)}
@@ -120,18 +122,24 @@ export default function PredictionsPage() {
           value={noOdds}
           onChange={(e) => setNoOdds(e.target.value)}
         />
-        <button onClick={() => create.run()}>등록</button>
+        <div className="actions">
+          <button className="btn-primary" onClick={() => create.run()}>
+            등록
+          </button>
+        </div>
         <Result data={create.data} error={create.error} loading={create.loading} />
       </Section>
 
-      <Section title="대상 prediction_id">
+      <Section title="대상 명제 선택" method="GET · PATCH · DELETE /predictions/{id}">
         <Field
           label="prediction_id"
           value={predictionId}
           onChange={(e) => setPredictionId(e.target.value)}
         />
-        <button onClick={() => getOne.run()}>GET</button>
-        <button onClick={() => del.run()}>DELETE (관리자)</button>
+        <div className="actions">
+          <button onClick={() => getOne.run()}>조회</button>
+          <button onClick={() => del.run()}>삭제 (관리자)</button>
+        </div>
         <Field
           label="patch status"
           value={patchStatus}
@@ -142,50 +150,56 @@ export default function PredictionsPage() {
           value={patchResult}
           onChange={(e) => setPatchResult(e.target.value)}
         />
-        <button onClick={() => patch.run()}>PATCH (관리자)</button>
+        <div className="actions">
+          <button onClick={() => patch.run()}>수정 (관리자)</button>
+        </div>
         <Result data={getOne.data} error={getOne.error} loading={getOne.loading} />
         <Result data={patch.data} error={patch.error} loading={patch.loading} />
         <Result data={del.data} error={del.error} loading={del.loading} />
       </Section>
 
-      <Section title="배당률 / 정산 — 위 prediction_id 사용">
-        <button onClick={() => odds.run()}>GET /predictions/{"{id}"}/odds</button>
+      <Section title="배당률 · 정산" method="GET /odds · POST /settle">
+        <div className="actions">
+          <button onClick={() => odds.run()}>배당률 조회</button>
+        </div>
         <Result data={odds.data} error={odds.error} loading={odds.loading} />
         <Field
-          label="settle result (yes/no)"
+          label="정산 결과 (yes/no)"
           value={settleResult}
           onChange={(e) => setSettleResult(e.target.value)}
         />
-        <button onClick={() => settle.run()}>
-          POST /predictions/{"{id}"}/settle (관리자, 마감 후)
-        </button>
+        <div className="actions">
+          <button className="btn-primary" onClick={() => settle.run()}>
+            정산 (관리자, 마감 후)
+          </button>
+        </div>
         <Result data={settle.data} error={settle.error} loading={settle.loading} />
       </Section>
 
-      <Section title="베팅 (Bet) — 위 prediction_id 사용">
+      <Section title="베팅" method="POST /predictions/{id}/bets">
         <Field
-          label="position (yes/no)"
+          label="포지션 (yes/no)"
           value={position}
           onChange={(e) => setPosition(e.target.value)}
         />
         <Field
-          label="amount"
+          label="금액"
           type="number"
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
         />
-        <button onClick={() => createBet.run()}>
-          POST /predictions/{"{id}"}/bets (인증)
-        </button>
-        <button onClick={() => myBets.run()}>
-          GET /users/me/prediction-bets (인증)
-        </button>
+        <div className="actions">
+          <button className="btn-primary" onClick={() => createBet.run()}>
+            베팅
+          </button>
+          <button onClick={() => myBets.run()}>내 베팅 내역</button>
+        </div>
         <Result data={createBet.data} error={createBet.error} loading={createBet.loading} />
         <Result data={myBets.data} error={myBets.error} loading={myBets.loading} />
         <Field label="bet_id" value={betId} onChange={(e) => setBetId(e.target.value)} />
-        <button onClick={() => cancelBet.run()}>
-          DELETE /prediction-bets/{"{id}"} (인증)
-        </button>
+        <div className="actions">
+          <button onClick={() => cancelBet.run()}>베팅 취소</button>
+        </div>
         <Result data={cancelBet.data} error={cancelBet.error} loading={cancelBet.loading} />
       </Section>
     </div>

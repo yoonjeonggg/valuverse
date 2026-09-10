@@ -8,7 +8,7 @@ Notion 기획서·요구사항 명세서·개발명세서 기준으로 구현한
 | 디렉터리 | 내용 |
 |---|---|
 | [`backend/`](backend/README.md) | FastAPI + SQLAlchemy. 아래 기능 목록 참고. 테스트 pytest. |
-| [`frontend/`](frontend/README.md) | Next.js. **디자인 없이** 백엔드 API 연동만 확인하는 최소 화면 |
+| [`frontend/`](frontend/README.md) | Next.js. 랜딩 페이지 + 기능별 API 콘솔 (Wanted Sans, 레드 테마) |
 
 ## 구현 범위
 
@@ -71,5 +71,5 @@ docker compose down -v             # 정리 (DB 볼륨 포함)
 
 ## 참고
 
-- 프론트엔드는 각 API 엔드포인트를 호출해 응답(JSON)을 그대로 보여주는 수준입니다. UI/디자인 작업은 하지 않았습니다.
+- 프론트엔드 기능 화면은 각 API 엔드포인트를 호출해 응답(JSON)을 인스펙터에 보여줍니다. 랜딩만 소비자용 화면입니다.
 - `.env`, `.env.local`, 가상환경, `node_modules`, AI 도구 설정 파일 등은 git 에 커밋되지 않습니다 (`.gitignore` 참고).
