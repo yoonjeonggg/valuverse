@@ -31,12 +31,13 @@ app/
   page.tsx       홈 / 헬스체크
   auth/          POST /auth/signup, POST /auth/login (토큰 저장)
   me/            /users/me (조회/수정/탈퇴), /users/{id}
-  items/         일반경매: item CRUD, 입찰, 블라인드 입찰
-  skill-items/   스킬상품: skill-item CRUD, 예약, 에스크로
-  predictions/   예측명제 CRUD(관리자), 베팅
-  points/        포인트 잔액/내역/트랜잭션
+  items/         일반경매: item CRUD, 입찰, 블라인드 입찰, 낙찰/즉시구매/조기마감/상단노출권
+  skill-items/   스킬상품: skill-item CRUD, 예약(낙찰), 완료 정산/노쇼, 에스크로
+  predictions/   예측명제 CRUD(관리자), 베팅, 파리뮤추얼 배당률/정산
+  points/        포인트 잔액/내역, 출석·미션·광고 적립, 관리자 수동 조정
+  notifications/ 알림 조회 / 읽음 처리
   reviews/       리뷰 CRUD
-  reports/       신고 생성 / 관리자 조회·처리
+  reports/       신고 생성 / 관리자 조회·처리(제재 연동)
 ```
 
 ## 인증

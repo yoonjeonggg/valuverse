@@ -22,6 +22,8 @@ export default function ItemsPage() {
   const [imageUrl, setImageUrl] = useState("");
   const [startPrice, setStartPrice] = useState("1000");
   const [buyNowPrice, setBuyNowPrice] = useState("");
+  const [auctionType, setAuctionType] = useState("general");
+  const [blindPriceRule, setBlindPriceRule] = useState("first");
   const [endTime, setEndTime] = useState("");
 
   // 대상 아이템 / 입찰
@@ -48,6 +50,8 @@ export default function ItemsPage() {
         image_url: imageUrl || undefined,
         start_price: Number(startPrice),
         buy_now_price: buyNowPrice ? Number(buyNowPrice) : undefined,
+        auction_type: auctionType || undefined,
+        blind_price_rule: blindPriceRule || undefined,
         end_time: toIso(endTime),
       },
     }),
@@ -62,6 +66,15 @@ export default function ItemsPage() {
   );
   const del = useCall(() =>
     api(`/items/${Number(itemId)}`, { method: "DELETE", auth: true }),
+  );
+  const closeItem = useCall(() =>
+    api(`/items/${Number(itemId)}/close`, { method: "POST", auth: true }),
+  );
+  const buyNow = useCall(() =>
+    api(`/items/${Number(itemId)}/buy-now`, { method: "POST", auth: true }),
+  );
+  const spotlight = useCall(() =>
+    api(`/items/${Number(itemId)}/spotlight`, { method: "POST", auth: true }),
   );
 
   const createBid = useCall(() =>
@@ -143,6 +156,16 @@ export default function ItemsPage() {
           onChange={(e) => setBuyNowPrice(e.target.value)}
         />
         <Field
+          label="auction_type (general/blind)"
+          value={auctionType}
+          onChange={(e) => setAuctionType(e.target.value)}
+        />
+        <Field
+          label="blind_price_rule (first/second)"
+          value={blindPriceRule}
+          onChange={(e) => setBlindPriceRule(e.target.value)}
+        />
+        <Field
           label="end_time"
           type="datetime-local"
           value={endTime}
@@ -171,6 +194,23 @@ export default function ItemsPage() {
         <Result data={getOne.data} error={getOne.error} loading={getOne.loading} />
         <Result data={patch.data} error={patch.error} loading={patch.loading} />
         <Result data={del.data} error={del.error} loading={del.loading} />
+      </Section>
+
+      <Section title="낙찰 / 즉시구매 / 노출 — 위 item_id 사용">
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+          <button onClick={() => closeItem.run()}>
+            POST /items/{"{id}"}/close (판매자)
+          </button>
+          <button onClick={() => buyNow.run()}>
+            POST /items/{"{id}"}/buy-now (인증)
+          </button>
+          <button onClick={() => spotlight.run()}>
+            POST /items/{"{id}"}/spotlight (포인트 차감)
+          </button>
+        </div>
+        <Result data={closeItem.data} error={closeItem.error} loading={closeItem.loading} />
+        <Result data={buyNow.data} error={buyNow.error} loading={buyNow.loading} />
+        <Result data={spotlight.data} error={spotlight.error} loading={spotlight.loading} />
       </Section>
 
       <Section title="입찰 (Bid) — 위 item_id 사용">

@@ -15,6 +15,7 @@ const NAV: [string, string][] = [
   ["/skill-items", "스킬상품"],
   ["/predictions", "예측/베팅"],
   ["/points", "포인트"],
+  ["/notifications", "알림"],
   ["/reviews", "리뷰"],
   ["/reports", "신고"],
 ];

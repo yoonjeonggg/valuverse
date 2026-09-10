@@ -22,6 +22,7 @@ export default function PredictionsPage() {
   const [predictionId, setPredictionId] = useState("");
   const [patchStatus, setPatchStatus] = useState("closed");
   const [patchResult, setPatchResult] = useState("yes");
+  const [settleResult, setSettleResult] = useState("yes");
 
   const [position, setPosition] = useState("yes");
   const [amount, setAmount] = useState("");
@@ -56,6 +57,16 @@ export default function PredictionsPage() {
   );
   const del = useCall(() =>
     api(`/predictions/${Number(predictionId)}`, { method: "DELETE", auth: true }),
+  );
+  const odds = useCall(() =>
+    api(`/predictions/${Number(predictionId)}/odds`),
+  );
+  const settle = useCall(() =>
+    api(`/predictions/${Number(predictionId)}/settle`, {
+      method: "POST",
+      auth: true,
+      body: { result: settleResult },
+    }),
   );
 
   const createBet = useCall(() =>
@@ -140,6 +151,20 @@ export default function PredictionsPage() {
         <Result data={getOne.data} error={getOne.error} loading={getOne.loading} />
         <Result data={patch.data} error={patch.error} loading={patch.loading} />
         <Result data={del.data} error={del.error} loading={del.loading} />
+      </Section>
+
+      <Section title="배당률 / 정산 — 위 prediction_id 사용">
+        <button onClick={() => odds.run()}>GET /predictions/{"{id}"}/odds</button>
+        <Result data={odds.data} error={odds.error} loading={odds.loading} />
+        <Field
+          label="settle result (yes/no)"
+          value={settleResult}
+          onChange={(e) => setSettleResult(e.target.value)}
+        />
+        <button onClick={() => settle.run()}>
+          POST /predictions/{"{id}"}/settle (관리자, 마감 후)
+        </button>
+        <Result data={settle.data} error={settle.error} loading={settle.loading} />
       </Section>
 
       <Section title="베팅 (Bet) — 위 prediction_id 사용">

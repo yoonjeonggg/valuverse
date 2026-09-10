@@ -6,13 +6,24 @@ import { Field, Result, Section, useCall } from "../lib/ui";
 
 export default function PointsPage() {
   const [amount, setAmount] = useState("1000");
-  const [type, setType] = useState("charge");
+  const [type, setType] = useState("admin");
   const [memo, setMemo] = useState("");
   const [targetUserId, setTargetUserId] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
+  const [missionKey, setMissionKey] = useState("first_bid");
 
   const balance = useCall(() =>
     api("/users/me/points/balance", { auth: true }),
+  );
+  const checkIn = useCall(() =>
+    api("/points/check-in", { method: "POST", auth: true }),
+  );
+  const missions = useCall(() => api("/points/missions", { auth: true }));
+  const claimMission = useCall(() =>
+    api(`/points/missions/${missionKey}/claim`, { method: "POST", auth: true }),
+  );
+  const adReward = useCall(() =>
+    api("/points/ad-reward", { method: "POST", auth: true }),
   );
   const listTx = useCall(() =>
     api("/users/me/point-transactions", {
@@ -42,7 +53,28 @@ export default function PointsPage() {
         <Result data={balance.data} error={balance.error} loading={balance.loading} />
       </Section>
 
-      <Section title="POST /point-transactions (인증)">
+      <Section title="적립 — 출석 / 미션 / 광고 (인증)">
+        <button onClick={() => checkIn.run()}>POST /points/check-in</button>
+        <Result data={checkIn.data} error={checkIn.error} loading={checkIn.loading} />
+        <button onClick={() => missions.run()}>GET /points/missions</button>
+        <Result data={missions.data} error={missions.error} loading={missions.loading} />
+        <Field
+          label="mission key (first_bid/first_item/first_review)"
+          value={missionKey}
+          onChange={(e) => setMissionKey(e.target.value)}
+        />
+        <button onClick={() => claimMission.run()}>
+          POST /points/missions/{"{key}"}/claim
+        </button>
+        <Result data={claimMission.data} error={claimMission.error} loading={claimMission.loading} />
+        <button onClick={() => adReward.run()}>POST /points/ad-reward</button>
+        <Result data={adReward.data} error={adReward.error} loading={adReward.loading} />
+      </Section>
+
+      <Section title="POST /point-transactions (관리자 전용)">
+        <p style={{ fontSize: 13 }}>
+          일반 적립은 위의 출석/미션/광고를 사용하세요. 이 엔드포인트는 관리자 수동 조정용입니다.
+        </p>
         <Field
           label="amount (양수=적립, 음수=차감)"
           type="number"

@@ -25,9 +25,11 @@ export default function SkillItemsPage() {
   const [patchTitle, setPatchTitle] = useState("");
 
   const [buyerId, setBuyerId] = useState("");
+  const [bookingAmount, setBookingAmount] = useState("10000");
   const [scheduledAt, setScheduledAt] = useState("");
   const [bookingId, setBookingId] = useState("");
   const [bookingStatus, setBookingStatus] = useState("completed");
+  const [noShowParty, setNoShowParty] = useState("seller");
 
   const [escrowPayeeId, setEscrowPayeeId] = useState("");
   const [escrowAmount, setEscrowAmount] = useState("");
@@ -72,11 +74,25 @@ export default function SkillItemsPage() {
       body: {
         skill_item_id: Number(skillItemId),
         buyer_id: Number(buyerId),
+        amount: Number(bookingAmount),
         scheduled_at: toIso(scheduledAt),
       },
     }),
   );
   const myBookings = useCall(() => api("/skill-bookings", { auth: true }));
+  const completeBooking = useCall(() =>
+    api(`/skill-bookings/${Number(bookingId)}/complete`, {
+      method: "POST",
+      auth: true,
+    }),
+  );
+  const noShowBooking = useCall(() =>
+    api(`/skill-bookings/${Number(bookingId)}/no-show`, {
+      method: "POST",
+      auth: true,
+      body: { party: noShowParty },
+    }),
+  );
   const getBooking = useCall(() =>
     api(`/skill-bookings/${Number(bookingId)}`, { auth: true }),
   );
@@ -181,14 +197,23 @@ export default function SkillItemsPage() {
       </Section>
 
       <Section title="예약 (Booking) — 위 skill_item_id 사용">
+        <p style={{ fontSize: 13 }}>
+          예약 생성 = 낙찰. buyer 포인트가 amount 만큼 차감되어 에스크로에 보관됩니다.
+        </p>
         <Field label="buyer_id" value={buyerId} onChange={(e) => setBuyerId(e.target.value)} />
+        <Field
+          label="amount (낙찰가)"
+          type="number"
+          value={bookingAmount}
+          onChange={(e) => setBookingAmount(e.target.value)}
+        />
         <Field
           label="scheduled_at"
           type="datetime-local"
           value={scheduledAt}
           onChange={(e) => setScheduledAt(e.target.value)}
         />
-        <button onClick={() => createBooking.run()}>POST /skill-bookings (인증)</button>
+        <button onClick={() => createBooking.run()}>POST /skill-bookings (판매자)</button>
         <button onClick={() => myBookings.run()}>GET /skill-bookings (인증)</button>
         <Result data={createBooking.data} error={createBooking.error} loading={createBooking.loading} />
         <Result data={myBookings.data} error={myBookings.error} loading={myBookings.loading} />
@@ -198,16 +223,29 @@ export default function SkillItemsPage() {
           onChange={(e) => setBookingId(e.target.value)}
         />
         <Field
-          label="status (in_progress/completed/no_show/cancelled)"
+          label="scheduled_at 변경용 status (참고용)"
           value={bookingStatus}
           onChange={(e) => setBookingStatus(e.target.value)}
         />
-        <button onClick={() => getBooking.run()}>GET</button>
-        <button onClick={() => patchBooking.run()}>PATCH status</button>
-        <button onClick={() => cancelBooking.run()}>DELETE</button>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 4 }}>
+          <button onClick={() => getBooking.run()}>GET</button>
+          <button onClick={() => patchBooking.run()}>PATCH (일정 변경)</button>
+          <button onClick={() => completeBooking.run()}>
+            POST /complete (구매자, 정산)
+          </button>
+          <button onClick={() => cancelBooking.run()}>DELETE (취소·환불)</button>
+        </div>
+        <Field
+          label="no-show party (seller/buyer)"
+          value={noShowParty}
+          onChange={(e) => setNoShowParty(e.target.value)}
+        />
+        <button onClick={() => noShowBooking.run()}>POST /no-show</button>
         <Result data={getBooking.data} error={getBooking.error} loading={getBooking.loading} />
         <Result data={patchBooking.data} error={patchBooking.error} loading={patchBooking.loading} />
+        <Result data={completeBooking.data} error={completeBooking.error} loading={completeBooking.loading} />
         <Result data={cancelBooking.data} error={cancelBooking.error} loading={cancelBooking.loading} />
+        <Result data={noShowBooking.data} error={noShowBooking.error} loading={noShowBooking.loading} />
       </Section>
 
       <Section title="에스크로 (Escrow)">

@@ -10,6 +10,8 @@ export default function ReportsPage() {
   const [reason, setReason] = useState("");
 
   const [statusFilter, setStatusFilter] = useState("");
+  const [filterTargetType, setFilterTargetType] = useState("");
+  const [filterTargetId, setFilterTargetId] = useState("");
 
   const [reportId, setReportId] = useState("");
   const [patchStatus, setPatchStatus] = useState("in_progress");
@@ -27,7 +29,17 @@ export default function ReportsPage() {
     }),
   );
   const list = useCall(() =>
-    api("/reports", { auth: true, query: { status: statusFilter } }),
+    api("/reports", {
+      auth: true,
+      query: {
+        status: statusFilter,
+        target_type: filterTargetType,
+        target_id: filterTargetId,
+      },
+    }),
+  );
+  const getOne = useCall(() =>
+    api(`/reports/${Number(reportId)}`, { auth: true }),
   );
   const patch = useCall(() =>
     api(`/reports/${Number(reportId)}`, {
@@ -64,16 +76,31 @@ export default function ReportsPage() {
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
         />
+        <Field
+          label="target_type 필터"
+          value={filterTargetType}
+          onChange={(e) => setFilterTargetType(e.target.value)}
+        />
+        <Field
+          label="target_id 필터"
+          value={filterTargetId}
+          onChange={(e) => setFilterTargetId(e.target.value)}
+        />
         <button onClick={() => list.run()}>목록 조회</button>
         <Result data={list.data} error={list.error} loading={list.loading} />
       </Section>
 
       <Section title="PATCH /reports/{id} (관리자)">
+        <p style={{ fontSize: 13 }}>
+          status=resolved 로 처리하면 대상이 제재됩니다(상품/리뷰 삭제, 회원은 누적 시 비활성화).
+        </p>
         <Field
           label="report_id"
           value={reportId}
           onChange={(e) => setReportId(e.target.value)}
         />
+        <button onClick={() => getOne.run()}>GET /reports/{"{id}"}</button>
+        <Result data={getOne.data} error={getOne.error} loading={getOne.loading} />
         <Field
           label="status"
           value={patchStatus}
