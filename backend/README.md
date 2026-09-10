@@ -112,5 +112,7 @@ db=SessionLocal(); db.query(User).filter(User.email=='you@example.com').update({
 
 ## 참고
 
-- 본 구현은 기본 CRUD 범위만 다룬다. AI 기능·실시간 입찰 로직·자동연장·배당 정산 등은 제외.
+- AI 보조: `GET /ai/price-suggestion?category=`(과거 낙찰가 기반 시세·시작가 추천, FR-BLD-05),
+  `POST /ai/abuse-check`(규칙 기반 어뷰징 문구 탐지, FR-AI-03). LLM 없이 통계/규칙으로 구현했으며,
+  개발명세서의 Ollama LLM/RAG/CV Gateway 는 별도 서비스로 분리 예정.
 - 블라인드 입찰 금액은 마감 전까지 응답에 노출하지 않는다(접근 제어).

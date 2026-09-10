@@ -107,6 +107,16 @@ export default function ItemsPage() {
     api(`/blind-bids/${Number(blindBidId)}`, { method: "DELETE", auth: true }),
   );
 
+  // --- AI 보조 ---
+  const [aiCategory, setAiCategory] = useState("");
+  const [aiText, setAiText] = useState("");
+  const priceSuggestion = useCall(() =>
+    api("/ai/price-suggestion", { query: { category: aiCategory } }),
+  );
+  const abuseCheck = useCall(() =>
+    api("/ai/abuse-check", { method: "POST", auth: true, body: { text: aiText } }),
+  );
+
   // --- 실시간 입찰 WebSocket ---
   const wsRef = useRef<WebSocket | null>(null);
   const [wsLog, setWsLog] = useState<string[]>([]);
@@ -280,6 +290,27 @@ export default function ItemsPage() {
           DELETE /blind-bids/{"{id}"} (인증)
         </button>
         <Result data={cancelBlind.data} error={cancelBlind.error} loading={cancelBlind.loading} />
+      </Section>
+
+      <Section title="AI 보조 (통계·규칙 기반)">
+        <Field
+          label="category"
+          value={aiCategory}
+          onChange={(e) => setAiCategory(e.target.value)}
+        />
+        <button onClick={() => priceSuggestion.run()}>
+          GET /ai/price-suggestion (시세 추천)
+        </button>
+        <Result data={priceSuggestion.data} error={priceSuggestion.error} loading={priceSuggestion.loading} />
+        <Field
+          label="text (설명 문구)"
+          value={aiText}
+          onChange={(e) => setAiText(e.target.value)}
+        />
+        <button onClick={() => abuseCheck.run()}>
+          POST /ai/abuse-check (어뷰징 문구 탐지, 인증)
+        </button>
+        <Result data={abuseCheck.data} error={abuseCheck.error} loading={abuseCheck.loading} />
       </Section>
 
       <Section title="실시간 입찰 WS /items/{id}/bid — 위 item_id 사용">
