@@ -1,5 +1,7 @@
 # Valuverse
 
+[![CI](https://github.com/yoonjeonggg/valuverse/actions/workflows/ci.yml/badge.svg)](https://github.com/yoonjeonggg/valuverse/actions/workflows/ci.yml)
+
 다양한 경매 방식 + 재능 거래 + 포인트 예측시장을 결합한 AI 보조 경매 플랫폼.
 Notion 기획서·요구사항 명세서·개발명세서 기준으로 구현한다.
 
@@ -59,6 +61,13 @@ docker compose down -v             # 정리 (DB 볼륨 포함)
 - 호스트 포트 충돌 시 `DB_PORT` / `BACKEND_PORT` / `FRONTEND_PORT` 로 재지정한다
   (예: `DB_PORT=55432 docker compose up`).
 - `SECRET_KEY` 는 환경변수로 주입한다 (미지정 시 개발용 기본값).
+
+## CI
+
+`.github/workflows/ci.yml` 이 push/PR 마다 실행:
+- backend: `pytest` (마이그레이션 동기 검증 포함)
+- frontend: `eslint` + `next build`
+- docker: `compose config` + 이미지 빌드
 
 ## 참고
 
