@@ -19,7 +19,9 @@ from app.routers.report import router as report_router
 from app.routers.notification import router as notification_router
 from app.routers.ai import router as ai_router
 
-Base.metadata.create_all(bind=engine)
+if settings.auto_create_tables:
+    # 빠른 실행용. 마이그레이션(alembic)을 쓸 때는 AUTO_CREATE_TABLES=false 로 둔다.
+    Base.metadata.create_all(bind=engine)
 
 
 @asynccontextmanager

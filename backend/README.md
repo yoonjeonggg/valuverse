@@ -23,6 +23,16 @@ cp .env.example .env             # 값 채우기 (아래 참고)
 uvicorn app.main:app --reload
 ```
 
+기본값(`AUTO_CREATE_TABLES=true`)에서는 앱 시작 시 테이블이 자동 생성된다.
+마이그레이션을 쓰려면 `.env` 에 `AUTO_CREATE_TABLES=false` 를 두고 아래를 실행한다.
+
+```bash
+alembic upgrade head        # 최신 스키마로 이관
+alembic downgrade -1        # 한 단계 되돌리기
+alembic revision --autogenerate -m "설명"   # 모델 변경 후 새 리비전 생성
+```
+
+- alembic 은 `.env` 의 `DATABASE_URL` 을 사용한다 (`alembic/env.py`).
 - API 문서: http://127.0.0.1:8000/docs
 - 헬스체크: http://127.0.0.1:8000/health
 
@@ -36,6 +46,7 @@ uvicorn app.main:app --reload
 | `ALGORITHM` | JWT 알고리즘 | `HS256` |
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | 액세스 토큰 만료(분) | `1440` |
 | `DATABASE_URL` | DB 접속 URL | `sqlite:///./auction.db` |
+| `AUTO_CREATE_TABLES` | 시작 시 테이블 자동 생성 (alembic 사용 시 `false`) | `true` |
 | `AUCTION_EXTEND_WINDOW_SECONDS` | 마감 임박 판정 구간(초) | `180` |
 | `AUCTION_EXTEND_BY_SECONDS` | 자동 연장 시간(초) | `180` |
 | `AUCTION_MAX_EXTENSIONS` | 자동 연장 최대 횟수 | `10` |
@@ -57,6 +68,9 @@ app/
   routers/     엔드포인트
   database.py  엔진 / 세션
   main.py      앱 엔트리포인트
+alembic/       마이그레이션 (env.py, versions/)
+alembic.ini    alembic 설정
+tests/         pytest
 ```
 
 ## 낙찰/정산 로직 (CRUD 이후 추가)

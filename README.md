@@ -33,6 +33,7 @@ cd backend
 python -m venv venv && venv\Scripts\activate      # Windows
 pip install -r requirements.txt
 cp .env.example .env
+# alembic 마이그레이션을 쓰려면: .env 에 AUTO_CREATE_TABLES=false 후 `alembic upgrade head`
 uvicorn app.main:app --reload                      # http://localhost:8000
 pytest                                             # 테스트
 

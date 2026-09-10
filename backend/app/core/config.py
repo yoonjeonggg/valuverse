@@ -17,6 +17,9 @@ class Settings(BaseSettings):
 
     # DB
     database_url: str = "sqlite:///./auction.db"
+    # True 면 앱 시작 시 테이블을 자동 생성한다(마이그레이션 없이 빠른 실행용).
+    # 운영/마이그레이션 사용 시 False 로 두고 `alembic upgrade head` 를 쓴다.
+    auto_create_tables: bool = True
 
     # 경매 - 마감 임박 입찰 시 자동 연장 (스나이핑 방지, FR-AUC-03)
     auction_extend_window_seconds: int = 180
