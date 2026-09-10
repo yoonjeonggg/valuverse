@@ -28,15 +28,6 @@ def _top_bid(db: Session, item_id: int) -> Bid | None:
     )
 
 
-def _top_blind_bid(db: Session, item_id: int) -> BlindBid | None:
-    return (
-        db.query(BlindBid)
-        .filter(BlindBid.item_id == item_id, BlindBid.is_cancelled.is_(False))
-        .order_by(BlindBid.amount.desc(), BlindBid.created_at.asc())
-        .first()
-    )
-
-
 def _finalize(db: Session, item: Item) -> Item:
     """경매를 마감 상태로 확정한다. 최고 입찰자를 낙찰자로 기록.
 
@@ -45,11 +36,16 @@ def _finalize(db: Session, item: Item) -> Item:
     """
     top = _top_bid(db, item.id)
     if top is None:
-        blind = _top_blind_bid(db, item.id)
-        if blind is not None:
-            item.winner_id = blind.bidder_id
-            item.final_price = blind.amount
-            item.current_price = blind.amount
+        blind_bids = _ranked_blind_bids(db, item.id)
+        if blind_bids:
+            winner = blind_bids[0]
+            item.winner_id = winner.bidder_id
+            # Vickrey: 2위 입찰가로 결제. 입찰자가 1명뿐이면 본인 제시가.
+            if item.blind_price_rule == "second" and len(blind_bids) >= 2:
+                item.final_price = blind_bids[1].amount
+            else:
+                item.final_price = winner.amount
+            item.current_price = item.final_price
     else:
         item.winner_id = top.bidder_id
         item.final_price = top.amount
@@ -88,6 +84,8 @@ def create_item(db: Session, seller_id: int, payload: ItemCreate) -> Item:
         start_price=payload.start_price,
         buy_now_price=payload.buy_now_price,
         current_price=payload.start_price,
+        auction_type=payload.auction_type,
+        blind_price_rule=payload.blind_price_rule,
         end_time=payload.end_time,
         status="ongoing",
     )
@@ -217,6 +215,10 @@ def close_item(db: Session, item_id: int, user_id: int) -> Item:
 def buy_now(db: Session, item_id: int, buyer_id: int) -> Item:
     """즉시구매가로 경매를 즉시 낙찰 처리한다."""
     item = get_item(db, item_id)
+    if item.auction_type != "general":
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, "블라인드 경매는 즉시구매를 지원하지 않습니다."
+        )
     if item.buy_now_price is None:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "즉시구매가 없는 상품입니다.")
     if item.seller_id == buyer_id:
@@ -247,6 +249,10 @@ def buy_now(db: Session, item_id: int, buyer_id: int) -> Item:
 # ==================== Bid ====================
 def create_bid(db: Session, item_id: int, bidder_id: int, payload: BidCreate) -> Bid:
     item = get_item(db, item_id)
+    if item.auction_type != "general":
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, "블라인드 경매는 비공개 입찰을 사용하세요."
+        )
     if item.seller_id == bidder_id:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "본인 상품에는 입찰할 수 없습니다.")
     if item.status != "ongoing" or is_past(item.end_time):
@@ -346,6 +352,10 @@ def create_blind_bid(
     db: Session, item_id: int, bidder_id: int, payload: BlindBidCreate
 ) -> BlindBid:
     item = get_item(db, item_id)
+    if item.auction_type != "blind":
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, "블라인드 경매가 아닙니다."
+        )
     if item.status != "ongoing" or is_past(item.end_time):
         raise HTTPException(status.HTTP_409_CONFLICT, "마감된 경매입니다.")
     if item.seller_id == bidder_id:

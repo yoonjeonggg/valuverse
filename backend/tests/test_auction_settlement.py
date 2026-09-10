@@ -203,7 +203,7 @@ def test_blind_auction_finalizes_first_price(client, make_user, move_deadline):
     seller_h, _ = make_user()
     b1_h, b1 = make_user()
     b2_h, b2 = make_user()
-    item = _create_item(client, seller_h)
+    item = _create_item(client, seller_h, auction_type="blind")
 
     client.post(f"/items/{item['id']}/blind-bids", json={"amount": 4000}, headers=b1_h)
     client.post(f"/items/{item['id']}/blind-bids", json={"amount": 7000}, headers=b2_h)

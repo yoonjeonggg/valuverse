@@ -25,6 +25,14 @@ class Item(Base):
     start_price = Column(Integer, nullable=False)
     buy_now_price = Column(Integer, nullable=True)
     current_price = Column(Integer, nullable=False, default=0)
+    # general(공개 실시간) | blind(밀봉)
+    auction_type = Column(
+        String(10), nullable=False, default="general", server_default="general", index=True
+    )
+    # 블라인드 낙찰 규칙: first(1st-price) | second(Vickrey 2nd-price)
+    blind_price_rule = Column(
+        String(10), nullable=False, default="first", server_default="first"
+    )
     end_time = Column(DateTime(timezone=True), nullable=False)
     # ongoing | closed
     status = Column(String(20), nullable=False, default="ongoing", index=True)

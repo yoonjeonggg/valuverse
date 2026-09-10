@@ -14,6 +14,8 @@ class ItemCreate(BaseModel):
     image_url: Optional[str] = Field(default=None, max_length=500)
     start_price: int = Field(ge=0)
     buy_now_price: Optional[int] = Field(default=None, ge=0)
+    auction_type: Literal["general", "blind"] = "general"
+    blind_price_rule: Literal["first", "second"] = "first"
     end_time: datetime
 
 
@@ -36,6 +38,8 @@ class ItemResponse(ORMModel):
     start_price: int
     buy_now_price: Optional[int] = None
     current_price: int
+    auction_type: str
+    blind_price_rule: str
     end_time: datetime
     status: str
     winner_id: Optional[int] = None
