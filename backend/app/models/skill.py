@@ -42,6 +42,8 @@ class SkillBooking(Base):
     skill_item_id = Column(Integer, ForeignKey("skill_items.id"), nullable=False, index=True)
     seller_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     buyer_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    # 낙찰가. 예약 생성 시 구매자 포인트에서 차감돼 에스크로에 보관된다.
+    amount = Column(Integer, nullable=False, default=0)
     scheduled_at = Column(DateTime(timezone=True), nullable=False)
     # in_progress | completed | no_show | cancelled
     status = Column(String(20), nullable=False, default="in_progress", index=True)

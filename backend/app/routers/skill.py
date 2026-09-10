@@ -10,6 +10,7 @@ from app.schemas.skill import (
     SkillItemResponse,
     SkillBookingCreate,
     SkillBookingUpdate,
+    SkillBookingNoShow,
     SkillBookingResponse,
     EscrowCreate,
     EscrowUpdate,
@@ -105,6 +106,25 @@ def update_booking(
     user: User = Depends(get_current_user),
 ):
     return skill_service.update_booking(db, booking_id, user.id, payload)
+
+
+@booking_router.post("/{booking_id}/complete", response_model=SkillBookingResponse)
+def complete_booking(
+    booking_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    return skill_service.complete_booking(db, booking_id, user)
+
+
+@booking_router.post("/{booking_id}/no-show", response_model=SkillBookingResponse)
+def no_show_booking(
+    booking_id: int,
+    payload: SkillBookingNoShow,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    return skill_service.no_show_booking(db, booking_id, user, payload.party)
 
 
 @booking_router.delete("/{booking_id}", status_code=status.HTTP_204_NO_CONTENT)

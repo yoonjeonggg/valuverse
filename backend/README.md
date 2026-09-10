@@ -71,9 +71,14 @@ app/
 | 자동 마감 | (조회 시 자동) | `end_time` 이 지난 경매는 조회 시 낙찰 확정 처리 |
 | 배당률 조회 | `GET /predictions/{id}/odds` | 현재 베팅 풀 기준 파리뮤추얼 배당 배수 (FR-PRD-03) |
 | 명제 정산 | `POST /predictions/{id}/settle` | 관리자, 결과 확정 후 승자에게 파리뮤추얼 배당 포인트 지급 (FR-PRD-04) |
+| 스킬 예약(낙찰) | `POST /skill-bookings` | 판매자가 낙찰가로 예약 생성. 구매자 포인트가 차감돼 에스크로에 보관 (FR-SKL-02·03) |
+| 스킬 완료 정산 | `POST /skill-bookings/{id}/complete` | 구매자가 완료 확인 → 에스크로를 판매자에게 정산 |
+| 스킬 노쇼 | `POST /skill-bookings/{id}/no-show` | 판매자 노쇼면 구매자 환불, 구매자 노쇼면 판매자 정산 (FR-SKL-05) |
 
 - 블라인드 경매는 마감 시 1st-price(제시가 그대로) 로 낙찰한다.
 - 정산 시 승리 포지션 풀이 비어 있으면 전원 원금 환불한다.
+- 스킬 예약 취소(`DELETE /skill-bookings/{id}`) 시 보관중 에스크로는 구매자에게 환불된다.
+- 에스크로 상태 변경(`PATCH /escrows/{id}`)은 실제 포인트 이동을 동반한다.
 
 ## 테스트
 

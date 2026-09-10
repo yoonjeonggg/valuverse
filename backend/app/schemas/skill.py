@@ -50,6 +50,7 @@ class SkillItemResponse(ORMModel):
 class SkillBookingCreate(BaseModel):
     skill_item_id: int
     buyer_id: int
+    amount: int = Field(gt=0)
     scheduled_at: datetime
 
 
@@ -58,11 +59,16 @@ class SkillBookingUpdate(BaseModel):
     status: Optional[Literal["in_progress", "completed", "no_show", "cancelled"]] = None
 
 
+class SkillBookingNoShow(BaseModel):
+    party: Literal["seller", "buyer"]
+
+
 class SkillBookingResponse(ORMModel):
     id: int
     skill_item_id: int
     seller_id: int
     buyer_id: int
+    amount: int
     scheduled_at: datetime
     status: str
     created_at: datetime
