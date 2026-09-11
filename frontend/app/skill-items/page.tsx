@@ -143,7 +143,7 @@ export default function SkillItemsPage() {
         <div className="actions">
           <button onClick={() => list.run()}>목록 조회</button>
         </div>
-        <Result data={list.data} error={list.error} loading={list.loading} />
+        <Result {...list} />
       </Section>
 
       <Section title="스킬 상품 등록" method="POST /skill-items">
@@ -180,7 +180,7 @@ export default function SkillItemsPage() {
             등록
           </button>
         </div>
-        <Result data={create.data} error={create.error} loading={create.loading} />
+        <Result {...create} />
       </Section>
 
       <Section title="대상 스킬 상품 선택" method="GET · PATCH · DELETE /skill-items/{id}">
@@ -199,9 +199,9 @@ export default function SkillItemsPage() {
           <button onClick={() => patch.run()}>제목 수정</button>
           <button onClick={() => del.run()}>삭제</button>
         </div>
-        <Result data={getOne.data} error={getOne.error} loading={getOne.loading} />
-        <Result data={patch.data} error={patch.error} loading={patch.loading} />
-        <Result data={del.data} error={del.error} loading={del.loading} />
+        <Result {...getOne} />
+        <Result {...patch} />
+        <Result {...del} />
       </Section>
 
       <Section title="예약 · 정산" method="POST /skill-bookings · /complete · /no-show">
@@ -228,8 +228,8 @@ export default function SkillItemsPage() {
           </button>
           <button onClick={() => myBookings.run()}>내 예약</button>
         </div>
-        <Result data={createBooking.data} error={createBooking.error} loading={createBooking.loading} />
-        <Result data={myBookings.data} error={myBookings.error} loading={myBookings.loading} />
+        <Result {...createBooking} />
+        <Result {...myBookings} />
         <Field
           label="booking_id"
           value={bookingId}
@@ -254,11 +254,11 @@ export default function SkillItemsPage() {
         <div className="actions">
           <button onClick={() => noShowBooking.run()}>노쇼 처리</button>
         </div>
-        <Result data={getBooking.data} error={getBooking.error} loading={getBooking.loading} />
-        <Result data={patchBooking.data} error={patchBooking.error} loading={patchBooking.loading} />
-        <Result data={completeBooking.data} error={completeBooking.error} loading={completeBooking.loading} />
-        <Result data={cancelBooking.data} error={cancelBooking.error} loading={cancelBooking.loading} />
-        <Result data={noShowBooking.data} error={noShowBooking.error} loading={noShowBooking.loading} />
+        <Result {...getBooking} />
+        <Result {...patchBooking} />
+        <Result {...completeBooking} />
+        <Result {...cancelBooking} />
+        <Result {...noShowBooking} />
       </Section>
 
       <Section title="에스크로" method="POST · GET · PATCH /escrows">
@@ -285,7 +285,7 @@ export default function SkillItemsPage() {
         <div className="actions">
           <button onClick={() => createEscrow.run()}>에스크로 생성</button>
         </div>
-        <Result data={createEscrow.data} error={createEscrow.error} loading={createEscrow.loading} />
+        <Result {...createEscrow} />
         <Field
           label="escrow_id"
           value={escrowId}
@@ -300,8 +300,8 @@ export default function SkillItemsPage() {
           <button onClick={() => getEscrow.run()}>조회</button>
           <button onClick={() => patchEscrow.run()}>상태 변경</button>
         </div>
-        <Result data={getEscrow.data} error={getEscrow.error} loading={getEscrow.loading} />
-        <Result data={patchEscrow.data} error={patchEscrow.error} loading={patchEscrow.loading} />
+        <Result {...getEscrow} />
+        <Result {...patchEscrow} />
       </Section>
     </div>
   );

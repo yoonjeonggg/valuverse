@@ -1,6 +1,6 @@
 """마이페이지 통합 요약 (FR-COM-02)."""
 
-from sqlalchemy import func
+from sqlalchemy import and_, case, func, or_
 from sqlalchemy.orm import Session
 
 from app.models.auction import Bid, Item
@@ -17,6 +17,17 @@ def _count(db: Session, model, *conditions) -> int:
     return (
         db.query(func.count(model.id)).filter(*conditions).scalar() or 0
     )
+
+
+def _counts_by_group(db: Session, model, group_col, *conditions) -> dict:
+    """group_col 값별 개수. 매칭되는 행이 없으면 그 값은 결과에서 빠진다."""
+    rows = (
+        db.query(group_col, func.count(model.id))
+        .filter(*conditions)
+        .group_by(group_col)
+        .all()
+    )
+    return dict(rows)
 
 
 def get_dashboard(db: Session, user: User) -> dict:
@@ -42,8 +53,54 @@ def get_dashboard(db: Session, user: User) -> dict:
         .first()
     )
 
-    def bookings(field, status: str) -> int:
-        return _count(db, SkillBooking, field == uid, SkillBooking.status == status)
+    # 판매/낙찰 3건을 한 번에: 상품이 내 판매글이거나 내가 낙찰자인 경우만 스캔.
+    selling_ongoing, sold, won = (
+        db.query(
+            func.sum(
+                case(
+                    (
+                        and_(
+                            Item.seller_id == uid,
+                            Item.status == "ongoing",
+                            Item.is_deleted.is_(False),
+                        ),
+                        1,
+                    ),
+                    else_=0,
+                )
+            ),
+            func.sum(
+                case(
+                    (
+                        and_(
+                            Item.seller_id == uid,
+                            Item.status == "closed",
+                            Item.winner_id.isnot(None),
+                        ),
+                        1,
+                    ),
+                    else_=0,
+                )
+            ),
+            func.sum(case((Item.winner_id == uid, 1), else_=0)),
+        )
+        .filter(or_(Item.seller_id == uid, Item.winner_id == uid))
+        .first()
+    )
+
+    # 예약 상태별 건수를 한 번에 (구매자/판매자 어느 쪽이든 매칭).
+    booking_counts = _counts_by_group(
+        db,
+        SkillBooking,
+        SkillBooking.status,
+        or_(SkillBooking.buyer_id == uid, SkillBooking.seller_id == uid),
+        SkillBooking.status.in_(("in_progress", "completed")),
+    )
+
+    # 예측 배팅 결과별 건수를 한 번에.
+    bet_counts = _counts_by_group(
+        db, PredictionBet, PredictionBet.result, PredictionBet.user_id == uid
+    )
 
     return {
         "user_id": uid,
@@ -54,19 +111,9 @@ def get_dashboard(db: Session, user: User) -> dict:
         ),
         "attendance_streak": latest_attendance.streak if latest_attendance else 0,
         "auction": {
-            "selling_ongoing": _count(
-                db, Item,
-                Item.seller_id == uid,
-                Item.status == "ongoing",
-                Item.is_deleted.is_(False),
-            ),
-            "sold": _count(
-                db, Item,
-                Item.seller_id == uid,
-                Item.status == "closed",
-                Item.winner_id.isnot(None),
-            ),
-            "won": _count(db, Item, Item.winner_id == uid),
+            "selling_ongoing": selling_ongoing or 0,
+            "sold": sold or 0,
+            "won": won or 0,
             "active_bids": active_bid_items,
         },
         "skill": {
@@ -75,14 +122,11 @@ def get_dashboard(db: Session, user: User) -> dict:
                 SkillItem.seller_id == uid,
                 SkillItem.is_deleted.is_(False),
             ),
-            "bookings_in_progress": bookings(SkillBooking.buyer_id, "in_progress")
-            + bookings(SkillBooking.seller_id, "in_progress"),
-            "bookings_completed": bookings(SkillBooking.buyer_id, "completed")
-            + bookings(SkillBooking.seller_id, "completed"),
+            "bookings_in_progress": booking_counts.get("in_progress", 0),
+            "bookings_completed": booking_counts.get("completed", 0),
         },
         "prediction_bets": {
-            r: _count(db, PredictionBet, PredictionBet.user_id == uid, PredictionBet.result == r)
-            for r in ("pending", "won", "lost")
+            r: bet_counts.get(r, 0) for r in ("pending", "won", "lost")
         },
         "reviews_written": _count(
             db, Review, Review.author_id == uid, Review.is_deleted.is_(False)

@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
 
+from app.core.db_utils import get_or_404
 from app.models.user import User
 from app.schemas.user import SignupRequest, UserUpdateRequest
 from app.core.security import hash_password, verify_password
@@ -11,10 +12,7 @@ def get_user_by_email(db: Session, email: str) -> User | None:
 
 
 def get_user(db: Session, user_id: int) -> User:
-    user = db.query(User).filter(User.id == user_id).first()
-    if not user:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "사용자를 찾을 수 없습니다.")
-    return user
+    return get_or_404(db, User, user_id, "사용자를 찾을 수 없습니다.")
 
 
 def create_user(db: Session, payload: SignupRequest) -> User:

@@ -2,6 +2,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from app.core.db_utils import get_or_404
 from app.core.timeutils import now, aware
 from app.models.auction import Item
 from app.models.review import Review
@@ -113,14 +114,9 @@ def list_reviews(
 
 
 def _get(db: Session, review_id: int) -> Review:
-    review = (
-        db.query(Review)
-        .filter(Review.id == review_id, Review.is_deleted.is_(False))
-        .first()
+    return get_or_404(
+        db, Review, review_id, "리뷰를 찾을 수 없습니다.", Review.is_deleted.is_(False)
     )
-    if not review:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "리뷰를 찾을 수 없습니다.")
-    return review
 
 
 def update_review(

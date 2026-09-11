@@ -5,21 +5,22 @@ from sqlalchemy import case
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.core.db_utils import get_or_404
 from app.core.timeutils import now, aware, is_past
 from app.models.auction import Item, Bid, BlindBid
 from app.models.user import User
 from app.services import notification_service, point_service
 from app.services.ws_manager import manager as ws_manager
-
-
-def _iso(dt) -> str | None:
-    return dt.isoformat() if dt else None
 from app.schemas.auction import (
     ItemCreate,
     ItemUpdate,
     BidCreate,
     BlindBidCreate,
 )
+
+
+def _iso(dt) -> str | None:
+    return dt.isoformat() if dt else None
 
 
 # ==================== 낙찰/마감 ====================
@@ -165,9 +166,9 @@ def buy_spotlight(db: Session, item_id: int, user: User) -> Item:
 
 
 def get_item(db: Session, item_id: int) -> Item:
-    item = db.query(Item).filter(Item.id == item_id, Item.is_deleted.is_(False)).first()
-    if not item:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "상품을 찾을 수 없습니다.")
+    item = get_or_404(
+        db, Item, item_id, "상품을 찾을 수 없습니다.", Item.is_deleted.is_(False)
+    )
     return _finalize_if_ended(db, item)
 
 
@@ -363,9 +364,7 @@ def list_my_bids(db: Session, user_id: int) -> list[Bid]:
 
 
 def cancel_bid(db: Session, bid_id: int, user_id: int) -> None:
-    bid = db.query(Bid).filter(Bid.id == bid_id).first()
-    if not bid:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "입찰을 찾을 수 없습니다.")
+    bid = get_or_404(db, Bid, bid_id, "입찰을 찾을 수 없습니다.")
     if bid.bidder_id != user_id:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "본인 입찰만 취소할 수 있습니다.")
     if bid.is_cancelled:
@@ -465,9 +464,7 @@ def get_blind_results(db: Session, item_id: int) -> list[dict]:
 
 
 def cancel_blind_bid(db: Session, bid_id: int, user_id: int) -> None:
-    bid = db.query(BlindBid).filter(BlindBid.id == bid_id).first()
-    if not bid:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "입찰을 찾을 수 없습니다.")
+    bid = get_or_404(db, BlindBid, bid_id, "입찰을 찾을 수 없습니다.")
     if bid.bidder_id != user_id:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "본인 입찰만 취소할 수 있습니다.")
     item = get_item(db, bid.item_id)

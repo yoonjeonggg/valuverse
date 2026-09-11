@@ -1,6 +1,7 @@
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.core.db_utils import get_or_404
 from app.models.point import PointTransaction
 from app.models.user import User
 from app.schemas.point import PointTransactionCreate
@@ -41,9 +42,7 @@ def create_transaction(
             status.HTTP_403_FORBIDDEN, "다른 사용자의 포인트를 변경할 수 없습니다."
         )
 
-    target = db.query(User).filter(User.id == target_id).first()
-    if not target:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "대상 사용자를 찾을 수 없습니다.")
+    target = get_or_404(db, User, target_id, "대상 사용자를 찾을 수 없습니다.")
 
     if target.points + payload.amount < 0:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "보유 포인트가 부족합니다.")
@@ -64,7 +63,4 @@ def list_transactions(
 
 
 def get_balance(db: Session, user_id: int) -> int:
-    user = db.query(User).filter(User.id == user_id).first()
-    if not user:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "사용자를 찾을 수 없습니다.")
-    return user.points
+    return get_or_404(db, User, user_id, "사용자를 찾을 수 없습니다.").points

@@ -51,8 +51,8 @@ export default function NotificationsPage() {
           </button>
           <button onClick={() => count.run()}>안 읽은 개수</button>
         </div>
-        <Result data={list.data} error={list.error} loading={list.loading} />
-        <Result data={count.data} error={count.error} loading={count.loading} />
+        <Result {...list} />
+        <Result {...count} />
       </Section>
 
       <Section title="읽음 처리" method="POST /notifications/…">
@@ -65,8 +65,8 @@ export default function NotificationsPage() {
           <button onClick={() => markRead.run()}>이 알림 읽음</button>
           <button onClick={() => readAll.run()}>전체 읽음</button>
         </div>
-        <Result data={markRead.data} error={markRead.error} loading={markRead.loading} />
-        <Result data={readAll.data} error={readAll.error} loading={readAll.loading} />
+        <Result {...markRead} />
+        <Result {...readAll} />
       </Section>
     </div>
   );

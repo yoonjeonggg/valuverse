@@ -54,13 +54,9 @@ class ConnectionManager:
         if running is loop:
             loop.create_task(self._send_room(item_id, payload))
         else:
-            fut = asyncio.run_coroutine_threadsafe(
-                self._send_room(item_id, payload), loop
-            )
-            try:
-                fut.result(timeout=2)
-            except Exception:
-                pass
+            # 결과를 기다리지 않는다: 다른 스레드(요청 처리 스레드)를
+            # WS 팬아웃이 끝날 때까지 블로킹할 이유가 없다 (예외는 _send_room 이 흡수).
+            asyncio.run_coroutine_threadsafe(self._send_room(item_id, payload), loop)
 
 
 manager = ConnectionManager()

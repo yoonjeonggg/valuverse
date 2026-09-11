@@ -1,6 +1,7 @@
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.core.db_utils import get_or_404
 from app.models.skill import SkillItem, SkillBooking, Escrow
 from app.models.user import User
 from app.schemas.skill import (
@@ -66,14 +67,9 @@ def list_skill_items(
 
 
 def get_skill_item(db: Session, item_id: int) -> SkillItem:
-    item = (
-        db.query(SkillItem)
-        .filter(SkillItem.id == item_id, SkillItem.is_deleted.is_(False))
-        .first()
+    return get_or_404(
+        db, SkillItem, item_id, "스킬 상품을 찾을 수 없습니다.", SkillItem.is_deleted.is_(False)
     )
-    if not item:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "스킬 상품을 찾을 수 없습니다.")
-    return item
 
 
 def update_skill_item(

@@ -88,7 +88,7 @@ export default function ReviewsPage() {
             작성
           </button>
         </div>
-        <Result data={create.data} error={create.error} loading={create.loading} />
+        <Result {...create} />
       </Section>
 
       <Section title="리뷰 조회" method="GET /reviews">
@@ -110,7 +110,7 @@ export default function ReviewsPage() {
         <div className="actions">
           <button onClick={() => list.run()}>목록 조회</button>
         </div>
-        <Result data={list.data} error={list.error} loading={list.loading} />
+        <Result {...list} />
       </Section>
 
       <Section title="리뷰 수정 / 삭제" method="PATCH · DELETE /reviews/{id}">
@@ -134,8 +134,8 @@ export default function ReviewsPage() {
           <button onClick={() => patch.run()}>수정</button>
           <button onClick={() => del.run()}>삭제</button>
         </div>
-        <Result data={patch.data} error={patch.error} loading={patch.loading} />
-        <Result data={del.data} error={del.error} loading={del.loading} />
+        <Result {...patch} />
+        <Result {...del} />
       </Section>
     </div>
   );

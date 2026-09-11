@@ -94,7 +94,7 @@ export default function PredictionsPage() {
         <div className="actions">
           <button onClick={() => list.run()}>목록 조회</button>
         </div>
-        <Result data={list.data} error={list.error} loading={list.loading} />
+        <Result {...list} />
       </Section>
 
       <Section title="명제 등록" method="POST /predictions · 관리자">
@@ -127,7 +127,7 @@ export default function PredictionsPage() {
             등록
           </button>
         </div>
-        <Result data={create.data} error={create.error} loading={create.loading} />
+        <Result {...create} />
       </Section>
 
       <Section title="대상 명제 선택" method="GET · PATCH · DELETE /predictions/{id}">
@@ -153,16 +153,16 @@ export default function PredictionsPage() {
         <div className="actions">
           <button onClick={() => patch.run()}>수정 (관리자)</button>
         </div>
-        <Result data={getOne.data} error={getOne.error} loading={getOne.loading} />
-        <Result data={patch.data} error={patch.error} loading={patch.loading} />
-        <Result data={del.data} error={del.error} loading={del.loading} />
+        <Result {...getOne} />
+        <Result {...patch} />
+        <Result {...del} />
       </Section>
 
       <Section title="배당률 · 정산" method="GET /odds · POST /settle">
         <div className="actions">
           <button onClick={() => odds.run()}>배당률 조회</button>
         </div>
-        <Result data={odds.data} error={odds.error} loading={odds.loading} />
+        <Result {...odds} />
         <Field
           label="정산 결과 (yes/no)"
           value={settleResult}
@@ -173,7 +173,7 @@ export default function PredictionsPage() {
             정산 (관리자, 마감 후)
           </button>
         </div>
-        <Result data={settle.data} error={settle.error} loading={settle.loading} />
+        <Result {...settle} />
       </Section>
 
       <Section title="베팅" method="POST /predictions/{id}/bets">
@@ -194,13 +194,13 @@ export default function PredictionsPage() {
           </button>
           <button onClick={() => myBets.run()}>내 베팅 내역</button>
         </div>
-        <Result data={createBet.data} error={createBet.error} loading={createBet.loading} />
-        <Result data={myBets.data} error={myBets.error} loading={myBets.loading} />
+        <Result {...createBet} />
+        <Result {...myBets} />
         <Field label="bet_id" value={betId} onChange={(e) => setBetId(e.target.value)} />
         <div className="actions">
           <button onClick={() => cancelBet.run()}>베팅 취소</button>
         </div>
-        <Result data={cancelBet.data} error={cancelBet.error} loading={cancelBet.loading} />
+        <Result {...cancelBet} />
       </Section>
     </div>
   );

@@ -160,7 +160,7 @@ export default function ItemsPage() {
         <div className="actions">
           <button onClick={() => list.run()}>목록 조회</button>
         </div>
-        <Result data={list.data} error={list.error} loading={list.loading} />
+        <Result {...list} />
       </Section>
 
       <Section title="상품 등록" method="POST /items">
@@ -213,7 +213,7 @@ export default function ItemsPage() {
             등록
           </button>
         </div>
-        <Result data={create.data} error={create.error} loading={create.loading} />
+        <Result {...create} />
       </Section>
 
       <Section title="대상 상품 선택" method="GET · PATCH · DELETE /items/{id}">
@@ -232,9 +232,9 @@ export default function ItemsPage() {
           <button onClick={() => patch.run()}>제목 수정</button>
           <button onClick={() => del.run()}>삭제</button>
         </div>
-        <Result data={getOne.data} error={getOne.error} loading={getOne.loading} />
-        <Result data={patch.data} error={patch.error} loading={patch.loading} />
-        <Result data={del.data} error={del.error} loading={del.loading} />
+        <Result {...getOne} />
+        <Result {...patch} />
+        <Result {...del} />
       </Section>
 
       <Section title="낙찰 · 즉시구매 · 노출" method="POST /items/{id}/close · buy-now · spotlight">
@@ -245,9 +245,9 @@ export default function ItemsPage() {
           </button>
           <button onClick={() => spotlight.run()}>상단 노출권 (포인트)</button>
         </div>
-        <Result data={closeItem.data} error={closeItem.error} loading={closeItem.loading} />
-        <Result data={buyNow.data} error={buyNow.error} loading={buyNow.loading} />
-        <Result data={spotlight.data} error={spotlight.error} loading={spotlight.loading} />
+        <Result {...closeItem} />
+        <Result {...buyNow} />
+        <Result {...spotlight} />
       </Section>
 
       <Section title="입찰 — 일반 경매" method="POST /items/{id}/bids">
@@ -264,14 +264,14 @@ export default function ItemsPage() {
           <button onClick={() => listBids.run()}>입찰 이력</button>
           <button onClick={() => myBids.run()}>내 입찰</button>
         </div>
-        <Result data={createBid.data} error={createBid.error} loading={createBid.loading} />
-        <Result data={listBids.data} error={listBids.error} loading={listBids.loading} />
-        <Result data={myBids.data} error={myBids.error} loading={myBids.loading} />
+        <Result {...createBid} />
+        <Result {...listBids} />
+        <Result {...myBids} />
         <Field label="bid_id" value={bidId} onChange={(e) => setBidId(e.target.value)} />
         <div className="actions">
           <button onClick={() => cancelBid.run()}>입찰 취소</button>
         </div>
-        <Result data={cancelBid.data} error={cancelBid.error} loading={cancelBid.loading} />
+        <Result {...cancelBid} />
       </Section>
 
       <Section title="입찰 — 블라인드 경매" method="POST /items/{id}/blind-bids">
@@ -288,9 +288,9 @@ export default function ItemsPage() {
           <button onClick={() => myRank.run()}>내 순위</button>
           <button onClick={() => blindResults.run()}>결과 (마감 후)</button>
         </div>
-        <Result data={createBlind.data} error={createBlind.error} loading={createBlind.loading} />
-        <Result data={myRank.data} error={myRank.error} loading={myRank.loading} />
-        <Result data={blindResults.data} error={blindResults.error} loading={blindResults.loading} />
+        <Result {...createBlind} />
+        <Result {...myRank} />
+        <Result {...blindResults} />
         <Field
           label="blind_bid_id"
           value={blindBidId}
@@ -299,7 +299,7 @@ export default function ItemsPage() {
         <div className="actions">
           <button onClick={() => cancelBlind.run()}>입찰 취소</button>
         </div>
-        <Result data={cancelBlind.data} error={cancelBlind.error} loading={cancelBlind.loading} />
+        <Result {...cancelBlind} />
       </Section>
 
       <Section title="AI 보조" method="GET /ai/price-suggestion · POST /ai/abuse-check">
@@ -315,7 +315,7 @@ export default function ItemsPage() {
         <div className="actions">
           <button onClick={() => priceSuggestion.run()}>시세 추천</button>
         </div>
-        <Result data={priceSuggestion.data} error={priceSuggestion.error} loading={priceSuggestion.loading} />
+        <Result {...priceSuggestion} />
         <Field
           label="설명 문구"
           value={aiText}
@@ -324,7 +324,7 @@ export default function ItemsPage() {
         <div className="actions">
           <button onClick={() => abuseCheck.run()}>어뷰징 문구 탐지</button>
         </div>
-        <Result data={abuseCheck.data} error={abuseCheck.error} loading={abuseCheck.loading} />
+        <Result {...abuseCheck} />
       </Section>
 
       <Section title="실시간 입찰" method="WS /items/{id}/bid">

@@ -2,6 +2,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.core.db_utils import get_or_404
 from app.models.auction import Item
 from app.models.report import Report
 from app.models.review import Review
@@ -86,10 +87,7 @@ def list_reports(
 
 
 def get_report(db: Session, report_id: int) -> Report:
-    report = db.query(Report).filter(Report.id == report_id).first()
-    if not report:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "신고를 찾을 수 없습니다.")
-    return report
+    return get_or_404(db, Report, report_id, "신고를 찾을 수 없습니다.")
 
 
 def update_report(db: Session, report_id: int, payload: ReportUpdate) -> Report:

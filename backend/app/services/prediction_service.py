@@ -1,6 +1,7 @@
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.core.db_utils import get_or_404
 from app.core.timeutils import is_past
 from app.models.prediction import Prediction, PredictionBet
 from app.models.user import User
@@ -54,10 +55,7 @@ def list_predictions(
 
 
 def get_prediction(db: Session, prediction_id: int) -> Prediction:
-    prediction = db.query(Prediction).filter(Prediction.id == prediction_id).first()
-    if not prediction:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "명제를 찾을 수 없습니다.")
-    return prediction
+    return get_or_404(db, Prediction, prediction_id, "명제를 찾을 수 없습니다.")
 
 
 def update_prediction(

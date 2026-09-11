@@ -62,7 +62,7 @@ export default function AuthPage() {
             가입하기
           </button>
         </div>
-        <Result data={signup.data} error={signup.error} loading={signup.loading} />
+        <Result {...signup} />
       </Section>
 
       <Section title="로그인" method="POST /auth/login">
@@ -71,7 +71,7 @@ export default function AuthPage() {
             로그인
           </button>
         </div>
-        <Result data={login.data} error={login.error} loading={login.loading} />
+        <Result {...login} />
       </Section>
 
       <Section title="현재 토큰">

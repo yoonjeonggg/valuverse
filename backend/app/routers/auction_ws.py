@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
 from sqlalchemy.orm import Session
 from starlette.concurrency import run_in_threadpool
 
-from app.core.security import decode_access_token
+from app.core.deps import lookup_user_by_token
 from app.database import get_db
 from app.models.user import User
 from app.schemas.auction import BidCreate
@@ -28,15 +28,8 @@ def _snapshot(item) -> dict:
 
 
 def _user_from_token(db: Session, token: str | None) -> User | None:
-    if not token:
-        return None
-    email = decode_access_token(token)
-    if not email:
-        return None
-    user = db.query(User).filter(User.email == email).first()
-    if user and user.is_active:
-        return user
-    return None
+    user = lookup_user_by_token(db, token)
+    return user if user and user.is_active else None
 
 
 @router.websocket("/items/{item_id}/bid")

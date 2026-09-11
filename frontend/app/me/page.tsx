@@ -38,7 +38,7 @@ export default function MePage() {
         <div className="actions">
           <button onClick={() => me.run()}>조회</button>
         </div>
-        <Result data={me.data} error={me.error} loading={me.loading} />
+        <Result {...me} />
       </Section>
 
       <Section title="마이페이지 요약" method="GET /users/me/dashboard">
@@ -74,7 +74,7 @@ export default function MePage() {
             수정
           </button>
         </div>
-        <Result data={update.data} error={update.error} loading={update.loading} />
+        <Result {...update} />
       </Section>
 
       <Section title="회원 탈퇴" method="DELETE /users/me">
@@ -82,7 +82,7 @@ export default function MePage() {
         <div className="actions">
           <button onClick={() => remove.run()}>탈퇴</button>
         </div>
-        <Result data={remove.data} error={remove.error} loading={remove.loading} />
+        <Result {...remove} />
       </Section>
 
       <Section title="공개 프로필" method="GET /users/{id}">
@@ -94,7 +94,7 @@ export default function MePage() {
         <div className="actions">
           <button onClick={() => profile.run()}>조회</button>
         </div>
-        <Result data={profile.data} error={profile.error} loading={profile.loading} />
+        <Result {...profile} />
       </Section>
     </div>
   );

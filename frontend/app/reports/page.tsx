@@ -75,7 +75,7 @@ export default function ReportsPage() {
             신고
           </button>
         </div>
-        <Result data={create.data} error={create.error} loading={create.loading} />
+        <Result {...create} />
       </Section>
 
       <Section title="신고 목록" method="GET /reports · 관리자">
@@ -97,7 +97,7 @@ export default function ReportsPage() {
         <div className="actions">
           <button onClick={() => list.run()}>목록 조회</button>
         </div>
-        <Result data={list.data} error={list.error} loading={list.loading} />
+        <Result {...list} />
       </Section>
 
       <Section title="신고 처리" method="PATCH /reports/{id} · 관리자">
@@ -113,7 +113,7 @@ export default function ReportsPage() {
         <div className="actions">
           <button onClick={() => getOne.run()}>단건 조회</button>
         </div>
-        <Result data={getOne.data} error={getOne.error} loading={getOne.loading} />
+        <Result {...getOne} />
         <Field
           label="status"
           value={patchStatus}
@@ -129,7 +129,7 @@ export default function ReportsPage() {
             처리
           </button>
         </div>
-        <Result data={patch.data} error={patch.error} loading={patch.loading} />
+        <Result {...patch} />
       </Section>
     </div>
   );

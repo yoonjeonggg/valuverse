@@ -9,23 +9,27 @@ from app.models.user import User
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
 
+def lookup_user_by_token(db: Session, token: str | None) -> User | None:
+    """토큰을 디코드해 사용자를 조회한다 (활성 여부는 호출자가 판단). HTTP/WS 인증 공용."""
+    if not token:
+        return None
+    email = decode_access_token(token)
+    if not email:
+        return None
+    return db.query(User).filter(User.email == email).first()
+
+
 def get_current_user(
     token: str = Depends(oauth2_scheme),
     db: Session = Depends(get_db),
 ) -> User:
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="인증 정보가 유효하지 않습니다.",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-
-    email = decode_access_token(token)
-    if email is None:
-        raise credentials_exception
-
-    user = db.query(User).filter(User.email == email).first()
+    user = lookup_user_by_token(db, token)
     if user is None:
-        raise credentials_exception
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="인증 정보가 유효하지 않습니다.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
     if not user.is_active:
         raise HTTPException(

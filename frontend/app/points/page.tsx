@@ -67,7 +67,7 @@ export default function PointsPage() {
         <div className="actions">
           <button onClick={() => balance.run()}>잔액 조회</button>
         </div>
-        <Result data={balance.data} error={balance.error} loading={balance.loading} />
+        <Result {...balance} />
       </Section>
 
       <Section title="적립 — 출석 · 미션 · 광고" method="POST /points/…">
@@ -78,9 +78,9 @@ export default function PointsPage() {
           <button onClick={() => adReward.run()}>광고 보상</button>
           <button onClick={() => missions.run()}>미션 목록</button>
         </div>
-        <Result data={checkIn.data} error={checkIn.error} loading={checkIn.loading} />
-        <Result data={adReward.data} error={adReward.error} loading={adReward.loading} />
-        <Result data={missions.data} error={missions.error} loading={missions.loading} />
+        <Result {...checkIn} />
+        <Result {...adReward} />
+        <Result {...missions} />
         <Field
           label="미션 key (first_bid/first_item/first_review)"
           value={missionKey}
@@ -121,7 +121,7 @@ export default function PointsPage() {
           error={redeemCoupon.error}
           loading={redeemCoupon.loading}
         />
-        <Result data={myCoupons.data} error={myCoupons.error} loading={myCoupons.loading} />
+        <Result {...myCoupons} />
         <Field
           label="coupon_id"
           value={couponId}
@@ -130,7 +130,7 @@ export default function PointsPage() {
         <div className="actions">
           <button onClick={() => useCoupon.run()}>쿠폰 사용</button>
         </div>
-        <Result data={useCoupon.data} error={useCoupon.error} loading={useCoupon.loading} />
+        <Result {...useCoupon} />
       </Section>
 
       <Section title="포인트 내역" method="GET /users/me/point-transactions">
@@ -142,7 +142,7 @@ export default function PointsPage() {
         <div className="actions">
           <button onClick={() => listTx.run()}>내역 조회</button>
         </div>
-        <Result data={listTx.data} error={listTx.error} loading={listTx.loading} />
+        <Result {...listTx} />
       </Section>
 
       <Section title="수동 조정" method="POST /point-transactions · 관리자">
@@ -166,7 +166,7 @@ export default function PointsPage() {
         <div className="actions">
           <button onClick={() => createTx.run()}>생성</button>
         </div>
-        <Result data={createTx.data} error={createTx.error} loading={createTx.loading} />
+        <Result {...createTx} />
       </Section>
     </div>
   );
