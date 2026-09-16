@@ -1049,6 +1049,89 @@ button:disabled,
   color: var(--muted);
 }
 
+.statrow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-6);
+  margin: var(--sp-4) 0 var(--sp-6);
+}
+.statrow .stat .num {
+  font-size: var(--fs-xl);
+  font-weight: 800;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+.statrow .stat .lbl {
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-top: 2px;
+}
+
+.tabs {
+  display: flex;
+  gap: var(--sp-5);
+  border-bottom: 1px solid var(--line);
+  margin: var(--sp-2) 0 var(--sp-5);
+}
+.tabs button {
+  background: transparent;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  padding: 8px 2px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.tabs button:hover {
+  background: transparent;
+  color: var(--ink);
+}
+.tabs button.active {
+  color: var(--ink);
+  border-bottom-color: var(--red);
+}
+
+.txlist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+.txlist li {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: 9px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: var(--fs-sm);
+}
+.txlist li:last-child {
+  border-bottom: 0;
+}
+.txlist .memo {
+  color: var(--ink-2);
+}
+.txlist .time {
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  margin-left: 8px;
+}
+.txlist .amt {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.txlist .amt.pos {
+  color: var(--ok);
+}
+.txlist .amt.neg {
+  color: var(--red);
+}
+
 @media (max-width: 720px) {
   :root {
     --fs-2xl: 1.75rem;
