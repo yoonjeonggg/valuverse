@@ -89,3 +89,78 @@ def test_abuse_check_clean_text(client, make_user):
 
 def test_abuse_check_requires_auth(client):
     assert client.post("/ai/abuse-check", json={"text": "직거래"}).status_code == 401
+
+
+# ---------- 상품 설명 자동 생성/보완 제안 ----------
+def test_description_suggestion_drafts_from_title_and_market(client, make_user):
+    seller_h, _ = make_user()
+    b1, _ = make_user()
+    b2, _ = make_user()
+    b3, _ = make_user()
+    for b, p in [(b1, 10000), (b2, 20000), (b3, 30000)]:
+        _closed_sale(client, seller_h, b, "guitar", p)
+
+    h, _ = make_user()
+    r = client.post(
+        "/ai/description-suggestion",
+        json={"title": "통기타 팝니다", "category": "guitar", "keywords": ["상태 좋음"]},
+        headers=h,
+    )
+    assert r.status_code == 200
+    body = r.json()
+    assert "통기타 팝니다" in body["draft_description"]
+    assert "20000" in body["draft_description"]
+    assert body["market_context"]["enough_data"] is True
+    assert len(body["suggestions"]) > 0
+
+
+def test_description_suggestion_fewer_tips_when_existing_description_is_complete(client, make_user):
+    h, _ = make_user()
+    body = client.post(
+        "/ai/description-suggestion",
+        json={
+            "title": "노트북 팝니다",
+            "existing_description": "사용감 있는 중고 상태이며 사진 첨부했습니다. "
+            "택배 거래만 가능하고 단순 변심 환불은 불가합니다.",
+        },
+        headers=h,
+    ).json()
+    assert body["suggestions"] == []
+
+
+def test_description_suggestion_requires_auth(client):
+    assert (
+        client.post("/ai/description-suggestion", json={"title": "제목"}).status_code == 401
+    )
+
+
+# ---------- 스킬 소개글 카테고리/난이도 태깅 ----------
+def test_skill_tag_suggestion_detects_category_and_level(client, make_user):
+    h, _ = make_user()
+    r = client.post(
+        "/ai/skill-tag-suggestion",
+        json={"intro_text": "10년 경력의 전문가가 로고 디자인을 도와드립니다."},
+        headers=h,
+    )
+    assert r.status_code == 200
+    body = r.json()
+    assert body["suggested_category"] == "디자인"
+    assert body["suggested_level"] == "고급"
+
+
+def test_skill_tag_suggestion_defaults_to_기타_when_no_keyword_matches(client, make_user):
+    h, _ = make_user()
+    body = client.post(
+        "/ai/skill-tag-suggestion",
+        json={"intro_text": "그냥 이것저것 도와드립니다."},
+        headers=h,
+    ).json()
+    assert body["suggested_category"] == "기타"
+    assert body["suggested_level"] == "중급"
+
+
+def test_skill_tag_suggestion_requires_auth(client):
+    assert (
+        client.post("/ai/skill-tag-suggestion", json={"intro_text": "번역 가능합니다"}).status_code
+        == 401
+    )

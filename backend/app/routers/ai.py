@@ -8,6 +8,10 @@ from app.schemas.ai import (
     PriceSuggestionResponse,
     AbuseCheckRequest,
     AbuseCheckResponse,
+    DescriptionSuggestionRequest,
+    DescriptionSuggestionResponse,
+    SkillTagRequest,
+    SkillTagResponse,
 )
 from app.services import ai_service
 
@@ -31,3 +35,28 @@ def abuse_check(
 ):
     """규칙 기반 어뷰징 문구 탐지 (FR-AI-03)."""
     return ai_service.check_abuse(payload.text)
+
+
+@router.post("/description-suggestion", response_model=DescriptionSuggestionResponse)
+def description_suggestion(
+    payload: DescriptionSuggestionRequest,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """상품 설명 자동 생성/보완 제안 (FR-AI-01)."""
+    return ai_service.generate_description(
+        db,
+        payload.title,
+        payload.category,
+        payload.keywords,
+        payload.existing_description,
+    )
+
+
+@router.post("/skill-tag-suggestion", response_model=SkillTagResponse)
+def skill_tag_suggestion(
+    payload: SkillTagRequest,
+    user: User = Depends(get_current_user),
+):
+    """스킬 소개글 기반 카테고리/난이도 자동 태깅 (FR-SKL-06)."""
+    return ai_service.tag_skill_intro(payload.intro_text)

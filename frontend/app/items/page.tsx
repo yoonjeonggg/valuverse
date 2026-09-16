@@ -112,6 +112,21 @@ export default function ItemsPage() {
     api("/ai/abuse-check", { method: "POST", auth: true, body: { text: aiText } }),
   );
 
+  const [descTitle, setDescTitle] = useState("");
+  const [descCategory, setDescCategory] = useState("");
+  const [descExisting, setDescExisting] = useState("");
+  const descSuggestion = useCall(() =>
+    api("/ai/description-suggestion", {
+      method: "POST",
+      auth: true,
+      body: {
+        title: descTitle,
+        category: descCategory || undefined,
+        existing_description: descExisting || undefined,
+      },
+    }),
+  );
+
   // --- 실시간 입찰 WebSocket ---
   const wsRef = useRef<WebSocket | null>(null);
   const [wsLog, setWsLog] = useState<string[]>([]);
@@ -302,7 +317,10 @@ export default function ItemsPage() {
         <Result {...cancelBlind} />
       </Section>
 
-      <Section title="AI 보조" method="GET /ai/price-suggestion · POST /ai/abuse-check">
+      <Section
+        title="AI 보조"
+        method="GET /ai/price-suggestion · POST /ai/abuse-check · POST /ai/description-suggestion"
+      >
         <p className="hint">
           LLM 없이 과거 낙찰가 통계와 규칙 기반으로 시세·어뷰징 여부를
           제안합니다.
@@ -325,6 +343,25 @@ export default function ItemsPage() {
           <button onClick={() => abuseCheck.run()}>어뷰징 문구 탐지</button>
         </div>
         <Result {...abuseCheck} />
+        <Field
+          label="제목"
+          value={descTitle}
+          onChange={(e) => setDescTitle(e.target.value)}
+        />
+        <Field
+          label="카테고리"
+          value={descCategory}
+          onChange={(e) => setDescCategory(e.target.value)}
+        />
+        <Field
+          label="기존 설명(선택)"
+          value={descExisting}
+          onChange={(e) => setDescExisting(e.target.value)}
+        />
+        <div className="actions">
+          <button onClick={() => descSuggestion.run()}>설명 초안/보완 제안</button>
+        </div>
+        <Result {...descSuggestion} />
       </Section>
 
       <Section title="실시간 입찰" method="WS /items/{id}/bid">

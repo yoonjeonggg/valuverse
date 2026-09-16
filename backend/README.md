@@ -133,7 +133,10 @@ db=SessionLocal(); db.query(User).filter(User.email=='you@example.com').update({
 ## 참고
 
 - AI 보조: `GET /ai/price-suggestion?category=`(과거 낙찰가 기반 시세·시작가 추천, FR-BLD-05),
-  `POST /ai/abuse-check`(규칙 기반 어뷰징 문구 탐지, FR-AI-03). LLM 없이 통계/규칙으로 구현했으며,
+  `POST /ai/abuse-check`(규칙 기반 어뷰징 문구 탐지, FR-AI-03),
+  `POST /ai/description-suggestion`(상품 설명 초안 생성 + 보완 체크리스트, FR-AI-01),
+  `POST /ai/skill-tag-suggestion`(스킬 소개글 기반 카테고리/난이도 태깅, FR-SKL-06).
+  LLM 없이 통계/규칙(템플릿·키워드 매칭)으로 구현했으며,
   개발명세서의 Ollama LLM/RAG/CV Gateway 는 별도 서비스로 분리 예정.
 - 블라인드 입찰 금액은 마감 전까지 응답에 노출하지 않는다(접근 제어).
 - 동시 입찰 정합성(NFR-02): 입찰 처리 시 상품 행을 `SELECT ... FOR UPDATE` 로 잠근다(SQLite 는 미지원이라 생략).

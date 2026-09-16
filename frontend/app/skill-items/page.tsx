@@ -124,6 +124,15 @@ export default function SkillItemsPage() {
     }),
   );
 
+  const [introText, setIntroText] = useState("");
+  const skillTag = useCall(() =>
+    api("/ai/skill-tag-suggestion", {
+      method: "POST",
+      auth: true,
+      body: { intro_text: introText },
+    }),
+  );
+
   return (
     <div>
       <PageHeader eyebrow="Skill Auction" title="스킬 경매">
@@ -302,6 +311,21 @@ export default function SkillItemsPage() {
         </div>
         <Result {...getEscrow} />
         <Result {...patchEscrow} />
+      </Section>
+
+      <Section title="AI 보조 - 소개글 태깅" method="POST /ai/skill-tag-suggestion">
+        <p className="hint">
+          소개글의 키워드를 분석해 카테고리·난이도를 제안합니다(LLM 없이 규칙 기반).
+        </p>
+        <Field
+          label="소개글"
+          value={introText}
+          onChange={(e) => setIntroText(e.target.value)}
+        />
+        <div className="actions">
+          <button onClick={() => skillTag.run()}>카테고리/난이도 태깅</button>
+        </div>
+        <Result {...skillTag} />
       </Section>
     </div>
   );

@@ -25,3 +25,26 @@ class AbuseCheckResponse(BaseModel):
     score: int
     matched_terms: list[str]
     categories: list[str]
+
+
+class DescriptionSuggestionRequest(BaseModel):
+    title: str = Field(min_length=1, max_length=200)
+    category: Optional[str] = None
+    keywords: list[str] = Field(default_factory=list)
+    existing_description: Optional[str] = Field(default=None, max_length=5000)
+
+
+class DescriptionSuggestionResponse(BaseModel):
+    draft_description: str
+    suggestions: list[str]
+    market_context: Optional[PriceSuggestionResponse] = None
+
+
+class SkillTagRequest(BaseModel):
+    intro_text: str = Field(min_length=1, max_length=5000)
+
+
+class SkillTagResponse(BaseModel):
+    suggested_category: str
+    suggested_level: str
+    category_scores: dict[str, int]
