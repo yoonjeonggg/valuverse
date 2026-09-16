@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { api, API_BASE_URL } from "./lib/api";
+import { api, API_BASE_URL, getToken } from "./lib/api";
 import { Icon } from "./lib/ui";
 
 type Item = {
@@ -12,6 +12,22 @@ type Item = {
   current_price: number;
   auction_type: string;
   end_time: string;
+};
+
+type SkillItem = {
+  id: number;
+  title: string;
+  category: string | null;
+  start_price: number;
+  duration_minutes: number | null;
+};
+
+type Mission = {
+  key: string;
+  description: string;
+  reward: number;
+  achieved: boolean;
+  claimed: boolean;
 };
 
 function remaining(end: string): string {
@@ -25,7 +41,10 @@ function remaining(end: string): string {
 
 export default function Home() {
   const [items, setItems] = useState<Item[] | null>(null);
+  const [skillItems, setSkillItems] = useState<SkillItem[] | null>(null);
+  const [missions, setMissions] = useState<Mission[] | null>(null);
   const [online, setOnline] = useState<boolean | null>(null);
+  const [loggedIn, setLoggedIn] = useState(false);
 
   useEffect(() => {
     api("/health")
@@ -34,7 +53,20 @@ export default function Home() {
     api<Item[]>("/items", { query: { status: "ongoing", limit: 6 } })
       .then(setItems)
       .catch(() => setItems([]));
+    api<SkillItem[]>("/skill-items", { query: { status: "recruiting", limit: 4 } })
+      .then(setSkillItems)
+      .catch(() => setSkillItems([]));
+    const token = getToken();
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setLoggedIn(!!token);
+    if (token) {
+      api<Mission[]>("/points/missions", { auth: true })
+        .then(setMissions)
+        .catch(() => {});
+    }
   }, []);
+
+  const claimable = missions?.filter((m) => m.achieved && !m.claimed).length ?? 0;
 
   return (
     <div>
@@ -101,6 +133,25 @@ export default function Home() {
         </article>
       </div>
 
+      <div className="missionbanner">
+        <span className="msg">
+          {loggedIn ? (
+            claimable > 0 ? (
+              <>
+                오늘의 출석·미션 중 <b>{claimable}개</b> 보상을 받을 수 있어요.
+              </>
+            ) : (
+              "오늘의 출석 체크와 미션을 확인해 보세요."
+            )
+          ) : (
+            "로그인하면 출석·미션·광고 시청으로 포인트를 모을 수 있어요."
+          )}
+        </span>
+        <Link className="btn btn-sm" href="/points">
+          포인트 센터 가기 <Icon name="arrow" size={14} />
+        </Link>
+      </div>
+
       <div className="section-label">
         <h2>지금 열려 있는 경매</h2>
         <Link href="/items">전체 보기</Link>
@@ -126,6 +177,33 @@ export default function Home() {
                 {it.current_price.toLocaleString()}원
               </span>
               <span className="meta">{remaining(it.end_time)}</span>
+            </Link>
+          ))}
+        </div>
+      )}
+
+      <div className="section-label">
+        <h2>지금 모집중인 스킬 경매</h2>
+        <Link href="/skill-items">전체 보기</Link>
+      </div>
+
+      {skillItems === null ? (
+        <div className="empty">불러오는 중…</div>
+      ) : skillItems.length === 0 ? (
+        <div className="empty">
+          모집중인 스킬 상품이 없습니다.{" "}
+          <Link href="/skill-items">스킬을 등록</Link>해 보세요.
+        </div>
+      ) : (
+        <div className="item-grid">
+          {skillItems.map((it) => (
+            <Link key={it.id} href={`/skill-items/${it.id}`} className="item-card">
+              <span className="cat">{it.category || "미분류"}</span>
+              <span className="ttl">{it.title}</span>
+              <span className="price">{it.start_price.toLocaleString()}원</span>
+              <span className="meta">
+                {it.duration_minutes ? `${it.duration_minutes}분` : "협의"}
+              </span>
             </Link>
           ))}
         </div>

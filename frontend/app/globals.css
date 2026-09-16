@@ -703,6 +703,26 @@ button:disabled,
   color: var(--muted);
 }
 
+.missionbanner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: var(--sp-4) var(--sp-5);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  margin: var(--sp-6) 0;
+}
+.missionbanner .msg {
+  font-size: var(--fs-sm);
+  color: var(--ink-2);
+}
+.missionbanner .msg b {
+  color: var(--red);
+}
+
 .statusline {
   margin-top: var(--sp-8);
   padding-top: var(--sp-4);
