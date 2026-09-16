@@ -112,17 +112,14 @@ export default function ItemsPage() {
     api("/ai/abuse-check", { method: "POST", auth: true, body: { text: aiText } }),
   );
 
-  const [descTitle, setDescTitle] = useState("");
-  const [descCategory, setDescCategory] = useState("");
-  const [descExisting, setDescExisting] = useState("");
   const descSuggestion = useCall(() =>
-    api("/ai/description-suggestion", {
+    api<{ draft_description: string; suggestions: string[] }>("/ai/description-suggestion", {
       method: "POST",
       auth: true,
       body: {
-        title: descTitle,
-        category: descCategory || undefined,
-        existing_description: descExisting || undefined,
+        title,
+        category: createCategory || undefined,
+        existing_description: description || undefined,
       },
     }),
   );
@@ -185,6 +182,31 @@ export default function ItemsPage() {
           value={description}
           onChange={(e) => setDescription(e.target.value)}
         />
+        <div className="actions">
+          <button onClick={() => descSuggestion.run()} disabled={!title || descSuggestion.loading}>
+            AI 설명 제안 받기
+          </button>
+        </div>
+        {descSuggestion.data && (
+          <div className="card" style={{ margin: 0 }}>
+            <p className="hint">{descSuggestion.data.draft_description}</p>
+            <div className="actions">
+              <button
+                className="btn-sm"
+                onClick={() => setDescription(descSuggestion.data!.draft_description)}
+              >
+                이 초안 적용
+              </button>
+            </div>
+            {descSuggestion.data.suggestions.length > 0 && (
+              <ul className="hint" style={{ margin: "8px 0 0", paddingLeft: 18 }}>
+                {descSuggestion.data.suggestions.map((s) => (
+                  <li key={s}>{s}</li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
         <Field
           label="category"
           value={createCategory}
@@ -318,12 +340,13 @@ export default function ItemsPage() {
       </Section>
 
       <Section
-        title="AI 보조"
-        method="GET /ai/price-suggestion · POST /ai/abuse-check · POST /ai/description-suggestion"
+        title="AI 보조 (API 콘솔)"
+        method="GET /ai/price-suggestion · POST /ai/abuse-check"
       >
         <p className="hint">
           LLM 없이 과거 낙찰가 통계와 규칙 기반으로 시세·어뷰징 여부를
-          제안합니다.
+          제안합니다. 설명 자동 생성은 위 상품 등록 폼의 &quot;AI 설명 제안
+          받기&quot; 버튼에서 바로 사용할 수 있습니다.
         </p>
         <Field
           label="category"
@@ -343,25 +366,6 @@ export default function ItemsPage() {
           <button onClick={() => abuseCheck.run()}>어뷰징 문구 탐지</button>
         </div>
         <Result {...abuseCheck} />
-        <Field
-          label="제목"
-          value={descTitle}
-          onChange={(e) => setDescTitle(e.target.value)}
-        />
-        <Field
-          label="카테고리"
-          value={descCategory}
-          onChange={(e) => setDescCategory(e.target.value)}
-        />
-        <Field
-          label="기존 설명(선택)"
-          value={descExisting}
-          onChange={(e) => setDescExisting(e.target.value)}
-        />
-        <div className="actions">
-          <button onClick={() => descSuggestion.run()}>설명 초안/보완 제안</button>
-        </div>
-        <Result {...descSuggestion} />
       </Section>
 
       <Section title="실시간 입찰" method="WS /items/{id}/bid">

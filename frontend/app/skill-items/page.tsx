@@ -134,12 +134,11 @@ export default function SkillItemsPage() {
     }),
   );
 
-  const [introText, setIntroText] = useState("");
   const skillTag = useCall(() =>
-    api("/ai/skill-tag-suggestion", {
+    api<{ suggested_category: string; suggested_level: string }>("/ai/skill-tag-suggestion", {
       method: "POST",
       auth: true,
-      body: { intro_text: introText },
+      body: { intro_text: description },
     }),
   );
 
@@ -190,6 +189,24 @@ export default function SkillItemsPage() {
           value={description}
           onChange={(e) => setDescription(e.target.value)}
         />
+        <div className="actions">
+          <button onClick={() => skillTag.run()} disabled={!description || skillTag.loading}>
+            AI 카테고리/난이도 제안
+          </button>
+        </div>
+        {skillTag.data && (
+          <div className="card" style={{ margin: 0 }}>
+            <p className="hint">
+              제안 카테고리 <b>{skillTag.data.suggested_category}</b> · 난이도{" "}
+              <b>{skillTag.data.suggested_level}</b>
+            </p>
+            <div className="actions">
+              <button className="btn-sm" onClick={() => setCategory(skillTag.data!.suggested_category)}>
+                카테고리 적용
+              </button>
+            </div>
+          </div>
+        )}
         <Field
           label="start_price"
           type="number"
@@ -339,21 +356,6 @@ export default function SkillItemsPage() {
         </div>
         <Result {...getEscrow} />
         <Result {...patchEscrow} />
-      </Section>
-
-      <Section title="AI 보조 - 소개글 태깅" method="POST /ai/skill-tag-suggestion">
-        <p className="hint">
-          소개글의 키워드를 분석해 카테고리·난이도를 제안합니다(LLM 없이 규칙 기반).
-        </p>
-        <Field
-          label="소개글"
-          value={introText}
-          onChange={(e) => setIntroText(e.target.value)}
-        />
-        <div className="actions">
-          <button onClick={() => skillTag.run()}>카테고리/난이도 태깅</button>
-        </div>
-        <Result {...skillTag} />
       </Section>
     </div>
   );
