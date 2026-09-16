@@ -116,7 +116,7 @@ export default function Home() {
       ) : (
         <div className="item-grid">
           {items.map((it) => (
-            <Link key={it.id} href="/items" className="item-card">
+            <Link key={it.id} href={`/items/${it.id}`} className="item-card">
               <span className="cat">
                 {it.auction_type === "blind" ? "블라인드" : "일반"} ·{" "}
                 {it.category || "미분류"}

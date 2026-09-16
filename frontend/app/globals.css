@@ -727,6 +727,152 @@ button:disabled,
   font-size: var(--fs-sm);
 }
 
+/* ============================================================
+   consumer detail screens (card / countdown / bid list / rank)
+   ============================================================ */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  padding: var(--sp-5);
+  margin: var(--sp-4) 0;
+}
+.card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-3);
+}
+.card__eyebrow {
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 2px;
+}
+
+.detail-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--sp-4);
+  margin-bottom: var(--sp-5);
+}
+.detail-head .cat {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 700;
+}
+.detail-head h1 {
+  margin-top: 4px;
+}
+.detail-head .seller {
+  margin: var(--sp-2) 0 0;
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+
+.countdown {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  padding: 5px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--line-strong);
+  color: var(--ink-2);
+  font-size: var(--fs-sm);
+  white-space: nowrap;
+}
+.countdown.urgent {
+  color: #fff;
+  background: var(--red);
+  border-color: var(--red);
+}
+
+.price-now {
+  font-size: var(--fs-2xl);
+  font-weight: 800;
+  color: var(--red);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  margin-bottom: var(--sp-3);
+}
+.price-now .label {
+  display: block;
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 4px;
+}
+
+.bidform {
+  gap: var(--sp-2);
+}
+.bidform input {
+  max-width: 220px;
+}
+
+.bidlist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+.bidlist li {
+  display: flex;
+  justify-content: space-between;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: var(--fs-sm);
+  color: var(--ink-2);
+}
+.bidlist li:last-child {
+  border-bottom: 0;
+}
+.bidlist li.mine {
+  color: var(--red);
+  font-weight: 700;
+}
+.bidlist .amt {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  color: var(--ink);
+}
+.bidlist li.mine .amt {
+  color: var(--red);
+}
+
+.rankcard {
+  text-align: center;
+  padding: var(--sp-6) var(--sp-4);
+}
+.rankcard .num {
+  font-size: var(--fs-3xl);
+  font-weight: 800;
+  color: var(--red);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.rankcard .of {
+  margin-top: var(--sp-2);
+  color: var(--muted);
+  font-size: var(--fs-sm);
+}
+
+.hint--error {
+  color: var(--red);
+}
+
 @media (max-width: 720px) {
   :root {
     --fs-2xl: 1.75rem;

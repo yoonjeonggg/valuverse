@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ApiError } from "./api";
 
 /* ---------- data-fetching hook ---------- */
@@ -103,6 +103,71 @@ export function Section({
       </div>
       <div className="panel__body">{children}</div>
     </section>
+  );
+}
+
+/* ---------- consumer-facing card (Section 의 API 콘솔 스타일 대신) ---------- */
+export function Card({
+  title,
+  eyebrow,
+  right,
+  children,
+}: {
+  title?: string;
+  eyebrow?: string;
+  right?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="card">
+      {(title || right) && (
+        <div className="card__head">
+          <div>
+            {eyebrow && <div className="card__eyebrow">{eyebrow}</div>}
+            {title && <h3>{title}</h3>}
+          </div>
+          {right}
+        </div>
+      )}
+      {children}
+    </section>
+  );
+}
+
+/* ---------- live countdown chip ---------- */
+export function Countdown({ endTime }: { endTime: string | null | undefined }) {
+  const [ms, setMs] = useState<number | null>(() =>
+    endTime ? new Date(endTime).getTime() - Date.now() : null,
+  );
+
+  useEffect(() => {
+    if (!endTime) return;
+    const target = new Date(endTime).getTime();
+    const id = setInterval(() => setMs(target - Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [endTime]);
+
+  if (!endTime || ms === null) return null;
+  if (ms <= 0)
+    return (
+      <span className="countdown urgent">
+        <Icon name="clock" size={14} /> 마감
+      </span>
+    );
+
+  const totalSec = Math.floor(ms / 1000);
+  const d = Math.floor(totalSec / 86400);
+  const h = Math.floor((totalSec % 86400) / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const s = totalSec % 60;
+  const label =
+    d > 0 ? `${d}일 ${h}시간 남음` : h > 0 ? `${h}시간 ${m}분 남음` : `${m}분 ${s}초 남음`;
+  const urgent = ms <= 5 * 60 * 1000;
+
+  return (
+    <span className={"countdown" + (urgent ? " urgent" : "")}>
+      <Icon name="clock" size={14} /> {label}
+    </span>
   );
 }
 
