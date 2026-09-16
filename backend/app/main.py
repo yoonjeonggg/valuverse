@@ -1,8 +1,10 @@
 import asyncio
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 import app.models  # noqa: F401  - 모든 모델을 메타데이터에 등록
 from app.core.config import settings
@@ -44,6 +46,16 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    # 필드별 에러를 프론트에서 바로 매핑할 수 있게 (field, message) 형태로 단순화
+    errors = [
+        {"field": ".".join(str(p) for p in err["loc"][1:]), "message": err["msg"]}
+        for err in exc.errors()
+    ]
+    return JSONResponse(status_code=422, content={"detail": errors})
 
 app.include_router(auth_router)
 app.include_router(user_router)
