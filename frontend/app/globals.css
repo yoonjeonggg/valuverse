@@ -986,6 +986,69 @@ button:disabled,
   background: var(--ink-2);
 }
 
+.streak {
+  display: flex;
+  gap: 6px;
+  margin: var(--sp-2) 0 var(--sp-3);
+}
+.streak .dot {
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  border: 1px solid var(--line-strong);
+  background: var(--surface-2);
+}
+.streak .dot.on {
+  background: var(--red);
+  border-color: var(--red);
+}
+
+.missiongrid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.missionrow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: var(--fs-sm);
+}
+.missionrow:last-child {
+  border-bottom: 0;
+}
+.missionrow .reward {
+  color: var(--red);
+  font-weight: 700;
+  margin-left: 8px;
+}
+
+.coupongrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: var(--sp-3);
+}
+.couponcard {
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  padding: var(--sp-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.couponcard .pct {
+  font-size: var(--fs-lg);
+  font-weight: 800;
+  color: var(--red);
+}
+.couponcard .cost {
+  font-size: var(--fs-xs);
+  color: var(--muted);
+}
+
 @media (max-width: 720px) {
   :root {
     --fs-2xl: 1.75rem;
