@@ -537,6 +537,11 @@ button:disabled,
   background: var(--ok-tint);
   border-color: #cde6d8;
 }
+.badge--warn {
+  color: var(--warn);
+  background: var(--warn-tint);
+  border-color: #ecdfb8;
+}
 
 .hint {
   font-size: var(--fs-sm);
@@ -871,6 +876,57 @@ button:disabled,
 
 .hint--error {
   color: var(--red);
+}
+
+.meta-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: var(--sp-3);
+  margin: var(--sp-3) 0;
+}
+.meta-grid .k {
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 2px;
+}
+.meta-grid .v {
+  font-size: var(--fs-sm);
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.reviewlist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+.reviewlist li {
+  padding-bottom: var(--sp-3);
+  border-bottom: 1px solid var(--line);
+}
+.reviewlist li:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+.reviewlist .rating {
+  font-weight: 700;
+  color: var(--red);
+  font-size: var(--fs-sm);
+}
+.reviewlist .meta {
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  margin-left: 8px;
+}
+.reviewlist p {
+  margin: 4px 0 0;
+  font-size: var(--fs-sm);
+  color: var(--ink-2);
 }
 
 @media (max-width: 720px) {
