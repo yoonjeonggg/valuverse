@@ -1,11 +1,21 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import Link from "next/link";
 import { api } from "../lib/api";
 import { toIso } from "../lib/format";
-import { Field, PageHeader, Result, Section, useCall } from "../lib/ui";
+import { Card, Field, PageHeader, Result, Section, useCall } from "../lib/ui";
+
+type SkillItemRow = { id: number; title: string; category: string | null; start_price: number; status: string };
 
 export default function SkillItemsPage() {
+  const [feed, setFeed] = useState<SkillItemRow[] | null>(null);
+  useEffect(() => {
+    api<SkillItemRow[]>("/skill-items", { query: { status: "recruiting" } })
+      .then(setFeed)
+      .catch(() => setFeed([]));
+  }, []);
+
   const [category, setCategory] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
 
@@ -142,7 +152,25 @@ export default function SkillItemsPage() {
         </p>
       </PageHeader>
 
-      <Section title="스킬 상품 목록" method="GET /skill-items">
+      <Card title="모집중인 스킬 상품">
+        {feed === null ? (
+          <div className="empty">불러오는 중…</div>
+        ) : feed.length === 0 ? (
+          <div className="empty">모집중인 스킬 상품이 없습니다.</div>
+        ) : (
+          <div className="item-grid">
+            {feed.map((it) => (
+              <Link key={it.id} href={`/skill-items/${it.id}`} className="item-card">
+                <span className="cat">{it.category || "미분류"}</span>
+                <span className="ttl">{it.title}</span>
+                <span className="price">{it.start_price.toLocaleString()}원</span>
+              </Link>
+            ))}
+          </div>
+        )}
+      </Card>
+
+      <Section title="스킬 상품 목록 (API 콘솔)" method="GET /skill-items">
         <Field label="category" value={category} onChange={(e) => setCategory(e.target.value)} />
         <Field
           label="status"

@@ -1,11 +1,21 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import Link from "next/link";
 import { api } from "../lib/api";
 import { toIso } from "../lib/format";
-import { Field, PageHeader, Result, Section, useCall } from "../lib/ui";
+import { Card, Field, PageHeader, Result, Section, useCall } from "../lib/ui";
+
+type PredictionRow = { id: number; title: string; end_time: string; status: string };
 
 export default function PredictionsPage() {
+  const [feed, setFeed] = useState<PredictionRow[] | null>(null);
+  useEffect(() => {
+    api<PredictionRow[]>("/predictions", { query: { status: "ongoing" } })
+      .then(setFeed)
+      .catch(() => setFeed([]));
+  }, []);
+
   const [statusFilter, setStatusFilter] = useState("");
 
   const [title, setTitle] = useState("");
@@ -85,7 +95,27 @@ export default function PredictionsPage() {
         </p>
       </PageHeader>
 
-      <Section title="명제 목록" method="GET /predictions">
+      <Card title="진행중인 명제">
+        {feed === null ? (
+          <div className="empty">불러오는 중…</div>
+        ) : feed.length === 0 ? (
+          <div className="empty">진행중인 명제가 없습니다.</div>
+        ) : (
+          <div className="item-grid">
+            {feed.map((p) => (
+              <Link key={p.id} href={`/predictions/${p.id}`} className="item-card">
+                <span className="cat">예측시장</span>
+                <span className="ttl">{p.title}</span>
+                <span className="meta">
+                  마감 {new Date(p.end_time).toLocaleString()}
+                </span>
+              </Link>
+            ))}
+          </div>
+        )}
+      </Card>
+
+      <Section title="명제 목록 (API 콘솔)" method="GET /predictions">
         <Field
           label="status (ongoing/closed/settled)"
           value={statusFilter}

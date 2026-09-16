@@ -929,6 +929,43 @@ button:disabled,
   color: var(--ink-2);
 }
 
+.oddsrow {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--fs-sm);
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+.oddsrow b {
+  color: var(--ink);
+}
+.oddsgauge {
+  height: 28px;
+  border-radius: 999px;
+  overflow: hidden;
+  display: flex;
+  border: 1px solid var(--line-strong);
+  background: var(--surface-2);
+  margin-bottom: var(--sp-4);
+}
+.oddsgauge .seg {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  transition: flex-basis 0.2s ease;
+}
+.oddsgauge .seg.yes {
+  background: var(--red);
+}
+.oddsgauge .seg.no {
+  background: var(--ink-2);
+}
+
 @media (max-width: 720px) {
   :root {
     --fs-2xl: 1.75rem;
