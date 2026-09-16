@@ -13,6 +13,7 @@ const NAV: [string, string][] = [
   ["/notifications", "알림"],
   ["/reviews", "리뷰"],
   ["/reports", "신고"],
+  ["/admin", "관리자"],
 ];
 
 export function SiteNav() {

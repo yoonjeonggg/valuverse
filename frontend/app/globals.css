@@ -1132,6 +1132,35 @@ button:disabled,
   color: var(--red);
 }
 
+.adminrow {
+  padding: var(--sp-3) 0;
+  border-bottom: 1px solid var(--line);
+  font-size: var(--fs-sm);
+}
+.adminrow:last-child {
+  border-bottom: 0;
+}
+.adminrow .top {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-bottom: 4px;
+}
+.adminrow .title {
+  font-weight: 700;
+  color: var(--ink);
+}
+.adminrow .reason {
+  color: var(--ink-2);
+  margin: 4px 0;
+}
+.adminrow .meta {
+  color: var(--muted);
+  font-size: var(--fs-xs);
+}
+
 @media (max-width: 720px) {
   :root {
     --fs-2xl: 1.75rem;
