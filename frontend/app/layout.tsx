@@ -31,34 +31,54 @@ export default function RootLayout({
 
         <footer className="site-footer">
           <div className="site-footer__inner">
-            <div>
-              <b>Valuverse</b>
-              차별화된 경매 메커니즘과
-              <br />
-              포인트 이코노미를 결합한 거래 플랫폼.
+            <div className="site-footer__brand">
+              <Link href="/" className="wordmark">
+                Valu<b>verse</b>
+              </Link>
+              <p>
+                차별화된 경매 메커니즘과 포인트 이코노미를 결합한 거래
+                플랫폼.
+              </p>
             </div>
-            <div>
+            <nav className="site-footer__col">
               <b>거래</b>
-              <Link href="/items">일반·블라인드 경매</Link>
-              <br />
-              <Link href="/skill-items">스킬 경매 / 에스크로</Link>
-            </div>
-            <div>
+              <ul>
+                <li>
+                  <Link href="/items">일반·블라인드 경매</Link>
+                </li>
+                <li>
+                  <Link href="/skill-items">스킬 경매 / 에스크로</Link>
+                </li>
+              </ul>
+            </nav>
+            <nav className="site-footer__col">
               <b>리텐션</b>
-              <Link href="/predictions">예측시장</Link>
-              <br />
-              <Link href="/points">포인트 · 쿠폰</Link>
-            </div>
-            <div>
+              <ul>
+                <li>
+                  <Link href="/predictions">예측시장</Link>
+                </li>
+                <li>
+                  <Link href="/points">포인트 · 쿠폰</Link>
+                </li>
+              </ul>
+            </nav>
+            <nav className="site-footer__col">
               <b>개발</b>
-              <a
-                href="http://localhost:8000/docs"
-                target="_blank"
-                rel="noreferrer"
-              >
-                API 문서 (Swagger)
-              </a>
-            </div>
+              <ul>
+                <li>
+                  <a
+                    href="http://localhost:8000/docs"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    API 문서 (Swagger)
+                  </a>
+                </li>
+              </ul>
+            </nav>
+          </div>
+          <div className="site-footer__bottom">
+            <span>&copy; 2026 Valuverse</span>
           </div>
         </footer>
       </body>
