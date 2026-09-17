@@ -8,6 +8,8 @@ from app.schemas.ai import (
     PriceSuggestionResponse,
     AbuseCheckRequest,
     AbuseCheckResponse,
+    ChatRequest,
+    ChatResponse,
     DescriptionSuggestionRequest,
     DescriptionSuggestionResponse,
     SkillTagRequest,
@@ -60,3 +62,9 @@ def skill_tag_suggestion(
 ):
     """스킬 소개글 기반 카테고리/난이도 자동 태깅 (FR-SKL-06)."""
     return ai_service.tag_skill_intro(payload.intro_text)
+
+
+@router.post("/chat", response_model=ChatResponse)
+def chat(payload: ChatRequest, db: Session = Depends(get_db)):
+    """AI 챗봇 입찰 상담 - 규칙 기반 FAQ 매칭 + 답변 근거 표기 (디자인 요구사항 명세서 4.7)."""
+    return ai_service.answer_chat(db, payload.message, payload.item_id, payload.item_type)

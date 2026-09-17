@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Literal, Optional
 
 from pydantic import BaseModel, Field
 
@@ -48,3 +48,15 @@ class SkillTagResponse(BaseModel):
     suggested_category: str
     suggested_level: str
     category_scores: dict[str, int]
+
+
+class ChatRequest(BaseModel):
+    message: str = Field(min_length=1, max_length=1000)
+    item_id: Optional[int] = None
+    item_type: Literal["item", "skill_item"] = "item"
+
+
+class ChatResponse(BaseModel):
+    answer: str
+    references: list[str]
+    item_id: Optional[int] = None

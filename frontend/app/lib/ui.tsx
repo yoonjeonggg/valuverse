@@ -228,6 +228,13 @@ const PATHS: Record<string, React.ReactNode> = {
     </>
   ),
   arrow: <path d="M5 12h14M13 6l6 6-6 6" />,
+  chat: (
+    <>
+      <path d="M4 5h16v11H9l-4 4v-4H4z" />
+      <path d="M8 9h8M8 12h5" />
+    </>
+  ),
+  close: <path d="M6 6l12 12M18 6 6 18" />,
 };
 
 export function Icon({

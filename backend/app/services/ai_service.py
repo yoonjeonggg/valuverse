@@ -10,6 +10,7 @@ import statistics
 from sqlalchemy.orm import Session
 
 from app.models.auction import Item
+from app.models.skill import SkillItem
 
 _MIN_SAMPLES = 3
 
@@ -169,4 +170,100 @@ def tag_skill_intro(text: str) -> dict:
         "suggested_category": best_category,
         "suggested_level": level,
         "category_scores": scores,
+    }
+
+
+# 입찰 상담 챗봇 FAQ - (매칭 키워드, 근거 제목, 답변) 목록. 위에서부터 먼저 매칭된 항목이 채택된다.
+_CHAT_FAQ: list[tuple[list[str], str, str]] = [
+    (
+        ["블라인드", "밀봉", "순위"],
+        "블라인드 경매 안내",
+        "블라인드 경매는 마감 전까지 다른 참가자의 입찰가를 볼 수 없고 '내 순위'만 표시됩니다. "
+        "마감 후 전체 입찰이 공개되며, 1st-price 방식은 최고가 그대로, "
+        "Vickrey(2nd-price) 방식은 최고 입찰자가 2위 금액으로 낙찰됩니다.",
+    ),
+    (
+        ["자동연장", "연장", "스나이핑"],
+        "마감 자동연장 안내",
+        "마감 직전에 새 입찰이 들어오면 스나이핑 방지를 위해 마감 시간이 자동으로 연장됩니다.",
+    ),
+    (
+        ["즉시구매", "즉구"],
+        "즉시구매 안내",
+        "즉시구매가가 설정된 상품은 입찰 없이 즉시구매 버튼으로 바로 낙찰받을 수 있습니다.",
+    ),
+    (
+        ["에스크로", "정산", "환불"],
+        "에스크로/정산 안내",
+        "낙찰 대금은 거래 완료 전까지 에스크로에 보관되며, 거래(스킬 예약 포함)가 정상 완료되면 판매자에게 정산됩니다. "
+        "노쇼/분쟁이 있으면 정산이 보류될 수 있습니다.",
+    ),
+    (
+        ["취소"],
+        "입찰 취소 안내",
+        "본인의 입찰/밀봉 입찰은 마감 전까지 취소할 수 있습니다. 낙찰 확정 이후에는 취소할 수 없습니다.",
+    ),
+    (
+        ["예측시장", "베팅", "배당"],
+        "예측시장 안내",
+        "예측시장은 Yes/No 포지션에 포인트를 걸어 참여하며, 배당률은 실시간 포지션 비율에 따라 갱신됩니다.",
+    ),
+    (
+        ["포인트", "출석", "미션"],
+        "포인트 센터 안내",
+        "출석체크·미션 완료·광고 시청으로 포인트를 모을 수 있고, 모은 포인트는 소모처 교환이나 상단 노출권 구매에 쓸 수 있습니다.",
+    ),
+]
+
+_CHAT_DEFAULT_TITLE = "일반 안내"
+_CHAT_DEFAULT_ANSWER = (
+    "구체적으로 어떤 점이 궁금하신가요? 입찰 방식, 마감/자동연장, 즉시구매, "
+    "에스크로/정산 등에 대해 물어보시면 안내해 드릴게요."
+)
+
+
+def _item_context_summary(item, item_type: str) -> str | None:
+    if item is None:
+        return None
+    if item_type == "skill_item":
+        status = "모집중" if item.status == "recruiting" else ("낙찰완료" if item.status == "awarded" else "마감")
+        return f"'{item.title}' 스킬 기준으로 안내드릴게요. 현재 상태: {status}."
+    status = "진행중" if item.status == "ongoing" else "마감"
+    if item.auction_type == "blind":
+        return f"'{item.title}' 상품 기준으로 안내드릴게요. 블라인드 경매 · 현재 상태: {status} (금액은 마감 전까지 비공개)."
+    return f"'{item.title}' 상품 기준으로 안내드릴게요. 현재가 {item.current_price:,}원 · 상태: {status}."
+
+
+def answer_chat(
+    db: Session, message: str, item_id: int | None = None, item_type: str = "item"
+) -> dict:
+    """규칙 기반 FAQ 매칭 챗봇 (FR-AI-02 입찰 상담). 답변 근거를 함께 반환한다."""
+    item = None
+    if item_id is not None:
+        model = SkillItem if item_type == "skill_item" else Item
+        item = (
+            db.query(model)
+            .filter(model.id == item_id, model.is_deleted.is_(False))
+            .first()
+        )
+
+    low = message.lower()
+    matched = [
+        (title, answer)
+        for keywords, title, answer in _CHAT_FAQ
+        if any(kw.lower() in low for kw in keywords)
+    ]
+    if not matched:
+        matched = [(_CHAT_DEFAULT_TITLE, _CHAT_DEFAULT_ANSWER)]
+
+    parts = []
+    context = _item_context_summary(item, item_type)
+    if context:
+        parts.append(context)
+    parts.extend(answer for _, answer in matched)
+
+    return {
+        "answer": "\n\n".join(parts),
+        "references": [title for title, _ in matched],
+        "item_id": item.id if item else None,
     }

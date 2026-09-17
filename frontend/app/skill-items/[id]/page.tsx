@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { api, getToken } from "../../lib/api";
+import { ChatWidget } from "../../lib/chat-widget";
 import { toIso } from "../../lib/format";
 import { Card, useCall } from "../../lib/ui";
 
@@ -316,6 +317,8 @@ export default function SkillItemDetailPage() {
       <p>
         <Link href="/skill-items">← 목록으로</Link>
       </p>
+
+      <ChatWidget itemId={item.id} itemType="skill_item" />
     </div>
   );
 }

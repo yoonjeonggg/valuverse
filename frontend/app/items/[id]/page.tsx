@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { api, API_BASE_URL, getToken } from "../../lib/api";
+import { ChatWidget } from "../../lib/chat-widget";
 import { Card, Countdown, useCall } from "../../lib/ui";
 
 type Item = {
@@ -299,6 +300,8 @@ export default function ItemDetailPage() {
       <p>
         <Link href="/items">← 목록으로</Link>
       </p>
+
+      <ChatWidget itemId={item.id} itemType="item" />
     </div>
   );
 }

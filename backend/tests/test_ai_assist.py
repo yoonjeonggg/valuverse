@@ -164,3 +164,61 @@ def test_skill_tag_suggestion_requires_auth(client):
         client.post("/ai/skill-tag-suggestion", json={"intro_text": "번역 가능합니다"}).status_code
         == 401
     )
+
+
+# ---------- AI 챗봇(입찰 상담) ----------
+def test_chat_matches_faq_and_returns_reference(client):
+    r = client.post("/ai/chat", json={"message": "블라인드 경매는 순위만 보이나요?"})
+    assert r.status_code == 200
+    body = r.json()
+    assert "블라인드 경매 안내" in body["references"]
+    assert "순위" in body["answer"]
+
+
+def test_chat_falls_back_to_default_when_no_faq_matches(client):
+    body = client.post("/ai/chat", json={"message": "안녕하세요"}).json()
+    assert body["references"] == ["일반 안내"]
+
+
+def test_chat_includes_item_context_when_item_id_given(client, make_user):
+    seller_h, _ = make_user()
+    item = client.post(
+        "/items",
+        json={
+            "title": "빈티지 카메라",
+            "start_price": 1000,
+            "end_time": "2999-01-01T00:00:00+09:00",
+        },
+        headers=seller_h,
+    ).json()
+
+    body = client.post(
+        "/ai/chat", json={"message": "즉시구매 되나요?", "item_id": item["id"]}
+    ).json()
+    assert "빈티지 카메라" in body["answer"]
+    assert body["item_id"] == item["id"]
+    assert "즉시구매 안내" in body["references"]
+
+
+def test_chat_supports_skill_item_context(client, make_user):
+    seller_h, _ = make_user()
+    skill = client.post(
+        "/skill-items",
+        json={"title": "로고 디자인", "start_price": 5000},
+        headers=seller_h,
+    ).json()
+
+    body = client.post(
+        "/ai/chat",
+        json={"message": "에스크로는 언제 풀리나요?", "item_id": skill["id"], "item_type": "skill_item"},
+    ).json()
+    assert "로고 디자인" in body["answer"]
+    assert "에스크로/정산 안내" in body["references"]
+
+
+def test_chat_does_not_require_auth(client):
+    assert client.post("/ai/chat", json={"message": "안녕하세요"}).status_code == 200
+
+
+def test_chat_requires_message(client):
+    assert client.post("/ai/chat", json={}).status_code == 422
