@@ -39,39 +39,6 @@ export function useCall<TArgs extends unknown[], TResult>(
   return { data, error, loading, run, setData };
 }
 
-/* ---------- response inspector ---------- */
-export function Result({
-  data,
-  error,
-  loading,
-}: {
-  data: unknown;
-  error?: string | null;
-  loading?: boolean;
-}) {
-  if (loading) return <div className="resp resp--loading">요청 중…</div>;
-  if (error)
-    return (
-      <div className="resp">
-        <div className="resp__label is-error">
-          <span className="dot" />
-          오류
-        </div>
-        <pre>{error}</pre>
-      </div>
-    );
-  if (data === null || data === undefined) return null;
-  return (
-    <div className="resp">
-      <div className="resp__label">
-        <span className="dot" />
-        응답
-      </div>
-      <pre>{JSON.stringify(data, null, 2)}</pre>
-    </div>
-  );
-}
-
 /* ---------- labelled input row ---------- */
 export function Field({
   label,
@@ -82,27 +49,6 @@ export function Field({
       <span>{label}</span>
       <input {...props} />
     </label>
-  );
-}
-
-/* ---------- panel (endpoint group) ---------- */
-export function Section({
-  title,
-  method,
-  children,
-}: {
-  title: string;
-  method?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="panel">
-      <div className="panel__head">
-        {method && <span className="panel__method">{method}</span>}
-        <h3>{title}</h3>
-      </div>
-      <div className="panel__body">{children}</div>
-    </section>
   );
 }
 

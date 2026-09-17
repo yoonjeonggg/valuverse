@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import "./globals.css";
-import { SiteNav, HeaderAuth } from "./site-chrome";
+import { SiteNav, HeaderNotifications, HeaderAuth } from "./site-chrome";
 
 export const metadata: Metadata = {
   title: "Valuverse — 경매 플랫폼",
@@ -23,7 +23,10 @@ export default function RootLayout({
               Valu<b>verse</b>
             </Link>
             <SiteNav />
-            <HeaderAuth />
+            <div className="header-right">
+              <HeaderNotifications />
+              <HeaderAuth />
+            </div>
           </div>
         </header>
 
@@ -59,20 +62,6 @@ export default function RootLayout({
                 </li>
                 <li>
                   <Link href="/points">포인트 · 쿠폰</Link>
-                </li>
-              </ul>
-            </nav>
-            <nav className="site-footer__col">
-              <b>개발</b>
-              <ul>
-                <li>
-                  <a
-                    href="http://localhost:8000/docs"
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    API 문서 (Swagger)
-                  </a>
                 </li>
               </ul>
             </nav>

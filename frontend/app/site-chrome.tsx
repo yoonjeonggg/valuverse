@@ -4,23 +4,33 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { api, getToken } from "./lib/api";
+import { Icon } from "./lib/ui";
 
 const NAV: [string, string][] = [
   ["/items", "일반경매"],
   ["/skill-items", "스킬"],
   ["/predictions", "예측시장"],
   ["/points", "포인트"],
-  ["/notifications", "알림"],
   ["/reviews", "리뷰"],
   ["/reports", "신고"],
-  ["/admin", "관리자"],
 ];
 
 export function SiteNav() {
   const pathname = usePathname();
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    if (!getToken()) return;
+    api<{ is_admin: boolean }>("/users/me", { auth: true })
+      .then((u) => setIsAdmin(u.is_admin))
+      .catch(() => {});
+  }, []);
+
+  const items = isAdmin ? [...NAV, ["/admin", "관리자"] as [string, string]] : NAV;
+
   return (
     <nav className="nav">
-      {NAV.map(([href, label]) => {
+      {items.map(([href, label]) => {
         const active = pathname === href || pathname.startsWith(href + "/");
         return (
           <Link key={href} href={href} aria-current={active ? "page" : undefined}>
@@ -29,6 +39,30 @@ export function SiteNav() {
         );
       })}
     </nav>
+  );
+}
+
+export function HeaderNotifications() {
+  const [signedIn, setSignedIn] = useState(false);
+  const [unread, setUnread] = useState(0);
+
+  useEffect(() => {
+    const token = getToken();
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setSignedIn(!!token);
+    if (!token) return;
+    api<{ unread: number }>("/users/me/notifications/unread-count", { auth: true })
+      .then((r) => setUnread(r.unread))
+      .catch(() => {});
+  }, []);
+
+  if (!signedIn) return null;
+
+  return (
+    <Link href="/notifications" className="bell-btn" aria-label="알림">
+      <Icon name="bell" size={19} />
+      {unread > 0 && <span className="bell-badge">{unread > 9 ? "9+" : unread}</span>}
+    </Link>
   );
 }
 
@@ -53,21 +87,19 @@ export function HeaderAuth() {
 
   if (!signedIn)
     return (
-      <div className="header-right">
-        <Link className="btn btn-sm" href="/auth">
-          로그인
-        </Link>
-      </div>
+      <Link className="btn btn-sm" href="/auth">
+        로그인
+      </Link>
     );
 
   return (
-    <div className="header-right">
+    <>
       {points !== null && (
         <span className="pointpill">{points.toLocaleString()} P</span>
       )}
       <Link className="btn btn-sm" href="/me">
         내 계정
       </Link>
-    </div>
+    </>
   );
 }

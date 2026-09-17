@@ -329,6 +329,36 @@ button:disabled,
   align-items: center;
   gap: var(--sp-3);
 }
+.bell-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  color: var(--ink-2);
+}
+.bell-btn:hover {
+  color: var(--ink);
+  background: var(--surface-2);
+  text-decoration: none;
+}
+.bell-badge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 3px;
+  border-radius: 999px;
+  background: var(--red);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 15px;
+  text-align: center;
+}
 .pointpill {
   font-size: var(--fs-xs);
   font-weight: 700;
@@ -434,46 +464,6 @@ button:disabled,
 }
 
 /* ============================================================
-   panel (구 Section)
-   ============================================================ */
-.panel {
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--r-lg);
-  margin: var(--sp-4) 0;
-  overflow: hidden;
-}
-.panel__head {
-  padding: 12px var(--sp-4);
-  border-bottom: 1px solid var(--line);
-  display: flex;
-  align-items: center;
-  gap: var(--sp-2);
-  background: var(--surface);
-}
-.panel__head h3 {
-  font-size: var(--fs-sm);
-  font-weight: 700;
-  letter-spacing: 0;
-}
-.panel__method {
-  font-family: var(--mono);
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--red);
-  background: var(--red-tint);
-  padding: 2px 6px;
-  border-radius: var(--r-sm);
-  letter-spacing: 0.02em;
-}
-.panel__body {
-  padding: var(--sp-4);
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-3);
-}
-
-/* ============================================================
    field row
    ============================================================ */
 .field {
@@ -497,58 +487,6 @@ button:disabled,
   gap: var(--sp-2);
   align-items: center;
   padding-top: var(--sp-1);
-}
-
-/* ============================================================
-   response inspector (구 Result)
-   ============================================================ */
-.resp {
-  border: 1px solid var(--line);
-  border-radius: var(--r);
-  background: var(--surface-2);
-  overflow: hidden;
-}
-.resp__label {
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--muted);
-  padding: 6px 10px;
-  border-bottom: 1px solid var(--line);
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.resp__label.is-error {
-  color: var(--red);
-  background: var(--red-tint);
-  border-color: var(--red-tint-2);
-}
-.resp__label .dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 999px;
-  background: var(--ok);
-}
-.resp__label.is-error .dot {
-  background: var(--red);
-}
-.resp pre {
-  margin: 0;
-  padding: 12px;
-  font-family: var(--mono);
-  font-size: 12px;
-  line-height: 1.55;
-  color: var(--ink-2);
-  overflow-x: auto;
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-.resp--loading {
-  padding: 10px 12px;
-  font-size: var(--fs-sm);
-  color: var(--muted);
 }
 
 /* ============================================================
@@ -764,26 +702,6 @@ button:disabled,
   color: var(--red);
 }
 
-.statusline {
-  margin-top: var(--sp-8);
-  padding-top: var(--sp-4);
-  border-top: 1px solid var(--line);
-  font-size: var(--fs-xs);
-  color: var(--faint);
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-.statusline .dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 999px;
-  background: var(--ok);
-}
-.statusline .dot.bad {
-  background: var(--red);
-}
-
 .empty {
   border: 1px dashed var(--line-strong);
   border-radius: var(--r-lg);
@@ -809,6 +727,16 @@ button:disabled,
   justify-content: space-between;
   gap: var(--sp-3);
   margin-bottom: var(--sp-3);
+}
+.card__head > div:first-child {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.card__head > *:last-child {
+  flex: none;
+}
+.card__head select {
+  width: auto;
 }
 .card__eyebrow {
   font-size: var(--fs-xs);
@@ -988,6 +916,50 @@ button:disabled,
   margin: 4px 0 0;
   font-size: var(--fs-sm);
   color: var(--ink-2);
+}
+
+.notiflist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+.notiflist li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: var(--sp-3) 0;
+  border-bottom: 1px solid var(--line);
+  font-size: var(--fs-sm);
+}
+.notiflist li:last-child {
+  border-bottom: 0;
+}
+.notiflist li.unread .msg {
+  font-weight: 700;
+  color: var(--ink);
+}
+.notiflist li.unread .msg::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--red);
+  margin-right: 8px;
+}
+.notiflist .msg {
+  color: var(--ink-2);
+}
+.notiflist .meta {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  white-space: nowrap;
 }
 
 .oddsrow {

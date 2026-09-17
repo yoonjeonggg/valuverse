@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { api, API_BASE_URL, getToken } from "./lib/api";
+import { api, getToken } from "./lib/api";
 import { Icon } from "./lib/ui";
 
 type Item = {
@@ -43,13 +43,9 @@ export default function Home() {
   const [items, setItems] = useState<Item[] | null>(null);
   const [skillItems, setSkillItems] = useState<SkillItem[] | null>(null);
   const [missions, setMissions] = useState<Mission[] | null>(null);
-  const [online, setOnline] = useState<boolean | null>(null);
   const [loggedIn, setLoggedIn] = useState(false);
 
   useEffect(() => {
-    api("/health")
-      .then(() => setOnline(true))
-      .catch(() => setOnline(false));
     api<Item[]>("/items", { query: { status: "ongoing", limit: 6 } })
       .then(setItems)
       .catch(() => setItems([]));
@@ -208,15 +204,6 @@ export default function Home() {
           ))}
         </div>
       )}
-
-      <div className="statusline">
-        <span className={"dot" + (online === false ? " bad" : "")} />
-        {online === null
-          ? "백엔드 상태 확인 중…"
-          : online
-            ? `백엔드 연결됨 — ${API_BASE_URL}`
-            : `백엔드에 연결할 수 없습니다 — ${API_BASE_URL}`}
-      </div>
     </div>
   );
 }

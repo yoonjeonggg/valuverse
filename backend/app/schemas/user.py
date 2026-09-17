@@ -30,6 +30,7 @@ class UserResponse(ORMModel):
     profile_image: Optional[str] = None
     points: int
     rating: float
+    is_admin: bool
     created_at: datetime
 
 

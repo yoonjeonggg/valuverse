@@ -3,22 +3,30 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { api } from "../lib/api";
-import { toIso } from "../lib/format";
-import { Card, Field, PageHeader, Result, Section, useCall } from "../lib/ui";
+import { Card, PageHeader, useCall } from "../lib/ui";
 
 type SkillItemRow = { id: number; title: string; category: string | null; start_price: number; status: string };
 
+const STATUS_LABEL: Record<string, string> = {
+  recruiting: "모집중",
+  awarded: "예약 확정",
+  closed: "거래 종료",
+};
+
 export default function SkillItemsPage() {
   const [feed, setFeed] = useState<SkillItemRow[] | null>(null);
-  useEffect(() => {
-    api<SkillItemRow[]>("/skill-items", { query: { status: "recruiting" } })
+  const [statusFilter, setStatusFilter] = useState("recruiting");
+
+  const loadFeed = (status: string) =>
+    api<SkillItemRow[]>("/skill-items", { query: { status } })
       .then(setFeed)
       .catch(() => setFeed([]));
-  }, []);
+
+  useEffect(() => {
+    loadFeed(statusFilter);
+  }, [statusFilter]);
 
   const [category, setCategory] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
-
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [startPrice, setStartPrice] = useState("10000");
@@ -26,25 +34,6 @@ export default function SkillItemsPage() {
   const [provideType, setProvideType] = useState("");
   const [availableSchedule, setAvailableSchedule] = useState("");
 
-  const [skillItemId, setSkillItemId] = useState("");
-  const [patchTitle, setPatchTitle] = useState("");
-
-  const [buyerId, setBuyerId] = useState("");
-  const [bookingAmount, setBookingAmount] = useState("10000");
-  const [scheduledAt, setScheduledAt] = useState("");
-  const [bookingId, setBookingId] = useState("");
-  const [bookingStatus, setBookingStatus] = useState("completed");
-  const [noShowParty, setNoShowParty] = useState("seller");
-
-  const [escrowPayeeId, setEscrowPayeeId] = useState("");
-  const [escrowAmount, setEscrowAmount] = useState("");
-  const [escrowBookingId, setEscrowBookingId] = useState("");
-  const [escrowId, setEscrowId] = useState("");
-  const [escrowStatus, setEscrowStatus] = useState("settled");
-
-  const list = useCall(() =>
-    api("/skill-items", { query: { category, status: statusFilter } }),
-  );
   const create = useCall(() =>
     api("/skill-items", {
       method: "POST",
@@ -60,79 +49,14 @@ export default function SkillItemsPage() {
       },
     }),
   );
-  const getOne = useCall(() => api(`/skill-items/${Number(skillItemId)}`));
-  const patch = useCall(() =>
-    api(`/skill-items/${Number(skillItemId)}`, {
-      method: "PATCH",
-      auth: true,
-      body: { title: patchTitle || undefined },
-    }),
-  );
-  const del = useCall(() =>
-    api(`/skill-items/${Number(skillItemId)}`, { method: "DELETE", auth: true }),
-  );
-
-  const createBooking = useCall(() =>
-    api("/skill-bookings", {
-      method: "POST",
-      auth: true,
-      body: {
-        skill_item_id: Number(skillItemId),
-        buyer_id: Number(buyerId),
-        amount: Number(bookingAmount),
-        scheduled_at: toIso(scheduledAt),
-      },
-    }),
-  );
-  const myBookings = useCall(() => api("/skill-bookings", { auth: true }));
-  const completeBooking = useCall(() =>
-    api(`/skill-bookings/${Number(bookingId)}/complete`, {
-      method: "POST",
-      auth: true,
-    }),
-  );
-  const noShowBooking = useCall(() =>
-    api(`/skill-bookings/${Number(bookingId)}/no-show`, {
-      method: "POST",
-      auth: true,
-      body: { party: noShowParty },
-    }),
-  );
-  const getBooking = useCall(() =>
-    api(`/skill-bookings/${Number(bookingId)}`, { auth: true }),
-  );
-  const patchBooking = useCall(() =>
-    api(`/skill-bookings/${Number(bookingId)}`, {
-      method: "PATCH",
-      auth: true,
-      body: { status: bookingStatus || undefined },
-    }),
-  );
-  const cancelBooking = useCall(() =>
-    api(`/skill-bookings/${Number(bookingId)}`, { method: "DELETE", auth: true }),
-  );
-
-  const createEscrow = useCall(() =>
-    api("/escrows", {
-      method: "POST",
-      auth: true,
-      body: {
-        booking_id: escrowBookingId ? Number(escrowBookingId) : undefined,
-        payee_id: Number(escrowPayeeId),
-        amount: Number(escrowAmount),
-      },
-    }),
-  );
-  const getEscrow = useCall(() =>
-    api(`/escrows/${Number(escrowId)}`, { auth: true }),
-  );
-  const patchEscrow = useCall(() =>
-    api(`/escrows/${Number(escrowId)}`, {
-      method: "PATCH",
-      auth: true,
-      body: { status: escrowStatus },
-    }),
-  );
+  const submitCreate = async () => {
+    const res = await create.run();
+    if (res) {
+      setTitle("");
+      setDescription("");
+      loadFeed(statusFilter);
+    }
+  };
 
   const skillTag = useCall(() =>
     api<{ suggested_category: string; suggested_level: string }>("/ai/skill-tag-suggestion", {
@@ -151,46 +75,47 @@ export default function SkillItemsPage() {
         </p>
       </PageHeader>
 
-      <Card title="모집중인 스킬 상품">
+      <Card
+        title="스킬 상품"
+        right={
+          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+            <option value="recruiting">모집중</option>
+            <option value="awarded">예약 확정</option>
+            <option value="closed">거래 종료</option>
+          </select>
+        }
+      >
         {feed === null ? (
           <div className="empty">불러오는 중…</div>
         ) : feed.length === 0 ? (
-          <div className="empty">모집중인 스킬 상품이 없습니다.</div>
+          <div className="empty">해당 상태의 스킬 상품이 없습니다.</div>
         ) : (
           <div className="item-grid">
             {feed.map((it) => (
               <Link key={it.id} href={`/skill-items/${it.id}`} className="item-card">
                 <span className="cat">{it.category || "미분류"}</span>
                 <span className="ttl">{it.title}</span>
-                <span className="price">{it.start_price.toLocaleString()}원</span>
+                <span className="price">
+                  {it.start_price.toLocaleString()}원
+                  {it.status !== "recruiting" && ` · ${STATUS_LABEL[it.status] ?? it.status}`}
+                </span>
               </Link>
             ))}
           </div>
         )}
       </Card>
 
-      <Section title="스킬 상품 목록 (API 콘솔)" method="GET /skill-items">
-        <Field label="category" value={category} onChange={(e) => setCategory(e.target.value)} />
-        <Field
-          label="status"
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-        />
-        <div className="actions">
-          <button onClick={() => list.run()}>목록 조회</button>
+      <Card title="스킬 상품 등록">
+        <div className="field">
+          <span>제목</span>
+          <input value={title} onChange={(e) => setTitle(e.target.value)} />
         </div>
-        <Result {...list} />
-      </Section>
-
-      <Section title="스킬 상품 등록" method="POST /skill-items">
-        <Field label="title" value={title} onChange={(e) => setTitle(e.target.value)} />
-        <Field
-          label="description"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-        />
+        <div className="field">
+          <span>소개글</span>
+          <input value={description} onChange={(e) => setDescription(e.target.value)} />
+        </div>
         <div className="actions">
-          <button onClick={() => skillTag.run()} disabled={!description || skillTag.loading}>
+          <button className="btn-sm" onClick={() => skillTag.run()} disabled={!description || skillTag.loading}>
             AI 카테고리/난이도 제안
           </button>
         </div>
@@ -207,156 +132,45 @@ export default function SkillItemsPage() {
             </div>
           </div>
         )}
-        <Field
-          label="start_price"
-          type="number"
-          value={startPrice}
-          onChange={(e) => setStartPrice(e.target.value)}
-        />
-        <Field
-          label="duration_minutes"
-          type="number"
-          value={durationMinutes}
-          onChange={(e) => setDurationMinutes(e.target.value)}
-        />
-        <Field
-          label="provide_type"
-          value={provideType}
-          onChange={(e) => setProvideType(e.target.value)}
-        />
-        <Field
-          label="available_schedule"
-          value={availableSchedule}
-          onChange={(e) => setAvailableSchedule(e.target.value)}
-        />
+        <div className="field">
+          <span>카테고리</span>
+          <input value={category} onChange={(e) => setCategory(e.target.value)} />
+        </div>
+        <div className="field">
+          <span>가격</span>
+          <input type="number" value={startPrice} onChange={(e) => setStartPrice(e.target.value)} />
+        </div>
+        <div className="field">
+          <span>소요 시간(분)</span>
+          <input
+            type="number"
+            value={durationMinutes}
+            onChange={(e) => setDurationMinutes(e.target.value)}
+          />
+        </div>
+        <div className="field">
+          <span>제공 형태</span>
+          <input
+            value={provideType}
+            onChange={(e) => setProvideType(e.target.value)}
+            placeholder="온라인/오프라인 등"
+          />
+        </div>
+        <div className="field">
+          <span>가능 일정</span>
+          <input
+            value={availableSchedule}
+            onChange={(e) => setAvailableSchedule(e.target.value)}
+            placeholder="예: 평일 저녁, 주말"
+          />
+        </div>
         <div className="actions">
-          <button className="btn-primary" onClick={() => create.run()}>
+          <button className="btn btn-primary" onClick={submitCreate} disabled={create.loading || !title}>
             등록
           </button>
         </div>
-        <Result {...create} />
-      </Section>
-
-      <Section title="대상 스킬 상품 선택" method="GET · PATCH · DELETE /skill-items/{id}">
-        <Field
-          label="skill_item_id"
-          value={skillItemId}
-          onChange={(e) => setSkillItemId(e.target.value)}
-        />
-        <Field
-          label="patch title"
-          value={patchTitle}
-          onChange={(e) => setPatchTitle(e.target.value)}
-        />
-        <div className="actions">
-          <button onClick={() => getOne.run()}>조회</button>
-          <button onClick={() => patch.run()}>제목 수정</button>
-          <button onClick={() => del.run()}>삭제</button>
-        </div>
-        <Result {...getOne} />
-        <Result {...patch} />
-        <Result {...del} />
-      </Section>
-
-      <Section title="예약 · 정산" method="POST /skill-bookings · /complete · /no-show">
-        <p className="hint">
-          예약 생성 = 낙찰. 구매자 포인트가 amount 만큼 차감되어 에스크로에
-          보관됩니다.
-        </p>
-        <Field label="buyer_id" value={buyerId} onChange={(e) => setBuyerId(e.target.value)} />
-        <Field
-          label="amount (낙찰가)"
-          type="number"
-          value={bookingAmount}
-          onChange={(e) => setBookingAmount(e.target.value)}
-        />
-        <Field
-          label="scheduled_at"
-          type="datetime-local"
-          value={scheduledAt}
-          onChange={(e) => setScheduledAt(e.target.value)}
-        />
-        <div className="actions">
-          <button className="btn-primary" onClick={() => createBooking.run()}>
-            예약 생성 (판매자)
-          </button>
-          <button onClick={() => myBookings.run()}>내 예약</button>
-        </div>
-        <Result {...createBooking} />
-        <Result {...myBookings} />
-        <Field
-          label="booking_id"
-          value={bookingId}
-          onChange={(e) => setBookingId(e.target.value)}
-        />
-        <Field
-          label="일정 변경용 status"
-          value={bookingStatus}
-          onChange={(e) => setBookingStatus(e.target.value)}
-        />
-        <div className="actions">
-          <button onClick={() => getBooking.run()}>조회</button>
-          <button onClick={() => patchBooking.run()}>일정 변경</button>
-          <button onClick={() => completeBooking.run()}>완료 (구매자, 정산)</button>
-          <button onClick={() => cancelBooking.run()}>취소 · 환불</button>
-        </div>
-        <Field
-          label="노쇼 당사자 (seller/buyer)"
-          value={noShowParty}
-          onChange={(e) => setNoShowParty(e.target.value)}
-        />
-        <div className="actions">
-          <button onClick={() => noShowBooking.run()}>노쇼 처리</button>
-        </div>
-        <Result {...getBooking} />
-        <Result {...patchBooking} />
-        <Result {...completeBooking} />
-        <Result {...cancelBooking} />
-        <Result {...noShowBooking} />
-      </Section>
-
-      <Section title="에스크로" method="POST · GET · PATCH /escrows">
-        <p className="hint">
-          상태 변경(PATCH)은 실제 포인트 이동을 동반합니다 —
-          settled=판매자 정산, refunded=구매자 환불.
-        </p>
-        <Field
-          label="booking_id (선택)"
-          value={escrowBookingId}
-          onChange={(e) => setEscrowBookingId(e.target.value)}
-        />
-        <Field
-          label="payee_id"
-          value={escrowPayeeId}
-          onChange={(e) => setEscrowPayeeId(e.target.value)}
-        />
-        <Field
-          label="amount"
-          type="number"
-          value={escrowAmount}
-          onChange={(e) => setEscrowAmount(e.target.value)}
-        />
-        <div className="actions">
-          <button onClick={() => createEscrow.run()}>에스크로 생성</button>
-        </div>
-        <Result {...createEscrow} />
-        <Field
-          label="escrow_id"
-          value={escrowId}
-          onChange={(e) => setEscrowId(e.target.value)}
-        />
-        <Field
-          label="status (holding/settled/refunded)"
-          value={escrowStatus}
-          onChange={(e) => setEscrowStatus(e.target.value)}
-        />
-        <div className="actions">
-          <button onClick={() => getEscrow.run()}>조회</button>
-          <button onClick={() => patchEscrow.run()}>상태 변경</button>
-        </div>
-        <Result {...getEscrow} />
-        <Result {...patchEscrow} />
-      </Section>
+        {create.error && <p className="hint hint--error">{create.error}</p>}
+      </Card>
     </div>
   );
 }
