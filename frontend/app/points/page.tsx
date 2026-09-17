@@ -149,7 +149,9 @@ export default function PointsPage() {
         </p>
         <div className="streak">
           {Array.from({ length: CHECKIN_STREAK_CAP }).map((_, i) => (
-            <span key={i} className={"dot" + (streak !== null && i < streak ? " on" : "")} />
+            <span key={i} className={"dot" + (streak !== null && i < streak ? " on" : "")}>
+              {i + 1}일
+            </span>
           ))}
         </div>
         <div className="actions">

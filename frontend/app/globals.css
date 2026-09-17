@@ -1001,19 +1001,28 @@ button:disabled,
 
 .streak {
   display: flex;
-  gap: 6px;
+  gap: 8px;
   margin: var(--sp-2) 0 var(--sp-3);
 }
 .streak .dot {
-  width: 22px;
-  height: 22px;
-  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 40px;
+  height: 34px;
+  padding: 0 6px;
+  border-radius: var(--r-lg);
   border: 1px solid var(--line-strong);
   background: var(--surface-2);
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }
 .streak .dot.on {
   background: var(--red);
   border-color: var(--red);
+  color: #fff;
 }
 
 .missiongrid {
