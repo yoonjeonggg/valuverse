@@ -9,6 +9,7 @@ from app.schemas.point import (
     PointTransactionResponse,
     PointBalanceResponse,
     CheckInResponse,
+    CheckInStatusResponse,
     MissionStatus,
     MissionClaimResponse,
     AdRewardResponse,
@@ -56,6 +57,13 @@ def get_my_point_balance(
 
 
 # ==================== 적립 (출석 / 미션 / 광고) ====================
+@router.get("/points/check-in/status", response_model=CheckInStatusResponse)
+def check_in_status(
+    db: Session = Depends(get_db), user: User = Depends(get_current_user)
+):
+    return economy_service.get_check_in_status(db, user)
+
+
 @router.post("/points/check-in", response_model=CheckInResponse)
 def check_in(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     return economy_service.check_in(db, user)

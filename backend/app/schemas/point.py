@@ -37,6 +37,11 @@ class CheckInResponse(BaseModel):
     balance: int
 
 
+class CheckInStatusResponse(BaseModel):
+    checked_in_today: bool
+    streak: int
+
+
 class MissionStatus(BaseModel):
     key: str
     description: str

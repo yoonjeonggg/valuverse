@@ -53,6 +53,23 @@ def test_check_in_streak_resets_after_gap(client, make_user):
     assert r.json()["streak"] == 1
 
 
+def test_check_in_status_before_and_after_check_in(client, make_user):
+    h, _ = make_user()
+    before = client.get("/points/check-in/status", headers=h).json()
+    assert before == {"checked_in_today": False, "streak": 0}
+
+    client.post("/points/check-in", headers=h)
+    after = client.get("/points/check-in/status", headers=h).json()
+    assert after == {"checked_in_today": True, "streak": 1}
+
+
+def test_check_in_status_reflects_existing_streak(client, make_user):
+    h, user = make_user()
+    _seed_attendance(user["id"], days_ago=1, streak=3)
+    status = client.get("/points/check-in/status", headers=h).json()
+    assert status == {"checked_in_today": False, "streak": 3}
+
+
 # ---------- 미션 ----------
 def test_missions_list_reports_achievement(client, make_user):
     h, _ = make_user()

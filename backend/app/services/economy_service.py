@@ -20,6 +20,20 @@ from app.models.user import User
 from app.services.point_service import apply_delta as _grant
 
 # ==================== 출석 체크 ====================
+def get_check_in_status(db: Session, user: User) -> dict:
+    today_str = now().date().isoformat()
+    latest = (
+        db.query(Attendance)
+        .filter(Attendance.user_id == user.id)
+        .order_by(Attendance.check_date.desc())
+        .first()
+    )
+    return {
+        "checked_in_today": bool(latest and latest.check_date == today_str),
+        "streak": latest.streak if latest else 0,
+    }
+
+
 def check_in(db: Session, user: User) -> dict:
     today = now().date()
     today_str = today.isoformat()

@@ -79,13 +79,24 @@ export async function api<T = unknown>(
   }
 
   if (!res.ok) {
-    const detail =
-      (parsed &&
-        typeof parsed === "object" &&
-        "detail" in parsed &&
-        JSON.stringify((parsed as { detail: unknown }).detail)) ||
-      res.statusText;
-    throw new ApiError(res.status, `${res.status} ${detail}`, parsed);
+    let detail: string | undefined;
+    if (parsed && typeof parsed === "object" && "detail" in parsed) {
+      const d = (parsed as { detail: unknown }).detail;
+      if (typeof d === "string") {
+        detail = d;
+      } else if (Array.isArray(d) && d.every((e) => e && typeof e === "object" && "message" in e)) {
+        detail = d
+          .map((e) => (e.field ? `${e.field}: ${e.message}` : String(e.message)))
+          .join(", ");
+      } else {
+        detail = JSON.stringify(d);
+      }
+    }
+    throw new ApiError(
+      res.status,
+      detail || res.statusText || "요청에 실패했습니다.",
+      parsed,
+    );
   }
 
   return parsed as T;

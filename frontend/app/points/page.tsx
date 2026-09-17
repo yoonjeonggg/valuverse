@@ -33,6 +33,7 @@ const CHECKIN_STREAK_CAP = 7;
 export default function PointsPage() {
   const [balance, setBalance] = useState<number | null>(null);
   const [streak, setStreak] = useState<number | null>(null);
+  const [checkedInToday, setCheckedInToday] = useState(false);
   const [adToday, setAdToday] = useState<{ views: number; limit: number } | null>(null);
   const [liveMissions, setLiveMissions] = useState<Mission[] | null>(null);
   const [catalog, setCatalog] = useState<CouponCatalogRow[] | null>(null);
@@ -41,6 +42,13 @@ export default function PointsPage() {
   const loadBalance = () =>
     api<{ balance: number }>("/users/me/points/balance", { auth: true })
       .then((r) => setBalance(r.balance))
+      .catch(() => {});
+  const loadCheckInStatus = () =>
+    api<{ checked_in_today: boolean; streak: number }>("/points/check-in/status", { auth: true })
+      .then((r) => {
+        setCheckedInToday(r.checked_in_today);
+        setStreak(r.streak);
+      })
       .catch(() => {});
   const loadLiveMissions = () =>
     api<Mission[]>("/points/missions", { auth: true })
@@ -57,6 +65,7 @@ export default function PointsPage() {
       .catch(() => setCatalog([]));
     if (getToken()) {
       loadBalance();
+      loadCheckInStatus();
       loadLiveMissions();
       loadOwnedCoupons();
     }
@@ -73,6 +82,7 @@ export default function PointsPage() {
     if (r) {
       setStreak(r.streak);
       setBalance(r.balance);
+      setCheckedInToday(true);
     }
   };
 
@@ -133,15 +143,23 @@ export default function PointsPage() {
         title="출석 체크"
         right={balance !== null ? <span className="pointpill">{balance.toLocaleString()} P</span> : undefined}
       >
+        <p className="hint">
+          연속 출석 스트릭 — 매일 채워가면 보너스 포인트가 늘어납니다
+          {streak ? ` (현재 ${streak}일 연속)` : ""}.
+        </p>
         <div className="streak">
           {Array.from({ length: CHECKIN_STREAK_CAP }).map((_, i) => (
             <span key={i} className={"dot" + (streak !== null && i < streak ? " on" : "")} />
           ))}
         </div>
         <div className="actions">
-          <button className="btn btn-primary" onClick={submitCheckIn} disabled={checkInCall.loading}>
-            오늘 출석 체크
-          </button>
+          {checkedInToday ? (
+            <span className="badge badge--ok">오늘 출석 완료</span>
+          ) : (
+            <button className="btn btn-primary" onClick={submitCheckIn} disabled={checkInCall.loading}>
+              오늘 출석 체크
+            </button>
+          )}
         </div>
         {checkInCall.data && (
           <p className="hint">
