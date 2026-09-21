@@ -20,17 +20,36 @@ from app.models.user import User
 from app.services.point_service import apply_delta as _grant
 
 # ==================== 출석 체크 ====================
-def get_check_in_status(db: Session, user: User) -> dict:
-    today_str = now().date().isoformat()
-    latest = (
+def _latest_attendance(db: Session, user_id: int) -> Attendance | None:
+    return (
         db.query(Attendance)
-        .filter(Attendance.user_id == user.id)
+        .filter(Attendance.user_id == user_id)
         .order_by(Attendance.check_date.desc())
         .first()
     )
+
+
+def _active_streak(latest: Attendance | None, today) -> int:
+    """마지막 출석이 어제/오늘이 아니면 스트릭은 이미 끊긴 것 -- 다음 출석 시
+    1일로 리셋되므로(check_in 참고) 옛 스트릭 값을 그대로 노출하지 않는다."""
+    if latest is None:
+        return 0
+    yesterday = (today - timedelta(days=1)).isoformat()
+    if latest.check_date == today.isoformat() or latest.check_date == yesterday:
+        return latest.streak
+    return 0
+
+
+def get_active_attendance_streak(db: Session, user_id: int) -> int:
+    return _active_streak(_latest_attendance(db, user_id), now().date())
+
+
+def get_check_in_status(db: Session, user: User) -> dict:
+    today = now().date()
+    latest = _latest_attendance(db, user.id)
     return {
-        "checked_in_today": bool(latest and latest.check_date == today_str),
-        "streak": latest.streak if latest else 0,
+        "checked_in_today": bool(latest and latest.check_date == today.isoformat()),
+        "streak": _active_streak(latest, today),
     }
 
 
@@ -38,20 +57,12 @@ def check_in(db: Session, user: User) -> dict:
     today = now().date()
     today_str = today.isoformat()
 
-    if (
-        db.query(Attendance.id)
-        .filter(Attendance.user_id == user.id, Attendance.check_date == today_str)
-        .first()
-    ):
+    latest = _latest_attendance(db, user.id)
+    if latest and latest.check_date == today_str:
         raise HTTPException(status.HTTP_409_CONFLICT, "오늘은 이미 출석했습니다.")
 
     yesterday = (today - timedelta(days=1)).isoformat()
-    prev = (
-        db.query(Attendance)
-        .filter(Attendance.user_id == user.id, Attendance.check_date == yesterday)
-        .first()
-    )
-    streak = (prev.streak + 1) if prev else 1
+    streak = (latest.streak + 1) if latest and latest.check_date == yesterday else 1
 
     bonus_days = min(streak, settings.point_checkin_streak_cap)
     reward = settings.point_checkin_base + settings.point_checkin_streak_bonus * (

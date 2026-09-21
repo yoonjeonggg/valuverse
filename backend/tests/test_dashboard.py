@@ -3,6 +3,17 @@
 from datetime import timedelta
 
 from app.core.timeutils import now
+from tests.conftest import TestingSessionLocal
+
+
+def _seed_attendance(user_id: int, days_ago: int, streak: int):
+    from app.models.economy import Attendance
+
+    session = TestingSessionLocal()
+    d = (now().date() - timedelta(days=days_ago)).isoformat()
+    session.add(Attendance(user_id=user_id, check_date=d, streak=streak, reward=0))
+    session.commit()
+    session.close()
 
 
 def _item(client, headers):
@@ -65,6 +76,13 @@ def test_dashboard_checkin_streak(client, make_user):
     d = _dash(client, h)
     assert d["attendance_streak"] == 1
     assert d["points"] > 0
+
+
+def test_dashboard_shows_broken_streak_as_zero(client, make_user):
+    h, user = make_user()
+    _seed_attendance(user["id"], days_ago=3, streak=5)  # 사흘 전이 마지막 → 이미 끊긴 스트릭
+    d = _dash(client, h)
+    assert d["attendance_streak"] == 0
 
 
 def test_dashboard_requires_auth(client):

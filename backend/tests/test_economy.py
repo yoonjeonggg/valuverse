@@ -70,6 +70,13 @@ def test_check_in_status_reflects_existing_streak(client, make_user):
     assert status == {"checked_in_today": False, "streak": 3}
 
 
+def test_check_in_status_shows_broken_streak_as_zero(client, make_user):
+    h, user = make_user()
+    _seed_attendance(user["id"], days_ago=3, streak=5)  # 사흘 전이 마지막 → 이미 끊긴 스트릭
+    status = client.get("/points/check-in/status", headers=h).json()
+    assert status == {"checked_in_today": False, "streak": 0}
+
+
 # ---------- 미션 ----------
 def test_missions_list_reports_achievement(client, make_user):
     h, _ = make_user()

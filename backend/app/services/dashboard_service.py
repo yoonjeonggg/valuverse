@@ -4,13 +4,13 @@ from sqlalchemy import and_, case, func, or_
 from sqlalchemy.orm import Session
 
 from app.models.auction import Bid, Item
-from app.models.economy import Attendance
 from app.models.notification import Notification
 from app.models.prediction import PredictionBet
 from app.models.report import Report
 from app.models.review import Review
 from app.models.skill import SkillBooking, SkillItem
 from app.models.user import User
+from app.services.economy_service import get_active_attendance_streak
 
 
 def _count(db: Session, model, *conditions) -> int:
@@ -44,13 +44,6 @@ def get_dashboard(db: Session, user: User) -> dict:
         )
         .scalar()
         or 0
-    )
-
-    latest_attendance = (
-        db.query(Attendance)
-        .filter(Attendance.user_id == uid)
-        .order_by(Attendance.check_date.desc())
-        .first()
     )
 
     # 판매/낙찰 3건을 한 번에: 상품이 내 판매글이거나 내가 낙찰자인 경우만 스캔.
@@ -109,7 +102,7 @@ def get_dashboard(db: Session, user: User) -> dict:
         "unread_notifications": _count(
             db, Notification, Notification.user_id == uid, Notification.is_read.is_(False)
         ),
-        "attendance_streak": latest_attendance.streak if latest_attendance else 0,
+        "attendance_streak": get_active_attendance_streak(db, uid),
         "auction": {
             "selling_ongoing": selling_ongoing or 0,
             "sold": sold or 0,
