@@ -8,6 +8,7 @@ from datetime import timedelta
 
 from fastapi import HTTPException, status
 from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -19,6 +20,16 @@ from app.models.review import Review
 from app.models.user import User
 from app.services.point_service import apply_delta as _grant
 
+
+def _commit_or_conflict(db: Session, message: str) -> None:
+    """커밋 시도 후 UNIQUE 제약 위반(동시 중복 요청)이면 409로 변환한다."""
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status.HTTP_409_CONFLICT, message)
+
+
 # ==================== 출석 체크 ====================
 def _latest_attendance(db: Session, user_id: int) -> Attendance | None:
     return (
@@ -29,13 +40,16 @@ def _latest_attendance(db: Session, user_id: int) -> Attendance | None:
     )
 
 
+def _yesterday_str(today) -> str:
+    return (today - timedelta(days=1)).isoformat()
+
+
 def _active_streak(latest: Attendance | None, today) -> int:
     """마지막 출석이 어제/오늘이 아니면 스트릭은 이미 끊긴 것 -- 다음 출석 시
     1일로 리셋되므로(check_in 참고) 옛 스트릭 값을 그대로 노출하지 않는다."""
     if latest is None:
         return 0
-    yesterday = (today - timedelta(days=1)).isoformat()
-    if latest.check_date == today.isoformat() or latest.check_date == yesterday:
+    if latest.check_date in (today.isoformat(), _yesterday_str(today)):
         return latest.streak
     return 0
 
@@ -61,8 +75,7 @@ def check_in(db: Session, user: User) -> dict:
     if latest and latest.check_date == today_str:
         raise HTTPException(status.HTTP_409_CONFLICT, "오늘은 이미 출석했습니다.")
 
-    yesterday = (today - timedelta(days=1)).isoformat()
-    streak = (latest.streak + 1) if latest and latest.check_date == yesterday else 1
+    streak = (latest.streak + 1) if latest and latest.check_date == _yesterday_str(today) else 1
 
     bonus_days = min(streak, settings.point_checkin_streak_cap)
     reward = settings.point_checkin_base + settings.point_checkin_streak_bonus * (
@@ -75,7 +88,8 @@ def check_in(db: Session, user: User) -> dict:
         )
     )
     _grant(db, user, reward, "attendance", f"출석 체크 ({streak}일 연속)")
-    db.commit()
+    # 동시에 두 번 출석 요청이 오면 UNIQUE(user_id, check_date) 위반 -> 409로 변환.
+    _commit_or_conflict(db, "오늘은 이미 출석했습니다.")
     return {
         "check_date": today_str,
         "streak": streak,
@@ -135,14 +149,19 @@ def list_missions(db: Session, user: User) -> list[dict]:
     return out
 
 
+def _already_claimed(db: Session, user_id: int, key: str) -> bool:
+    return (
+        db.query(MissionClaim.id)
+        .filter(MissionClaim.user_id == user_id, MissionClaim.mission_key == key)
+        .first()
+        is not None
+    )
+
+
 def claim_mission(db: Session, user: User, key: str) -> dict:
     if key not in MISSIONS:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "존재하지 않는 미션입니다.")
-    if (
-        db.query(MissionClaim.id)
-        .filter(MissionClaim.user_id == user.id, MissionClaim.mission_key == key)
-        .first()
-    ):
+    if _already_claimed(db, user.id, key):
         raise HTTPException(status.HTTP_409_CONFLICT, "이미 보상을 받은 미션입니다.")
     if not _CHECKERS[key](db, user.id):
         raise HTTPException(status.HTTP_409_CONFLICT, "아직 달성하지 못한 미션입니다.")
@@ -150,7 +169,8 @@ def claim_mission(db: Session, user: User, key: str) -> dict:
     reward = MISSIONS[key][0]
     db.add(MissionClaim(user_id=user.id, mission_key=key, reward=reward))
     _grant(db, user, reward, "mission", f"미션 보상: {MISSIONS[key][1]}")
-    db.commit()
+    # 동시에 두 번 수령 요청이 오면 UNIQUE(user_id, mission_key) 위반 -> 409로 변환.
+    _commit_or_conflict(db, "이미 보상을 받은 미션입니다.")
     return {"key": key, "reward": reward, "balance": user.points}
 
 

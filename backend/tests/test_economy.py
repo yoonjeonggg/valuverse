@@ -77,6 +77,19 @@ def test_check_in_status_shows_broken_streak_as_zero(client, make_user):
     assert status == {"checked_in_today": False, "streak": 0}
 
 
+def test_check_in_race_returns_conflict_not_500(client, make_user, monkeypatch):
+    """동시에 두 번 출석 요청이 들어와 중복 확인 로직을 모두 통과해도,
+    DB의 UNIQUE(user_id, check_date) 제약으로 걸러지면 409여야 한다 (500 아님)."""
+    h, _ = make_user()
+    assert client.post("/points/check-in", headers=h).status_code == 200
+
+    from app.services import economy_service
+
+    monkeypatch.setattr(economy_service, "_latest_attendance", lambda db, user_id: None)
+    r = client.post("/points/check-in", headers=h)
+    assert r.status_code == 409, r.text
+
+
 # ---------- 미션 ----------
 def test_missions_list_reports_achievement(client, make_user):
     h, _ = make_user()
@@ -134,6 +147,30 @@ def test_claim_mission_twice_conflicts(client, make_user):
 def test_claim_unknown_mission_404(client, make_user):
     h, _ = make_user()
     assert client.post("/points/missions/nope/claim", headers=h).status_code == 404
+
+
+def test_claim_mission_race_returns_conflict_not_500(client, make_user, monkeypatch):
+    """동시에 두 번 수령 요청이 들어와 중복 확인 로직을 모두 통과해도,
+    DB의 UNIQUE(user_id, mission_key) 제약으로 걸러지면 409여야 한다 (500 아님)."""
+    h, _ = make_user()
+    client.post(
+        "/items",
+        json={
+            "title": "x",
+            "start_price": 100,
+            "end_time": (now() + timedelta(days=1)).isoformat(),
+        },
+        headers=h,
+    )
+    assert client.post("/points/missions/first_item/claim", headers=h).status_code == 200
+
+    from app.services import economy_service
+
+    monkeypatch.setattr(
+        economy_service, "_already_claimed", lambda db, user_id, key: False
+    )
+    r = client.post("/points/missions/first_item/claim", headers=h)
+    assert r.status_code == 409, r.text
 
 
 # ---------- 광고 ----------
