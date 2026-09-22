@@ -12,12 +12,15 @@
      - 값을 둘 다 한 선언에 적어야 하므로, 다크 변형을 깜빡 빠뜨리는 실수가 구조적으로 불가능하다. */
   color-scheme: light dark;
 
-  /* brand: 신호로서의 빨강. 배경이 아니라 액센트/아이덴티티로만 쓴다. */
-  --red: light-dark(#c8102e, #ff5c6c);
-  --red-hover: light-dark(#a60d26, #ff7c8a);
-  --red-active: light-dark(#86091d, #ff98a3);
-  --red-tint: light-dark(#fbe9ec, rgba(255, 92, 108, 0.16));
-  --red-tint-2: light-dark(#f6d7dd, rgba(255, 92, 108, 0.26));
+  /* brand: 신호로서의 빨강. 배경이 아니라 액센트/아이덴티티로만 쓴다.
+     탁하게 가라앉지 않도록 채도를 높게 유지 (파스텔로 보이지 않게). 다크 모드는
+     밝기만 올리고(채도 유지) hover/active 는 라이트 모드와 같은 방향(더 진하게)
+     으로 눌러서, 톤을 올릴수록 옅어지는 파스텔화를 피한다. */
+  --red: light-dark(#e00b2d, #ff2c4f);
+  --red-hover: light-dark(#b80924, #e01f40);
+  --red-active: light-dark(#93071d, #b81733);
+  --red-tint: light-dark(#fbe9ec, rgba(255, 44, 79, 0.16));
+  --red-tint-2: light-dark(#f6d7dd, rgba(255, 44, 79, 0.26));
 
   --ink: light-dark(#1c1a1b, #f2efec);
   --ink-2: light-dark(#46413f, #cfc9c3);
