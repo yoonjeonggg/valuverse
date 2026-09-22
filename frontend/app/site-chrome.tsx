@@ -44,13 +44,25 @@ export function SiteNav() {
 
 const THEME_KEY = "valuverse_theme";
 
+// 명시적으로 고른 테마가 있으면 그 값, 없으면(대다수) 시스템 설정을 따른다.
+// data-theme 속성이 비어 있을 수 있는 건 layout.tsx 의 인라인 스크립트가
+// "선택된 값이 있을 때만" 세팅하도록 최소화됐기 때문 -- globals.css 의
+// light-dark() 가 이 경우 이미 시스템 설정대로 렌더링해두었으므로, 여기서는
+// 토글 아이콘이 그 실제 상태와 어긋나지 않도록 matchMedia 로 같은 값을 읽어온다.
+function effectiveTheme(): "light" | "dark" {
+  const explicit = document.documentElement.getAttribute("data-theme");
+  if (explicit === "light" || explicit === "dark") return explicit;
+  return window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
+
 export function ThemeToggle() {
-  // 초기값은 layout.tsx 의 인라인 스크립트가 <html data-theme> 에 이미 세팅해둔다.
+  // 서버 렌더링과 동일하게 "light" 로 시작해 hydration mismatch 를 피하고,
+  // 마운트 직후 실제 값으로 한 번만 동기화한다.
   const [theme, setTheme] = useState<"light" | "dark">("light");
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setTheme(document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light");
+    setTheme(effectiveTheme());
   }, []);
 
   const toggle = () => {

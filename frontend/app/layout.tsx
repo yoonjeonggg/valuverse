@@ -4,13 +4,16 @@ import Script from "next/script";
 import "./globals.css";
 import { SiteNav, HeaderNotifications, HeaderAuth, ThemeToggle } from "./site-chrome";
 
+// 명시적으로 저장된 선택이 있을 때만 속성을 세팅한다. 저장된 값이 없으면
+// (대다수 첫 방문자) globals.css 의 `color-scheme: light dark` + `light-dark()` 가
+// OS 설정을 그대로 반영하므로 이 스크립트는 아무 작업도 하지 않는다 -- matchMedia
+// 호출이나 style 재계산을 그만큼 건너뛴다.
 const THEME_INIT_SCRIPT = `
 try {
   var t = localStorage.getItem("valuverse_theme");
-  if (t !== "light" && t !== "dark") {
-    t = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  if (t === "light" || t === "dark") {
+    document.documentElement.setAttribute("data-theme", t);
   }
-  document.documentElement.setAttribute("data-theme", t);
 } catch (e) {}
 `;
 

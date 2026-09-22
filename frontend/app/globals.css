@@ -4,36 +4,44 @@
    Valuverse — design tokens
    ============================================================ */
 :root {
+  /* 토큰마다 light-dark(라이트값, 다크값) 로 라이트/다크를 한 줄에 정의한다.
+     - color-scheme: light dark 인 동안은 OS/브라우저 설정을 그대로 따라간다 (JS 불필요).
+     - <html data-theme="light"|"dark"> 가 붙으면 아래 두 규칙이 color-scheme 을
+       한쪽으로 고정해 light-dark() 의 선택을 강제로 덮어쓴다
+       (layout.tsx 인라인 스크립트 + site-chrome.tsx 의 ThemeToggle 이 세팅/토글).
+     - 값을 둘 다 한 선언에 적어야 하므로, 다크 변형을 깜빡 빠뜨리는 실수가 구조적으로 불가능하다. */
+  color-scheme: light dark;
+
   /* brand: 신호로서의 빨강. 배경이 아니라 액센트/아이덴티티로만 쓴다. */
-  --red: #c8102e;
-  --red-hover: #a60d26;
-  --red-active: #86091d;
-  --red-tint: #fbe9ec;
-  --red-tint-2: #f6d7dd;
+  --red: light-dark(#c8102e, #ff5c6c);
+  --red-hover: light-dark(#a60d26, #ff7c8a);
+  --red-active: light-dark(#86091d, #ff98a3);
+  --red-tint: light-dark(#fbe9ec, rgba(255, 92, 108, 0.16));
+  --red-tint-2: light-dark(#f6d7dd, rgba(255, 92, 108, 0.26));
 
-  --ink: #1c1a1b;
-  --ink-2: #46413f;
-  --muted: #7d7671;
-  --faint: #a8a19b;
+  --ink: light-dark(#1c1a1b, #f2efec);
+  --ink-2: light-dark(#46413f, #cfc9c3);
+  --muted: light-dark(#7d7671, #9b948d);
+  --faint: light-dark(#a8a19b, #6e6863);
 
-  --line: #e7e2dc;
-  --line-strong: #d8d2ca;
+  --line: light-dark(#e7e2dc, #373432);
+  --line-strong: light-dark(#d8d2ca, #4a4542);
 
-  --paper: #fbfaf8;
-  --surface: #ffffff;
-  --surface-2: #f4f1ec;
-  --surface-ink: #211f20;
+  --paper: light-dark(#fbfaf8, #17181a);
+  --surface: light-dark(#ffffff, #1f2023);
+  --surface-2: light-dark(#f4f1ec, #26282b);
+  --surface-ink: light-dark(#211f20, #f2efec);
 
-  --ok: #1f7a4d;
-  --ok-tint: #e6f2ea;
-  --ok-border: #cde6d8;
-  --warn: #9a6b00;
-  --warn-tint: #f8efd8;
-  --warn-border: #ecdfb8;
+  --ok: light-dark(#1f7a4d, #4fbf85);
+  --ok-tint: light-dark(#e6f2ea, rgba(79, 191, 133, 0.14));
+  --ok-border: light-dark(#cde6d8, rgba(79, 191, 133, 0.35));
+  --warn: light-dark(#9a6b00, #e0ab3d);
+  --warn-tint: light-dark(#f8efd8, rgba(224, 171, 61, 0.14));
+  --warn-border: light-dark(#ecdfb8, rgba(224, 171, 61, 0.35));
 
   /* 흰 글자를 얹는 중립색 배경 (예: 예측시장 오즈 게이지의 "No" 구간).
      --ink-2 는 다크 모드에서 밝은 색으로 뒤집히므로 별도 토큰으로 분리. */
-  --neutral-strong: #46413f;
+  --neutral-strong: light-dark(#46413f, #55504c);
 
   --fs-xs: 0.75rem;
   --fs-sm: 0.8125rem;
@@ -58,6 +66,8 @@
   --r: 5px;
   --r-lg: 8px;
 
+  /* box-shadow 는 레이어가 콤마로 이어져 light-dark() 인자 경계와 충돌하므로
+     예외적으로 media query + data-theme 두 규칙에 그대로 적는다 (아래 참고). */
   --shadow: 0 1px 2px rgba(28, 20, 18, 0.05), 0 4px 14px rgba(28, 20, 18, 0.05);
   --shadow-sm: 0 1px 2px rgba(28, 20, 18, 0.06);
 
@@ -68,47 +78,24 @@
     monospace;
 
   --wrap: 1120px;
-
-  color-scheme: light;
 }
 
-/* ============================================================
-   dark theme — <html data-theme="dark"> (layout.tsx 인라인 스크립트 +
-   site-chrome.tsx 의 ThemeToggle 이 세팅/토글한다)
-   ============================================================ */
+:root[data-theme="light"] {
+  color-scheme: light;
+}
 :root[data-theme="dark"] {
-  --red: #ff5c6c;
-  --red-hover: #ff7c8a;
-  --red-active: #ff98a3;
-  --red-tint: rgba(255, 92, 108, 0.16);
-  --red-tint-2: rgba(255, 92, 108, 0.26);
+  color-scheme: dark;
+}
 
-  --ink: #f2efec;
-  --ink-2: #cfc9c3;
-  --muted: #9b948d;
-  --faint: #6e6863;
-
-  --line: #373432;
-  --line-strong: #4a4542;
-
-  --paper: #17181a;
-  --surface: #1f2023;
-  --surface-2: #26282b;
-  --surface-ink: #f2efec;
-
-  --ok: #4fbf85;
-  --ok-tint: rgba(79, 191, 133, 0.14);
-  --ok-border: rgba(79, 191, 133, 0.35);
-  --warn: #e0ab3d;
-  --warn-tint: rgba(224, 171, 61, 0.14);
-  --warn-border: rgba(224, 171, 61, 0.35);
-
-  --neutral-strong: #55504c;
-
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 14px rgba(0, 0, 0, 0.3);
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  }
+}
+:root[data-theme="dark"] {
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 14px rgba(0, 0, 0, 0.3);
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
-
-  color-scheme: dark;
 }
 
 /* ============================================================
