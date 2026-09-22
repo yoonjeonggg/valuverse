@@ -2,9 +2,22 @@
 
 from datetime import timedelta
 
+import pytest
+from fastapi import HTTPException
+
 from app.core.config import settings
 from app.core.timeutils import now
+from app.models.user import User
 from tests.conftest import TestingSessionLocal
+
+
+def _spend_concurrently(user_id: int, remaining_points: int):
+    """다른 세션이 이미 잔액을 이만큼만 남기고 커밋해버린 상황을 흉내낸다
+    (동시 요청 하나가 먼저 통과해 잔액을 다 써버린 것과 동일한 DB 상태)."""
+    session = TestingSessionLocal()
+    session.query(User).filter(User.id == user_id).update({"points": remaining_points})
+    session.commit()
+    session.close()
 
 
 def _seed_attendance(user_id: int, days_ago: int, streak: int):
@@ -232,6 +245,36 @@ def test_spotlight_rejected_without_points(client, make_user):
     ).json()
     r = client.post(f"/items/{item['id']}/spotlight", headers=seller_h)
     assert r.status_code == 400
+
+
+def test_spotlight_race_rejects_using_fresh_balance(client, make_user, set_points):
+    """요청 시작 시점엔 잔액이 충분해 보였어도(메모리상 stale 값), 그 사이 다른
+    요청이 이미 잔액을 다 써버렸다면 최신 잔액 기준으로 거부해야 한다.
+    (잠금 없이 stale 한 user.points 를 그대로 신뢰하면 이중 차감이 가능했다.)"""
+    seller_h, seller = make_user()
+    set_points(seller["id"], settings.spotlight_cost)
+    item = client.post(
+        "/items",
+        json={
+            "title": "x",
+            "start_price": 100,
+            "end_time": (now() + timedelta(days=1)).isoformat(),
+        },
+        headers=seller_h,
+    ).json()
+
+    from app.services.auction_service import buy_spotlight
+
+    session = TestingSessionLocal()
+    stale_user = session.query(User).filter(User.id == seller["id"]).one()
+    assert stale_user.points == settings.spotlight_cost  # 메모리상으론 잔액 충분
+
+    _spend_concurrently(seller["id"], remaining_points=0)  # "동시에" 이미 다 써버림
+
+    with pytest.raises(HTTPException) as exc:
+        buy_spotlight(session, item["id"], stale_user)
+    assert exc.value.status_code == 400
+    session.close()
 
 
 def test_spotlight_only_by_owner(client, make_user, set_points):

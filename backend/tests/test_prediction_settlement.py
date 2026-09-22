@@ -3,8 +3,11 @@
 from datetime import timedelta
 
 import pytest
+from fastapi import HTTPException
 
 from app.core.timeutils import now
+from app.models.user import User
+from tests.conftest import TestingSessionLocal
 
 
 @pytest.fixture
@@ -65,6 +68,33 @@ def test_odds_null_when_one_side_empty(client, make_user, set_points):
     odds = client.get(f"/predictions/{pred['id']}/odds").json()
     assert odds["yes_odds"] == 1.0  # total_pool == yes_pool
     assert odds["no_odds"] is None
+
+
+def test_bet_race_rejects_using_fresh_balance(client, make_user, set_points):
+    """요청 시작 시점엔 잔액이 충분해 보였어도(메모리상 stale 값), 그 사이 다른
+    요청이 이미 잔액을 다 써버렸다면 최신 잔액 기준으로 거부해야 한다."""
+    admin_h, _ = make_user(admin=True)
+    u_h, u = make_user()
+    set_points(u["id"], 2000)
+    pred = _create_prediction(client, admin_h)
+
+    from app.services.prediction_service import create_bet
+    from app.schemas.prediction import PredictionBetCreate
+
+    session = TestingSessionLocal()
+    stale_user = session.query(User).filter(User.id == u["id"]).one()
+    assert stale_user.points == 2000  # 메모리상으론 베팅 가능해 보임
+
+    other = TestingSessionLocal()
+    other.query(User).filter(User.id == u["id"]).update({"points": 0})
+    other.commit()
+    other.close()
+
+    payload = PredictionBetCreate(position="yes", amount=2000)
+    with pytest.raises(HTTPException) as exc:
+        create_bet(session, pred["id"], stale_user, payload)
+    assert exc.value.status_code == 400
+    session.close()
 
 
 # ---------- 정산 ----------

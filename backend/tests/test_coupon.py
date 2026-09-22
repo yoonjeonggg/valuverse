@@ -2,7 +2,11 @@
 
 from datetime import timedelta
 
+import pytest
+from fastapi import HTTPException
+
 from app.core.timeutils import now
+from app.models.user import User
 from tests.conftest import TestingSessionLocal
 
 
@@ -27,6 +31,29 @@ def test_redeem_rejected_without_points(client, make_user):
     h, _ = make_user()
     r = client.post("/points/coupons/fee_10/redeem", headers=h)
     assert r.status_code == 400
+
+
+def test_redeem_race_rejects_using_fresh_balance(client, make_user, set_points):
+    """요청 시작 시점엔 잔액이 충분해 보였어도(메모리상 stale 값), 그 사이 다른
+    요청이 이미 잔액을 다 써버렸다면 최신 잔액 기준으로 거부해야 한다."""
+    h, user = make_user()
+    set_points(user["id"], 350)  # fee_10 쿠폰 가격과 정확히 일치
+
+    from app.services.economy_service import redeem_coupon
+
+    session = TestingSessionLocal()
+    stale_user = session.query(User).filter(User.id == user["id"]).one()
+    assert stale_user.points == 350  # 메모리상으론 교환 가능해 보임
+
+    other = TestingSessionLocal()
+    other.query(User).filter(User.id == user["id"]).update({"points": 0})
+    other.commit()
+    other.close()
+
+    with pytest.raises(HTTPException) as exc:
+        redeem_coupon(session, stale_user, "fee_10")
+    assert exc.value.status_code == 400
+    session.close()
 
 
 def test_redeem_unknown_key_404(client, make_user, set_points):

@@ -104,6 +104,8 @@ def create_bet(
     prediction = get_prediction(db, prediction_id)
     if prediction.status != "ongoing" or is_past(prediction.end_time):
         raise HTTPException(status.HTTP_409_CONFLICT, "마감된 명제입니다.")
+    # 동시에 여러 번 베팅 요청이 오면 잔액을 초과해 차감할 수 있으므로 잠그고 다시 읽는다.
+    user = get_or_404(db, User, user.id, "사용자를 찾을 수 없습니다.", for_update=True)
     if user.points < payload.amount:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "보유 포인트가 부족합니다.")
 

@@ -42,7 +42,9 @@ def create_transaction(
             status.HTTP_403_FORBIDDEN, "다른 사용자의 포인트를 변경할 수 없습니다."
         )
 
-    target = get_or_404(db, User, target_id, "대상 사용자를 찾을 수 없습니다.")
+    target = get_or_404(
+        db, User, target_id, "대상 사용자를 찾을 수 없습니다.", for_update=True
+    )
 
     if target.points + payload.amount < 0:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "보유 포인트가 부족합니다.")

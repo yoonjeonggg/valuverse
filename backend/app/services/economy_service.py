@@ -12,6 +12,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.core.db_utils import get_or_404
 from app.core.timeutils import now, is_past
 from app.models.auction import Bid, Item
 from app.models.economy import Attendance, Coupon, MissionClaim
@@ -194,6 +195,8 @@ def redeem_coupon(db: Session, user: User, key: str) -> Coupon:
     if key not in COUPON_CATALOG:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "존재하지 않는 쿠폰입니다.")
     cost, discount, desc = COUPON_CATALOG[key]
+    # 동시에 여러 번 교환 요청이 오면 잔액을 초과해 차감할 수 있으므로 잠그고 다시 읽는다.
+    user = get_or_404(db, User, user.id, "사용자를 찾을 수 없습니다.", for_update=True)
     if user.points < cost:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "보유 포인트가 부족합니다.")
 

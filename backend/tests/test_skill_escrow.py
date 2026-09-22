@@ -2,7 +2,12 @@
 
 from datetime import timedelta
 
+import pytest
+from fastapi import HTTPException
+
 from app.core.timeutils import now
+from app.models.user import User
+from tests.conftest import TestingSessionLocal
 
 
 def _create_skill(client, headers, price=3000):
@@ -177,3 +182,30 @@ def test_patch_booking_cannot_force_status(client, make_user, set_points):
         headers=buyer_h,
     )
     assert r.status_code == 400
+
+
+# ---------- 직접 에스크로 결제 동시성 ----------
+def test_escrow_race_rejects_using_fresh_balance(client, make_user, set_points):
+    """요청 시작 시점엔 잔액이 충분해 보였어도(메모리상 stale 값), 그 사이 다른
+    요청이 이미 잔액을 다 써버렸다면 최신 잔액 기준으로 거부해야 한다."""
+    payer_h, payer = make_user()
+    _, payee = make_user()
+    set_points(payer["id"], 1000)
+
+    from app.services.skill_service import create_escrow
+    from app.schemas.skill import EscrowCreate
+
+    session = TestingSessionLocal()
+    stale_payer = session.query(User).filter(User.id == payer["id"]).one()
+    assert stale_payer.points == 1000  # 메모리상으론 결제 가능해 보임
+
+    other = TestingSessionLocal()
+    other.query(User).filter(User.id == payer["id"]).update({"points": 0})
+    other.commit()
+    other.close()
+
+    payload = EscrowCreate(item_id=1, payee_id=payee["id"], amount=1000)
+    with pytest.raises(HTTPException) as exc:
+        create_escrow(session, stale_payer, payload)
+    assert exc.value.status_code == 400
+    session.close()

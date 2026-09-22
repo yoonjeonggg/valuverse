@@ -111,9 +111,10 @@ def create_booking(
     if payload.buyer_id == seller.id:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "본인에게 예약할 수 없습니다.")
 
-    buyer = db.get(User, payload.buyer_id)
-    if not buyer:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "구매자를 찾을 수 없습니다.")
+    # 동시에 여러 번 예약 요청이 오면 잔액을 초과해 차감할 수 있으므로 잠그고 다시 읽는다.
+    buyer = get_or_404(
+        db, User, payload.buyer_id, "구매자를 찾을 수 없습니다.", for_update=True
+    )
     if buyer.points < payload.amount:
         raise HTTPException(
             status.HTTP_400_BAD_REQUEST, "구매자의 보유 포인트가 부족합니다."
@@ -280,6 +281,8 @@ def create_escrow(db: Session, payer: User, payload: EscrowCreate) -> Escrow:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "본인에게 보낼 수 없습니다.")
     if not db.get(User, payload.payee_id):
         raise HTTPException(status.HTTP_404_NOT_FOUND, "수취인을 찾을 수 없습니다.")
+    # 동시에 여러 번 결제 요청이 오면 잔액을 초과해 차감할 수 있으므로 잠그고 다시 읽는다.
+    payer = get_or_404(db, User, payer.id, "사용자를 찾을 수 없습니다.", for_update=True)
     if payer.points < payload.amount:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "보유 포인트가 부족합니다.")
 
