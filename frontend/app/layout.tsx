@@ -1,7 +1,18 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import Script from "next/script";
 import "./globals.css";
-import { SiteNav, HeaderNotifications, HeaderAuth } from "./site-chrome";
+import { SiteNav, HeaderNotifications, HeaderAuth, ThemeToggle } from "./site-chrome";
+
+const THEME_INIT_SCRIPT = `
+try {
+  var t = localStorage.getItem("valuverse_theme");
+  if (t !== "light" && t !== "dark") {
+    t = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  }
+  document.documentElement.setAttribute("data-theme", t);
+} catch (e) {}
+`;
 
 export const metadata: Metadata = {
   title: "Valuverse — 경매 플랫폼",
@@ -17,6 +28,11 @@ export default function RootLayout({
   return (
     <html lang="ko">
       <body>
+        <Script
+          id="theme-init"
+          strategy="beforeInteractive"
+          dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }}
+        />
         <header className="site-header">
           <div className="site-header__bar">
             <Link href="/" className="wordmark">
@@ -24,6 +40,7 @@ export default function RootLayout({
             </Link>
             <SiteNav />
             <div className="header-right">
+              <ThemeToggle />
               <HeaderNotifications />
               <HeaderAuth />
             </div>

@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { api, API_BASE_URL, getToken } from "../../lib/api";
 import { ChatWidget } from "../../lib/chat-widget";
-import { Card, Countdown, useCall } from "../../lib/ui";
+import { Card, Countdown, Icon, useCall } from "../../lib/ui";
 
 type Item = {
   id: number;
@@ -298,7 +298,9 @@ export default function ItemDetailPage() {
       )}
 
       <p>
-        <Link href="/items">← 목록으로</Link>
+        <Link href="/items" className="back-link">
+          <Icon name="back" size={14} /> 목록으로
+        </Link>
       </p>
 
       <ChatWidget itemId={item.id} itemType="item" />

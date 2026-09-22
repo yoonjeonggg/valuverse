@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { api, getToken } from "../../lib/api";
-import { Card, Countdown, useCall } from "../../lib/ui";
+import { Card, Countdown, Icon, useCall } from "../../lib/ui";
 
 type Prediction = {
   id: number;
@@ -204,7 +204,9 @@ export default function PredictionDetailPage() {
       </Card>
 
       <p>
-        <Link href="/predictions">← 목록으로</Link>
+        <Link href="/predictions" className="back-link">
+          <Icon name="back" size={14} /> 목록으로
+        </Link>
       </p>
     </div>
   );

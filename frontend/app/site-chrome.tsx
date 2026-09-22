@@ -42,6 +42,40 @@ export function SiteNav() {
   );
 }
 
+const THEME_KEY = "valuverse_theme";
+
+export function ThemeToggle() {
+  // 초기값은 layout.tsx 의 인라인 스크립트가 <html data-theme> 에 이미 세팅해둔다.
+  const [theme, setTheme] = useState<"light" | "dark">("light");
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setTheme(document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light");
+  }, []);
+
+  const toggle = () => {
+    const next = theme === "dark" ? "light" : "dark";
+    setTheme(next);
+    document.documentElement.setAttribute("data-theme", next);
+    try {
+      window.localStorage.setItem(THEME_KEY, next);
+    } catch {
+      /* ignore */
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      className="theme-toggle"
+      onClick={toggle}
+      aria-label={theme === "dark" ? "라이트 모드로 전환" : "다크 모드로 전환"}
+    >
+      <Icon name={theme === "dark" ? "sun" : "moon"} />
+    </button>
+  );
+}
+
 export function HeaderNotifications() {
   const [signedIn, setSignedIn] = useState(false);
   const [unread, setUnread] = useState(0);

@@ -26,8 +26,14 @@
 
   --ok: #1f7a4d;
   --ok-tint: #e6f2ea;
+  --ok-border: #cde6d8;
   --warn: #9a6b00;
   --warn-tint: #f8efd8;
+  --warn-border: #ecdfb8;
+
+  /* 흰 글자를 얹는 중립색 배경 (예: 예측시장 오즈 게이지의 "No" 구간).
+     --ink-2 는 다크 모드에서 밝은 색으로 뒤집히므로 별도 토큰으로 분리. */
+  --neutral-strong: #46413f;
 
   --fs-xs: 0.75rem;
   --fs-sm: 0.8125rem;
@@ -64,6 +70,45 @@
   --wrap: 1120px;
 
   color-scheme: light;
+}
+
+/* ============================================================
+   dark theme — <html data-theme="dark"> (layout.tsx 인라인 스크립트 +
+   site-chrome.tsx 의 ThemeToggle 이 세팅/토글한다)
+   ============================================================ */
+:root[data-theme="dark"] {
+  --red: #ff5c6c;
+  --red-hover: #ff7c8a;
+  --red-active: #ff98a3;
+  --red-tint: rgba(255, 92, 108, 0.16);
+  --red-tint-2: rgba(255, 92, 108, 0.26);
+
+  --ink: #f2efec;
+  --ink-2: #cfc9c3;
+  --muted: #9b948d;
+  --faint: #6e6863;
+
+  --line: #373432;
+  --line-strong: #4a4542;
+
+  --paper: #17181a;
+  --surface: #1f2023;
+  --surface-2: #26282b;
+  --surface-ink: #f2efec;
+
+  --ok: #4fbf85;
+  --ok-tint: rgba(79, 191, 133, 0.14);
+  --ok-border: rgba(79, 191, 133, 0.35);
+  --warn: #e0ab3d;
+  --warn-tint: rgba(224, 171, 61, 0.14);
+  --warn-border: rgba(224, 171, 61, 0.35);
+
+  --neutral-strong: #55504c;
+
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 14px rgba(0, 0, 0, 0.3);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+
+  color-scheme: dark;
 }
 
 /* ============================================================
@@ -511,12 +556,12 @@ button:disabled,
 .badge--ok {
   color: var(--ok);
   background: var(--ok-tint);
-  border-color: #cde6d8;
+  border-color: var(--ok-border);
 }
 .badge--warn {
   color: var(--warn);
   background: var(--warn-tint);
-  border-color: #ecdfb8;
+  border-color: var(--warn-border);
 }
 
 .hint {
@@ -543,6 +588,33 @@ button:disabled,
   stroke-width: 1.6;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--surface);
+  color: var(--ink-2);
+  cursor: pointer;
+}
+.theme-toggle:hover {
+  border-color: var(--line-strong);
+  color: var(--ink);
+}
+.theme-toggle .icon {
+  width: 17px;
+  height: 17px;
 }
 
 /* ============================================================
@@ -996,7 +1068,7 @@ button:disabled,
   background: var(--red);
 }
 .oddsgauge .seg.no {
-  background: var(--ink-2);
+  background: var(--neutral-strong);
 }
 
 .streak {

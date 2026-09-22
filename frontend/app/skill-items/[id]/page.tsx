@@ -6,7 +6,7 @@ import Link from "next/link";
 import { api, getToken } from "../../lib/api";
 import { ChatWidget } from "../../lib/chat-widget";
 import { toIso } from "../../lib/format";
-import { Card, useCall } from "../../lib/ui";
+import { Card, Icon, useCall } from "../../lib/ui";
 
 type SkillItem = {
   id: number;
@@ -315,7 +315,9 @@ export default function SkillItemDetailPage() {
       </Card>
 
       <p>
-        <Link href="/skill-items">← 목록으로</Link>
+        <Link href="/skill-items" className="back-link">
+          <Icon name="back" size={14} /> 목록으로
+        </Link>
       </p>
 
       <ChatWidget itemId={item.id} itemType="skill_item" />
