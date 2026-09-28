@@ -1,8 +1,20 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
-import { api, getToken } from "../lib/api";
-import { Card, PageHeader, useCall } from "../lib/ui";
+import { announcePoints, api, getToken } from "../lib/api";
+import { Card, Icon, PageHeader, useCall } from "../lib/ui";
+
+type Summary = {
+  balance: number;
+  checked_in_today: boolean;
+  streak: number;
+  streak_cap: number;
+  next_check_in_reward: number;
+  ad_views_today: number;
+  ad_daily_limit: number;
+  ad_reward: number;
+};
 
 type Mission = {
   key: string;
@@ -28,62 +40,74 @@ type Coupon = {
   expires_at: string;
 };
 
-const CHECKIN_STREAK_CAP = 7;
+const MISSION_ICONS: Record<string, Parameters<typeof Icon>[0]["name"]> = {
+  first_bid: "gavel",
+  first_item: "box",
+  first_review: "pen",
+};
+
+const isExpired = (c: Coupon) => new Date(c.expires_at).getTime() <= Date.now();
 
 export default function PointsPage() {
-  const [balance, setBalance] = useState<number | null>(null);
-  const [streak, setStreak] = useState<number | null>(null);
-  const [checkedInToday, setCheckedInToday] = useState(false);
-  const [adToday, setAdToday] = useState<{ views: number; limit: number } | null>(null);
-  const [liveMissions, setLiveMissions] = useState<Mission[] | null>(null);
+  const [loggedIn, setLoggedIn] = useState<boolean | null>(null);
+  const [summary, setSummary] = useState<Summary | null>(null);
+  const [missions, setMissions] = useState<Mission[] | null>(null);
   const [catalog, setCatalog] = useState<CouponCatalogRow[] | null>(null);
-  const [ownedCoupons, setOwnedCoupons] = useState<Coupon[] | null>(null);
-
-  const loadBalance = () =>
-    api<{ balance: number }>("/users/me/points/balance", { auth: true })
-      .then((r) => setBalance(r.balance))
-      .catch(() => {});
-  const loadCheckInStatus = () =>
-    api<{ checked_in_today: boolean; streak: number }>("/points/check-in/status", { auth: true })
-      .then((r) => {
-        setCheckedInToday(r.checked_in_today);
-        setStreak(r.streak);
-      })
-      .catch(() => {});
-  const loadLiveMissions = () =>
-    api<Mission[]>("/points/missions", { auth: true })
-      .then(setLiveMissions)
-      .catch(() => {});
-  const loadOwnedCoupons = () =>
-    api<Coupon[]>("/users/me/coupons", { auth: true })
-      .then(setOwnedCoupons)
-      .catch(() => {});
+  const [coupons, setCoupons] = useState<Coupon[] | null>(null);
+  // 여러 행 중 어느 버튼이 처리 중인지 (나머지 행은 중복 요청만 막고 라벨은 그대로 둔다)
+  const [pending, setPending] = useState<string | null>(null);
 
   useEffect(() => {
     api<CouponCatalogRow[]>("/points/coupons/catalog")
       .then(setCatalog)
       .catch(() => setCatalog([]));
-    if (getToken()) {
-      loadBalance();
-      loadCheckInStatus();
-      loadLiveMissions();
-      loadOwnedCoupons();
-    }
+    // 잔액/출석/광고 상태는 요약 엔드포인트 하나로 받는다. 토큰이 없거나 만료됐으면 비로그인 상태.
+    const token = getToken();
+    (token
+      ? api<Summary>("/users/me/points/summary", { auth: true })
+      : Promise.reject(new Error("no token"))
+    )
+      .then((s) => {
+        setSummary(s);
+        setLoggedIn(true);
+      })
+      .catch(() => setLoggedIn(false));
+    if (!token) return;
+    api<Mission[]>("/points/missions", { auth: true })
+      .then(setMissions)
+      .catch(() => setMissions([]));
+    api<Coupon[]>("/users/me/coupons", { auth: true })
+      .then(setCoupons)
+      .catch(() => setCoupons([]));
   }, []);
 
+  const patchSummary = (patch: Partial<Summary>) =>
+    setSummary((s) => (s ? { ...s, ...patch } : s));
+
+  // 이 화면에서 잔액이 바뀌면 헤더 잔액 표시에도 알린다.
+  const balance = summary?.balance ?? null;
+  useEffect(() => {
+    if (balance !== null) announcePoints(balance);
+  }, [balance]);
+
   const checkInCall = useCall(() =>
-    api<{ streak: number; reward: number; balance: number }>("/points/check-in", {
-      method: "POST",
-      auth: true,
-    }),
+    api<{ streak: number; reward: number; balance: number; next_check_in_reward: number }>(
+      "/points/check-in",
+      {
+        method: "POST",
+        auth: true,
+      },
+    ),
   );
   const submitCheckIn = async () => {
     const r = await checkInCall.run();
-    if (r) {
-      setStreak(r.streak);
-      setBalance(r.balance);
-      setCheckedInToday(true);
-    }
+    if (r)
+      patchSummary({
+        balance: r.balance,
+        streak: r.streak,
+        checked_in_today: true,
+        next_check_in_reward: r.next_check_in_reward,
+      });
   };
 
   const adCall = useCall(() =>
@@ -94,41 +118,53 @@ export default function PointsPage() {
   );
   const submitAd = async () => {
     const r = await adCall.run();
-    if (r) {
-      setAdToday({ views: r.views_today, limit: r.daily_limit });
-      setBalance(r.balance);
-    }
+    if (r) patchSummary({ balance: r.balance, ad_views_today: r.views_today, ad_daily_limit: r.daily_limit });
   };
 
+  // 응답만으로 화면 상태를 갱신한다 (목록 전체를 다시 불러오지 않는다).
   const claimCall = useCall((key: string) =>
-    api<{ balance: number }>(`/points/missions/${key}/claim`, { method: "POST", auth: true }),
+    api<{ key: string; balance: number }>(`/points/missions/${key}/claim`, {
+      method: "POST",
+      auth: true,
+    }),
   );
   const submitClaim = async (key: string) => {
+    setPending(`mission:${key}`);
     const r = await claimCall.run(key);
+    setPending(null);
     if (r) {
-      setBalance(r.balance);
-      loadLiveMissions();
+      patchSummary({ balance: r.balance });
+      setMissions((ms) => ms && ms.map((m) => (m.key === key ? { ...m, claimed: true } : m)));
     }
   };
 
   const redeemCall = useCall((key: string) =>
-    api(`/points/coupons/${key}/redeem`, { method: "POST", auth: true }),
+    api<Coupon>(`/points/coupons/${key}/redeem`, { method: "POST", auth: true }),
   );
   const submitRedeem = async (key: string) => {
+    setPending(`redeem:${key}`);
     const r = await redeemCall.run(key);
+    setPending(null);
     if (r) {
-      loadBalance();
-      loadOwnedCoupons();
+      setSummary((s) => (s ? { ...s, balance: s.balance - r.cost } : s));
+      setCoupons((cs) => [r, ...(cs ?? [])]);
     }
   };
 
   const useCouponCall = useCall((id: number) =>
-    api(`/points/coupons/${id}/use`, { method: "POST", auth: true }),
+    api<Coupon>(`/points/coupons/${id}/use`, { method: "POST", auth: true }),
   );
   const submitUseCoupon = async (id: number) => {
+    setPending(`use:${id}`);
     const r = await useCouponCall.run(id);
-    if (r) loadOwnedCoupons();
+    setPending(null);
+    if (r) setCoupons((cs) => cs && cs.map((c) => (c.id === id ? r : c)));
   };
+
+  const streakCap = summary?.streak_cap ?? 7;
+  const missionsDone = missions?.filter((m) => m.claimed).length ?? 0;
+  const usableCoupons = coupons?.filter((c) => !c.is_used && !isExpired(c)).length ?? 0;
+  const adLimitReached = !!summary && summary.ad_views_today >= summary.ad_daily_limit;
 
   return (
     <div>
@@ -139,134 +175,251 @@ export default function PointsPage() {
         </p>
       </PageHeader>
 
-      <Card
-        title="출석 체크"
-        right={balance !== null ? <span className="pointpill">{balance.toLocaleString()} P</span> : undefined}
-      >
-        <p className="hint">
-          연속 출석 스트릭 — 매일 채워가면 보너스 포인트가 늘어납니다
-          {streak ? ` (현재 ${streak}일 연속)` : ""}.
-        </p>
-        <div className="streak">
-          {Array.from({ length: CHECKIN_STREAK_CAP }).map((_, i) => (
-            <span key={i} className={"dot" + (streak !== null && i < streak ? " on" : "")}>
-              {i + 1}일
-            </span>
-          ))}
-        </div>
-        <div className="actions">
-          {checkedInToday ? (
-            <span className="badge badge--ok">오늘 출석 완료</span>
+      <section className="pointhero" aria-label="보유 포인트">
+        <div className="pointhero__main">
+          <span className="pointhero__label">
+            <Icon name="coin" size={16} /> 보유 포인트
+          </span>
+          {loggedIn === false ? (
+            <>
+              <strong className="pointhero__balance">로그인이 필요합니다</strong>
+              <Link href="/auth" className="btn pointhero__cta">
+                로그인하고 포인트 모으기 <Icon name="arrow" size={14} />
+              </Link>
+            </>
           ) : (
-            <button className="btn btn-primary" onClick={submitCheckIn} disabled={checkInCall.loading}>
-              오늘 출석 체크
-            </button>
+            <strong className="pointhero__balance">
+              {balance === null ? "-" : balance.toLocaleString()}
+              <span>P</span>
+            </strong>
           )}
         </div>
-        {checkInCall.data && (
+        {loggedIn !== false && (
+          <dl className="pointhero__stats">
+            <div>
+              <dt>연속 출석</dt>
+              <dd>{summary ? `${summary.streak}일` : "-"}</dd>
+            </div>
+            <div>
+              <dt>미션 완료</dt>
+              <dd>{missions ? `${missionsDone}/${missions.length}` : "-"}</dd>
+            </div>
+            <div>
+              <dt>사용 가능 쿠폰</dt>
+              <dd>{coupons ? `${usableCoupons}장` : "-"}</dd>
+            </div>
+          </dl>
+        )}
+      </section>
+
+      <div className="pointgrid">
+        <Card
+          eyebrow="Daily"
+          title="출석 체크"
+          right={
+            summary?.checked_in_today ? (
+              <span className="statuschip statuschip--ok">
+                <Icon name="check" size={14} /> 오늘 완료
+              </span>
+            ) : undefined
+          }
+        >
           <p className="hint">
-            {checkInCall.data.streak}일 연속 출석 · {checkInCall.data.reward}P 적립
+            매일 이어서 출석하면 {streakCap}일차까지 보상이 커집니다. 하루라도 빠지면 1일차부터 다시 시작해요.
           </p>
-        )}
-        {checkInCall.error && <p className="hint hint--error">{checkInCall.error}</p>}
-      </Card>
-
-      <Card title="미션">
-        {!liveMissions ? (
-          <div className="empty">로그인하면 미션 진행 상황을 볼 수 있습니다.</div>
-        ) : (
-          <div className="missiongrid">
-            {liveMissions.map((m) => (
-              <div className="missionrow" key={m.key}>
-                <span>
-                  {m.description}
-                  <span className="reward">+{m.reward}P</span>
-                </span>
-                {m.claimed ? (
-                  <span className="badge badge--ok">수령완료</span>
-                ) : m.achieved ? (
-                  <button
-                    className="btn btn-sm btn-primary"
-                    onClick={() => submitClaim(m.key)}
-                    disabled={claimCall.loading}
-                  >
-                    받기
-                  </button>
-                ) : (
-                  <span className="badge">미달성</span>
-                )}
-              </div>
-            ))}
+          <ol className="streaktrack">
+            {Array.from({ length: streakCap }, (_, i) => {
+              const streak = summary?.streak ?? 0;
+              const done = i < streak;
+              const next = !summary?.checked_in_today && i === streak;
+              return (
+                <li key={i} className={done ? "is-done" : next ? "is-next" : undefined}>
+                  <span className="streaktrack__mark">
+                    {done ? <Icon name="check" size={16} /> : i + 1}
+                  </span>
+                  <span className="streaktrack__day">{i + 1}일</span>
+                </li>
+              );
+            })}
+          </ol>
+          <div className="actions">
+            {summary?.checked_in_today ? (
+              <p className="hint">
+                내일 출석하면 <b>+{summary.next_check_in_reward}P</b>
+              </p>
+            ) : (
+              <button
+                className="btn btn-primary btn-lg"
+                onClick={submitCheckIn}
+                disabled={!summary || checkInCall.loading}
+              >
+                <Icon name="calendar" size={16} />
+                {checkInCall.loading
+                  ? "처리 중…"
+                  : `오늘 출석하고 +${summary?.next_check_in_reward ?? ""}P 받기`}
+              </button>
+            )}
           </div>
+          {checkInCall.data && (
+            <p className="notice notice--ok">
+              <Icon name="check" size={14} /> {checkInCall.data.streak}일 연속 출석 ·{" "}
+              {checkInCall.data.reward}P 적립
+            </p>
+          )}
+          {checkInCall.error && <p className="notice notice--error">{checkInCall.error}</p>}
+        </Card>
+
+        <Card eyebrow="Reward" title="광고 보상">
+          <p className="hint">
+            광고 1회 시청마다 <b>+{summary?.ad_reward ?? 5}P</b>, 하루 최대{" "}
+            {summary?.ad_daily_limit ?? 5}회까지 받을 수 있습니다.
+          </p>
+          {summary && (
+            <div className="segbar" aria-label={`오늘 ${summary.ad_views_today}/${summary.ad_daily_limit}회 시청`}>
+              {Array.from({ length: summary.ad_daily_limit }, (_, i) => (
+                <span key={i} className={i < summary.ad_views_today ? "on" : undefined} />
+              ))}
+              <b>
+                {summary.ad_views_today}/{summary.ad_daily_limit}
+              </b>
+            </div>
+          )}
+          <div className="actions">
+            <button
+              className="btn btn-primary btn-lg"
+              onClick={submitAd}
+              disabled={!summary || adLimitReached || adCall.loading}
+            >
+              <Icon name="play" size={16} />
+              {adLimitReached ? "오늘 한도를 모두 채웠어요" : adCall.loading ? "처리 중…" : "광고 보고 포인트 받기"}
+            </button>
+          </div>
+          {adCall.error && <p className="notice notice--error">{adCall.error}</p>}
+        </Card>
+      </div>
+
+      <Card
+        eyebrow="Mission"
+        title="미션"
+        right={missions && <span className="statuschip">{missionsDone}/{missions.length} 완료</span>}
+      >
+        {loggedIn === false ? (
+          <div className="empty">로그인하면 미션 진행 상황을 볼 수 있습니다.</div>
+        ) : !missions ? (
+          <div className="empty">불러오는 중…</div>
+        ) : (
+          <ul className="missionlist">
+            {missions.map((m) => {
+              const state = m.claimed ? "claimed" : m.achieved ? "ready" : "locked";
+              return (
+                <li key={m.key} className={`missionlist__row is-${state}`}>
+                  <span className="missionlist__icon">
+                    <Icon name={MISSION_ICONS[m.key] ?? "target"} size={20} />
+                  </span>
+                  <span className="missionlist__text">
+                    <b>{m.description}</b>
+                    <span className="missionlist__reward">+{m.reward}P</span>
+                  </span>
+                  {state === "claimed" ? (
+                    <span className="statuschip statuschip--ok">
+                      <Icon name="check" size={14} /> 수령 완료
+                    </span>
+                  ) : state === "ready" ? (
+                    <button
+                      className="btn btn-primary"
+                      onClick={() => submitClaim(m.key)}
+                      disabled={pending !== null}
+                    >
+                      {pending === `mission:${m.key}` ? "처리 중…" : "보상 받기"}
+                    </button>
+                  ) : (
+                    <span className="statuschip">
+                      <Icon name="lock" size={14} /> 미달성
+                    </span>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
         )}
-        {claimCall.error && <p className="hint hint--error">{claimCall.error}</p>}
+        {claimCall.error && <p className="notice notice--error">{claimCall.error}</p>}
       </Card>
 
-      <Card title="광고 보상">
-        <p className="hint">
-          하루 최대 {adToday?.limit ?? 5}회까지 시청할 때마다 포인트가 지급됩니다.
-          {adToday && ` (오늘 ${adToday.views}/${adToday.limit}회 시청)`}
-        </p>
-        <div className="actions">
-          <button className="btn btn-primary" onClick={submitAd} disabled={adCall.loading}>
-            광고 시청하고 포인트 받기
-          </button>
-        </div>
-        {adCall.error && <p className="hint hint--error">{adCall.error}</p>}
-      </Card>
-
-      <Card title="포인트 소모처 - 수수료 할인 쿠폰">
+      <Card eyebrow="Spend" title="수수료 할인 쿠폰 교환">
         {!catalog ? (
           <div className="empty">불러오는 중…</div>
         ) : (
-          <div className="coupongrid">
+          <div className="ticketgrid">
             {catalog.map((c) => {
-              const disabled = balance === null || balance < c.cost || redeemCall.loading;
+              const short = balance !== null && balance < c.cost;
               return (
-                <div className="couponcard" key={c.key}>
-                  <span className="pct">{c.discount_percent}% 할인</span>
-                  <span className="cost">{c.cost.toLocaleString()}P</span>
-                  <p className="hint">{c.description}</p>
-                  <button
-                    className="btn btn-primary btn-sm"
-                    onClick={() => submitRedeem(c.key)}
-                    disabled={disabled}
-                  >
-                    {balance === null ? "로그인 필요" : balance < c.cost ? "포인트 부족" : "교환하기"}
-                  </button>
+                <div className="ticket" key={c.key}>
+                  <div className="ticket__pct">
+                    {c.discount_percent}
+                    <span>%</span>
+                  </div>
+                  <div className="ticket__body">
+                    <b>{c.description}</b>
+                    <span className="ticket__cost">
+                      <Icon name="coin" size={14} /> {c.cost.toLocaleString()}P
+                    </span>
+                    <button
+                      className="btn btn-primary"
+                      onClick={() => submitRedeem(c.key)}
+                      disabled={balance === null || short || pending !== null}
+                    >
+                      {balance === null
+                        ? "로그인 필요"
+                        : short
+                          ? `${(c.cost - balance).toLocaleString()}P 부족`
+                          : pending === `redeem:${c.key}`
+                            ? "처리 중…"
+                            : "교환하기"}
+                    </button>
+                  </div>
                 </div>
               );
             })}
           </div>
         )}
-        {redeemCall.error && <p className="hint hint--error">{redeemCall.error}</p>}
+        {redeemCall.error && <p className="notice notice--error">{redeemCall.error}</p>}
+      </Card>
 
-        <hr />
-        <h3>내 쿠폰</h3>
-        {!ownedCoupons || ownedCoupons.length === 0 ? (
+      <Card eyebrow="Wallet" title="내 쿠폰">
+        {!coupons || coupons.length === 0 ? (
           <div className="empty">보유한 쿠폰이 없습니다.</div>
         ) : (
-          <ul className="bidlist">
-            {ownedCoupons.map((c) => (
-              <li key={c.id}>
-                <span>
-                  {c.discount_percent}% 할인 쿠폰
-                  {c.is_used && " (사용됨)"}
-                </span>
-                {!c.is_used && (
-                  <button
-                    className="btn btn-sm"
-                    onClick={() => submitUseCoupon(c.id)}
-                    disabled={useCouponCall.loading}
-                  >
-                    사용
-                  </button>
-                )}
-              </li>
-            ))}
+          <ul className="couponlist">
+            {coupons.map((c) => {
+              const expired = !c.is_used && isExpired(c);
+              return (
+                <li key={c.id} className={c.is_used || expired ? "is-off" : undefined}>
+                  <span className="couponlist__icon">
+                    <Icon name="ticket" size={20} />
+                  </span>
+                  <span className="couponlist__text">
+                    <b>수수료 {c.discount_percent}% 할인</b>
+                    <span>{new Date(c.expires_at).toLocaleDateString()}까지</span>
+                  </span>
+                  {c.is_used ? (
+                    <span className="statuschip">사용됨</span>
+                  ) : expired ? (
+                    <span className="statuschip">기간 만료</span>
+                  ) : (
+                    <button
+                      className="btn"
+                      onClick={() => submitUseCoupon(c.id)}
+                      disabled={pending !== null}
+                    >
+                      {pending === `use:${c.id}` ? "처리 중…" : "사용하기"}
+                    </button>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         )}
-        {useCouponCall.error && <p className="hint hint--error">{useCouponCall.error}</p>}
+        {useCouponCall.error && <p className="notice notice--error">{useCouponCall.error}</p>}
       </Card>
     </div>
   );

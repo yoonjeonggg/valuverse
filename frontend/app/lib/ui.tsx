@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ApiError } from "./api";
 
 /* ---------- data-fetching hook ---------- */
@@ -10,13 +10,19 @@ export function useCall<TArgs extends unknown[], TResult>(
   const [data, setData] = useState<TResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  // 호출부가 매 렌더마다 새 화살표 함수를 넘기므로 ref 로 최신 fn 을 들고 있고,
+  // run 자체는 렌더 간에 동일한 참조로 유지한다 (effect 의존성 등에 안전).
+  const fnRef = useRef(fn);
+  useEffect(() => {
+    fnRef.current = fn;
+  });
 
   const run = useCallback(
     async (...args: TArgs) => {
       setLoading(true);
       setError(null);
       try {
-        const result = await fn(...args);
+        const result = await fnRef.current(...args);
         setData(result);
         return result;
       } catch (e) {
@@ -33,7 +39,7 @@ export function useCall<TArgs extends unknown[], TResult>(
         setLoading(false);
       }
     },
-    [fn],
+    [],
   );
 
   return { data, error, loading, run, setData };
@@ -189,6 +195,50 @@ const PATHS: Record<string, React.ReactNode> = {
     </>
   ),
   close: <path d="M6 6l12 12M18 6 6 18" />,
+  check: <path d="m5 12.5 4.5 4.5L19 7" />,
+  calendar: (
+    <>
+      <rect x="4" y="5" width="16" height="15" rx="2" />
+      <path d="M4 10h16M9 3v4M15 3v4" />
+    </>
+  ),
+  target: (
+    <>
+      <circle cx="12" cy="12" r="8.5" />
+      <circle cx="12" cy="12" r="4.5" />
+      <circle cx="12" cy="12" r="0.8" />
+    </>
+  ),
+  play: (
+    <>
+      <rect x="3" y="5" width="18" height="14" rx="2" />
+      <path d="m10 9 5 3-5 3z" />
+    </>
+  ),
+  ticket: (
+    <>
+      <path d="M4 7h16v3a2 2 0 0 0 0 4v3H4v-3a2 2 0 0 0 0-4z" />
+      <path d="M14 7v2M14 11v2M14 15v2" />
+    </>
+  ),
+  lock: (
+    <>
+      <rect x="5" y="11" width="14" height="9" rx="2" />
+      <path d="M8 11V8a4 4 0 0 1 8 0v3" />
+    </>
+  ),
+  box: (
+    <>
+      <path d="m12 3 8 4.5v9L12 21l-8-4.5v-9z" />
+      <path d="m4 7.5 8 4.5 8-4.5M12 12v9" />
+    </>
+  ),
+  pen: (
+    <>
+      <path d="m15 5 4 4L9 19H5v-4z" />
+      <path d="m13 7 4 4" />
+    </>
+  ),
 };
 
 export function Icon({

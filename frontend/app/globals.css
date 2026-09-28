@@ -1061,76 +1061,339 @@ button:disabled,
   background: var(--neutral-strong);
 }
 
-.streak {
-  display: flex;
-  gap: 8px;
-  margin: var(--sp-2) 0 var(--sp-3);
-}
-.streak .dot {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 40px;
-  height: 34px;
-  padding: 0 6px;
-  border-radius: var(--r-lg);
-  border: 1px solid var(--line-strong);
-  background: var(--surface-2);
-  color: var(--muted);
-  font-size: var(--fs-xs);
+/* ---------- points center ---------- */
+.btn-lg {
+  padding: 11px 18px;
+  font-size: var(--fs-base);
   font-weight: 700;
+}
+.btn-lg .icon,
+.btn-primary .icon {
+  color: currentColor;
+  font-size: inherit;
+}
+
+/* 잔액 히어로: 브랜드 레드 단색 면 + 흰 글자로 화면에서 가장 먼저 눈에 들어오게 */
+.pointhero {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--sp-5);
+  padding: var(--sp-6);
+  margin: var(--sp-5) 0 var(--sp-4);
+  border-radius: var(--r-lg);
+  background: var(--red);
+  color: #fff;
+  box-shadow: var(--shadow);
+}
+.pointhero__main {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--sp-2);
+}
+.pointhero__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  opacity: 0.9;
+}
+.pointhero .icon {
+  color: currentColor;
+}
+.pointhero__balance {
+  font-size: var(--fs-3xl);
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.03em;
   font-variant-numeric: tabular-nums;
 }
-.streak .dot.on {
+.pointhero__balance span {
+  font-size: 0.5em;
+  margin-left: 4px;
+}
+.pointhero__cta {
+  --btn-bg: #fff;
+  --btn-fg: var(--red);
+  --btn-bd: #fff;
+  color: #1c1a1b;
+}
+.pointhero__cta:hover {
+  background: rgba(255, 255, 255, 0.88);
+  border-color: transparent;
+}
+.pointhero__stats {
+  display: flex;
+  gap: var(--sp-2);
+  margin: 0;
+}
+.pointhero__stats > div {
+  min-width: 96px;
+  padding: var(--sp-3) var(--sp-4);
+  border-radius: var(--r-lg);
+  background: rgba(0, 0, 0, 0.2);
+}
+.pointhero__stats dt {
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  opacity: 0.85;
+}
+.pointhero__stats dd {
+  margin: 2px 0 0;
+  font-size: var(--fs-lg);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.pointgrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 0 var(--sp-4);
+}
+
+.statuschip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--ink-2);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  white-space: nowrap;
+}
+.statuschip .icon {
+  color: currentColor;
+}
+.statuschip--ok {
+  background: var(--ok);
+  color: #fff;
+}
+
+.notice {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: var(--sp-3) 0 0;
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--r);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
+.notice .icon {
+  color: currentColor;
+}
+.notice--ok {
+  background: var(--ok-tint);
+  color: var(--ok);
+}
+.notice--error {
+  background: var(--red-tint);
+  color: var(--red);
+}
+
+/* 출석 트랙: 완료=레드 채움+체크, 오늘=레드 테두리, 남은 날=회색 */
+.streaktrack {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+  margin: var(--sp-4) 0;
+  padding: 0;
+  list-style: none;
+}
+.streaktrack li {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.streaktrack__mark {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  max-width: 44px;
+  aspect-ratio: 1;
+  border-radius: 999px;
+  border: 2px solid var(--line-strong);
+  background: var(--surface-2);
+  color: var(--muted);
+  font-weight: 800;
+  font-size: var(--fs-sm);
+}
+.streaktrack__day {
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--muted);
+}
+.streaktrack li.is-done .streaktrack__mark {
   background: var(--red);
   border-color: var(--red);
   color: #fff;
 }
-
-.missiongrid {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-2);
+.streaktrack li.is-done .icon {
+  color: #fff;
+  stroke-width: 2.6;
 }
-.missionrow {
+.streaktrack li.is-next .streaktrack__mark {
+  border-color: var(--red);
+  background: var(--surface);
+  color: var(--red);
+}
+.streaktrack li.is-done .streaktrack__day,
+.streaktrack li.is-next .streaktrack__day {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+/* 광고 시청 진행 막대 */
+.segbar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--sp-3);
-  padding: 10px 0;
-  border-bottom: 1px solid var(--line);
+  gap: 4px;
+  margin: var(--sp-4) 0;
+}
+.segbar span {
+  flex: 1;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--line-strong);
+}
+.segbar span.on {
+  background: var(--red);
+  box-shadow: none;
+}
+.segbar b {
+  margin-left: var(--sp-2);
   font-size: var(--fs-sm);
-}
-.missionrow:last-child {
-  border-bottom: 0;
-}
-.missionrow .reward {
-  color: var(--red);
-  font-weight: 700;
-  margin-left: 8px;
+  font-variant-numeric: tabular-nums;
 }
 
-.coupongrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: var(--sp-3);
-}
-.couponcard {
-  border: 1px solid var(--line);
-  border-radius: var(--r-lg);
-  padding: var(--sp-4);
+.missionlist,
+.couponlist {
+  margin: 0;
+  padding: 0;
+  list-style: none;
   display: flex;
   flex-direction: column;
   gap: var(--sp-2);
 }
-.couponcard .pct {
-  font-size: var(--fs-lg);
-  font-weight: 800;
-  color: var(--red);
+.missionlist__row,
+.couponlist li {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
 }
-.couponcard .cost {
+.missionlist__row.is-ready {
+  border-color: var(--red);
+  box-shadow: inset 4px 0 0 var(--red);
+}
+.missionlist__icon,
+.couponlist__icon {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  flex: none;
+  border-radius: var(--r-lg);
+  background: var(--red);
+}
+.missionlist__icon .icon,
+.couponlist__icon .icon {
+  color: #fff;
+  stroke-width: 1.9;
+}
+.missionlist__row.is-locked .missionlist__icon,
+.couponlist li.is-off .couponlist__icon {
+  background: var(--surface-2);
+}
+.missionlist__row.is-locked .missionlist__icon .icon,
+.couponlist li.is-off .couponlist__icon .icon {
+  color: var(--muted);
+}
+.missionlist__text,
+.couponlist__text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px var(--sp-2);
+}
+.missionlist__reward {
+  color: var(--red);
+  font-weight: 800;
+}
+.couponlist__text {
+  flex-direction: column;
+  align-items: flex-start;
+}
+.couponlist__text span {
   font-size: var(--fs-xs);
   color: var(--muted);
+}
+.couponlist li.is-off b {
+  color: var(--muted);
+}
+
+/* 쿠폰 교환: 왼쪽 레드 스텁(할인율) + 점선 절취선 티켓 */
+.ticketgrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: var(--sp-3);
+}
+.ticket {
+  display: flex;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  background: var(--surface);
+}
+.ticket__pct {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 92px;
+  padding: var(--sp-4) var(--sp-3);
+  background: var(--red);
+  color: #fff;
+  font-size: var(--fs-2xl);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  border-right: 2px dashed rgba(255, 255, 255, 0.55);
+}
+.ticket__pct span {
+  font-size: 0.55em;
+  margin-left: 1px;
+}
+.ticket__body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--sp-2);
+  padding: var(--sp-4);
+}
+.ticket__body b {
+  font-size: var(--fs-sm);
+}
+.ticket__cost {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--fs-md);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.ticket__cost .icon {
+  color: var(--red);
 }
 
 .statrow {
@@ -1381,5 +1644,19 @@ button:disabled,
   .chat-widget {
     right: var(--sp-4);
     bottom: var(--sp-4);
+  }
+  .pointhero {
+    padding: var(--sp-5);
+  }
+  .pointhero__stats {
+    width: 100%;
+  }
+  .pointhero__stats > div {
+    flex: 1;
+    min-width: 0;
+    padding: var(--sp-2) var(--sp-3);
+  }
+  .pointgrid {
+    grid-template-columns: 1fr;
   }
 }

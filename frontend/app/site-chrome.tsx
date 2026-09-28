@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { api, getToken } from "./lib/api";
+import { POINTS_CHANGED, api, getToken } from "./lib/api";
 import { Icon } from "./lib/ui";
 
 const NAV: [string, string][] = [
@@ -127,6 +127,9 @@ export function HeaderAuth() {
     api<{ points: number }>("/users/me", { auth: true })
       .then((u) => setPoints(u.points))
       .catch(() => setPoints(null));
+    const onChange = (e: Event) => setPoints((e as CustomEvent<number>).detail);
+    window.addEventListener(POINTS_CHANGED, onChange);
+    return () => window.removeEventListener(POINTS_CHANGED, onChange);
   }, []);
 
   if (!ready) return <span style={{ width: 88 }} />;

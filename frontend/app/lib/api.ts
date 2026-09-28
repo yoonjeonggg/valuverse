@@ -25,6 +25,14 @@ export function setToken(token: string | null) {
   }
 }
 
+// 포인트 잔액이 바뀐 화면이 알리면, 헤더의 잔액 표시가 새로고침 없이 따라간다.
+export const POINTS_CHANGED = "valuverse:points-changed";
+
+export function announcePoints(balance: number) {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new CustomEvent<number>(POINTS_CHANGED, { detail: balance }));
+}
+
 export class ApiError extends Error {
   status: number;
   body: unknown;
