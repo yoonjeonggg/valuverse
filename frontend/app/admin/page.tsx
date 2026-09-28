@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { api, getToken } from "../lib/api";
+import { api, getToken, errorMessage } from "../lib/api";
 import { toIso } from "../lib/format";
 import { Card, Field, PageHeader, useCall } from "../lib/ui";
 
@@ -62,10 +62,13 @@ export default function AdminPage() {
   const [settleResults, setSettleResults] = useState<Record<number, SettleResult>>({});
 
   const loadReports = (statusFilter: string) =>
-    api<Report[]>("/reports", { auth: true, query: { status: statusFilter || undefined } }).then(
-      setReports,
-    );
-  const loadPredictions = () => api<Prediction[]>("/predictions").then(setPredictions);
+    api<Report[]>("/reports", { auth: true, query: { status: statusFilter || undefined } })
+      .then(setReports)
+      .catch(() => setReports([]));
+  const loadPredictions = () =>
+    api<Prediction[]>("/predictions")
+      .then(setPredictions)
+      .catch(() => setPredictions([]));
 
   useEffect(() => {
     if (!getToken()) {
@@ -79,7 +82,7 @@ export default function AdminPage() {
         setIsAdmin(true);
         return loadPredictions();
       })
-      .catch((e) => setAuthError(e instanceof Error ? e.message : String(e)))
+      .catch((e) => setAuthError(errorMessage(e)))
       .finally(() => setAuthChecked(true));
   }, []);
 

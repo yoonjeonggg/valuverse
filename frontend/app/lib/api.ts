@@ -33,6 +33,11 @@ export function announcePoints(balance: number) {
   window.dispatchEvent(new CustomEvent<number>(POINTS_CHANGED, { detail: balance }));
 }
 
+// catch 한 값을 사용자에게 보여줄 문자열로 (String(e) 는 "Error: ..." 접두어가 붙는다).
+export function errorMessage(e: unknown): string {
+  return e instanceof Error ? e.message : String(e);
+}
+
 export class ApiError extends Error {
   status: number;
   body: unknown;
@@ -47,7 +52,8 @@ type ApiOptions = {
   method?: string;
   body?: unknown;
   auth?: boolean;
-  query?: Record<string, string | number | boolean | undefined | null>;
+  // 배열 값은 ?ids=1&ids=2 처럼 같은 키를 반복한다 (FastAPI list 쿼리 형식).
+  query?: Record<string, string | number | boolean | number[] | undefined | null>;
 };
 
 export async function api<T = unknown>(
@@ -59,7 +65,8 @@ export async function api<T = unknown>(
   const url = new URL(API_BASE_URL + path);
   if (query) {
     for (const [k, v] of Object.entries(query)) {
-      if (v !== undefined && v !== null && v !== "") url.searchParams.set(k, String(v));
+      if (Array.isArray(v)) v.forEach((x) => url.searchParams.append(k, String(x)));
+      else if (v !== undefined && v !== null && v !== "") url.searchParams.set(k, String(v));
     }
   }
 

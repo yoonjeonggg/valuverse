@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ApiError } from "./api";
+import { errorMessage } from "./api";
 
 /* ---------- data-fetching hook ---------- */
 export function useCall<TArgs extends unknown[], TResult>(
@@ -26,13 +26,7 @@ export function useCall<TArgs extends unknown[], TResult>(
         setData(result);
         return result;
       } catch (e) {
-        const msg =
-          e instanceof ApiError
-            ? e.message
-            : e instanceof Error
-              ? e.message
-              : String(e);
-        setError(msg);
+        setError(errorMessage(e));
         setData(null);
         return undefined;
       } finally {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { api } from "../lib/api";
+import { api, errorMessage } from "../lib/api";
 import { Card, PageHeader, useCall } from "../lib/ui";
 
 type Notification = {
@@ -22,7 +22,7 @@ export default function NotificationsPage() {
   const load = (unread: boolean) =>
     api<Notification[]>("/users/me/notifications", { auth: true, query: { unread } })
       .then(setList)
-      .catch((e) => setLoadError(String(e)));
+      .catch((e) => setLoadError(errorMessage(e)));
 
   useEffect(() => {
     load(unreadOnly);

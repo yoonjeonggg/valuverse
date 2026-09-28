@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { api, API_BASE_URL, getToken } from "../../lib/api";
+import { api, API_BASE_URL, getToken, errorMessage } from "../../lib/api";
 import { ChatWidget } from "../../lib/chat-widget";
 import { Card, Countdown, Icon, useCall } from "../../lib/ui";
 
@@ -72,7 +72,7 @@ export default function ItemDetailPage() {
   useEffect(() => {
     api<Item>(`/items/${itemId}`)
       .then(setItem)
-      .catch((e) => setLoadError(String(e)));
+      .catch((e) => setLoadError(errorMessage(e)));
     const token = getToken();
     if (token) {
       api<{ id: number }>("/users/me", { auth: true })

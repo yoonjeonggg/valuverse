@@ -58,6 +58,7 @@ type PointTx = {
 };
 
 const BOOKING_STATUS_LABEL: Record<string, string> = {
+  pending: "수락 대기",
   in_progress: "진행중",
   completed: "완료",
   no_show: "노쇼",
@@ -84,18 +85,17 @@ function MyActivity() {
 
   useEffect(() => {
     if (tab === "입찰중" || tab === "낙찰완료") {
-      api<Bid[]>("/users/me/bids", { auth: true }).then(async (list) => {
-        setBids(list);
-        const ids = Array.from(new Set(list.map((b) => b.item_id)));
-        const fetched = await Promise.all(
-          ids.map((id) => api<Item>(`/items/${id}`).catch(() => null)),
-        );
-        const map: Record<number, Item> = {};
-        fetched.forEach((it) => {
-          if (it) map[it.id] = it;
-        });
-        setItems(map);
-      });
+      api<Bid[]>("/users/me/bids", { auth: true })
+        .then(async (list) => {
+          setBids(list);
+          // 입찰한 상품들을 상품마다 요청하지 않고 한 번에 가져온다.
+          const ids = Array.from(new Set(list.map((b) => b.item_id)));
+          const fetched = ids.length
+            ? await api<Item[]>("/items", { query: { ids, limit: 200 } })
+            : [];
+          setItems(Object.fromEntries(fetched.map((it) => [it.id, it])));
+        })
+        .catch(() => setBids([]));
     } else if (tab === "예약(스킬)") {
       api<Booking[]>("/skill-bookings", { auth: true }).then(setBookings).catch(() => {});
     } else if (tab === "포인트내역") {
@@ -234,6 +234,7 @@ export default function MePage() {
   const [nickname, setNickname] = useState("");
   const [profileImage, setProfileImage] = useState("");
   const [password, setPassword] = useState("");
+  const [currentPassword, setCurrentPassword] = useState("");
 
   const update = useCall(() =>
     api("/users/me", {
@@ -243,6 +244,8 @@ export default function MePage() {
         nickname: nickname || undefined,
         profile_image: profileImage || undefined,
         password: password || undefined,
+        // 비밀번호를 바꿀 때만 현재 비밀번호를 함께 보낸다 (서버가 확인)
+        current_password: password ? currentPassword : undefined,
       },
     }),
   );
@@ -252,6 +255,7 @@ export default function MePage() {
       setNickname("");
       setProfileImage("");
       setPassword("");
+      setCurrentPassword("");
     }
   };
 
@@ -287,6 +291,18 @@ export default function MePage() {
             placeholder="변경할 비밀번호"
           />
         </div>
+        {password && (
+          <div className="field">
+            <span>현재 비밀번호</span>
+            <input
+              type="password"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              placeholder="본인 확인을 위해 입력"
+              autoComplete="current-password"
+            />
+          </div>
+        )}
         <div className="actions">
           <button className="btn btn-primary" onClick={submitUpdate} disabled={update.loading}>
             수정

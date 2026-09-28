@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { api, getToken } from "../../lib/api";
+import { api, getToken, errorMessage } from "../../lib/api";
 import { ChatWidget } from "../../lib/chat-widget";
 import { toIso } from "../../lib/format";
 import { Card, Icon, useCall } from "../../lib/ui";
@@ -44,11 +44,12 @@ type Review = {
 
 const ITEM_STATUS_LABEL: Record<string, string> = {
   recruiting: "모집중",
-  awarded: "예약 확정",
+  awarded: "예약 진행중",
   closed: "거래 종료",
 };
 
 const BOOKING_STATUS_LABEL: Record<string, string> = {
+  pending: "구매자 수락 대기",
   in_progress: "진행중 (에스크로 보관중)",
   completed: "완료 (정산 완료)",
   no_show: "노쇼 종료",
@@ -81,20 +82,32 @@ export default function SkillItemDetailPage() {
     }),
   );
 
-  const completeCall = useCall(() =>
-    api(`/skill-bookings/${myBooking?.id}/complete`, { method: "POST", auth: true }),
+  const isBuyer = !!myBooking && meId === myBooking.buyer_id;
+
+  // 예약 상태 전환(수락/완료/노쇼/취소)은 모두 응답으로 예약과 상품 상태를 다시 맞춘다.
+  // (예전엔 버튼을 눌러도 화면이 그대로여서 새로고침해야 결과가 보였다.)
+  const bookingAction = useCall(
+    async (action: "accept" | "complete" | "no-show" | "cancel") => {
+      const id = myBooking?.id;
+      if (action === "cancel") {
+        await api(`/skill-bookings/${id}`, { method: "DELETE", auth: true });
+        return { ...myBooking!, status: "cancelled" };
+      }
+      return api<Booking>(`/skill-bookings/${id}/${action}`, {
+        method: "POST",
+        auth: true,
+        // 노쇼는 상대방만 신고할 수 있다: 구매자는 판매자를, 판매자는 구매자를.
+        body: action === "no-show" ? { party: isBuyer ? "seller" : "buyer" } : undefined,
+      });
+    },
   );
-  const [noShowParty, setNoShowParty] = useState<"seller" | "buyer">("seller");
-  const noShowCall = useCall(() =>
-    api(`/skill-bookings/${myBooking?.id}/no-show`, {
-      method: "POST",
-      auth: true,
-      body: { party: noShowParty },
-    }),
-  );
-  const cancelCall = useCall(() =>
-    api(`/skill-bookings/${myBooking?.id}`, { method: "DELETE", auth: true }),
-  );
+  const runBookingAction = async (action: "accept" | "complete" | "no-show" | "cancel") => {
+    const res = await bookingAction.run(action);
+    if (res) {
+      setMyBooking(res);
+      api<SkillItem>(`/skill-items/${itemId}`).then(setItem).catch(() => {});
+    }
+  };
 
   const [reviewRating, setReviewRating] = useState("5");
   const [reviewContent, setReviewContent] = useState("");
@@ -120,22 +133,29 @@ export default function SkillItemDetailPage() {
   useEffect(() => {
     api<SkillItem>(`/skill-items/${itemId}`)
       .then(setItem)
-      .catch((e) => setLoadError(String(e)));
+      .catch((e) => setLoadError(errorMessage(e)));
     loadReviews();
 
     if (getToken()) {
-      api<{ id: number }>("/users/me", { auth: true }).then((u) => setMeId(u.id));
-      api<Booking[]>("/skill-bookings", { auth: true }).then((list) => {
-        const mine = list.find((b) => b.skill_item_id === itemId);
-        if (mine) setMyBooking(mine);
-      });
+      api<{ id: number }>("/users/me", { auth: true })
+        .then((u) => setMeId(u.id))
+        .catch(() => {});
+      api<Booking[]>("/skill-bookings", { auth: true })
+        .then((list) => {
+          const mine = list.find((b) => b.skill_item_id === itemId);
+          if (mine) setMyBooking(mine);
+        })
+        .catch(() => {});
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [itemId]);
 
   const submitBooking = async () => {
     const res = await createBooking.run();
-    if (res) setMyBooking(res);
+    if (res) {
+      setMyBooking(res);
+      setItem((it) => (it ? { ...it, status: "awarded" } : it));
+    }
   };
   const submitReview = async () => {
     const res = await createReview.run();
@@ -149,7 +169,6 @@ export default function SkillItemDetailPage() {
   if (!item) return <div className="empty">불러오는 중…</div>;
 
   const isOwner = meId === item.seller_id;
-  const isBuyer = myBooking && meId === myBooking.buyer_id;
 
   return (
     <div>
@@ -201,45 +220,59 @@ export default function SkillItemDetailPage() {
         >
           <p className="hint">
             일정: {new Date(myBooking.scheduled_at).toLocaleString()} · 금액{" "}
-            {myBooking.amount.toLocaleString()}원
+            {myBooking.amount.toLocaleString()}P
           </p>
+          {myBooking.status === "pending" && (
+            <>
+              <p className="hint">
+                {isBuyer
+                  ? `수락하면 ${myBooking.amount.toLocaleString()}P가 차감되어 거래가 끝날 때까지 에스크로에 보관됩니다.`
+                  : "구매자가 수락하면 예약이 확정됩니다."}
+              </p>
+              <div className="actions">
+                {isBuyer && (
+                  <button
+                    className="btn btn-primary"
+                    onClick={() => runBookingAction("accept")}
+                    disabled={bookingAction.loading}
+                  >
+                    <Icon name="check" size={16} /> 수락하고 결제
+                  </button>
+                )}
+                <button onClick={() => runBookingAction("cancel")} disabled={bookingAction.loading}>
+                  {isBuyer ? "거절" : "요청 취소"}
+                </button>
+              </div>
+            </>
+          )}
           {myBooking.status === "in_progress" && (
             <div className="actions">
               {isBuyer && (
                 <button
                   className="btn btn-primary"
-                  onClick={() => completeCall.run()}
-                  disabled={completeCall.loading}
+                  onClick={() => runBookingAction("complete")}
+                  disabled={bookingAction.loading}
                 >
                   완료 확인 (정산)
                 </button>
               )}
-              <select
-                value={noShowParty}
-                onChange={(e) => setNoShowParty(e.target.value as "seller" | "buyer")}
-              >
-                <option value="seller">판매자 노쇼</option>
-                <option value="buyer">구매자 노쇼</option>
-              </select>
-              <button onClick={() => noShowCall.run()} disabled={noShowCall.loading}>
-                노쇼 처리
+              <button onClick={() => runBookingAction("no-show")} disabled={bookingAction.loading}>
+                {isBuyer ? "판매자 노쇼 신고" : "구매자 노쇼 신고"}
               </button>
-              <button onClick={() => cancelCall.run()} disabled={cancelCall.loading}>
+              <button onClick={() => runBookingAction("cancel")} disabled={bookingAction.loading}>
                 예약 취소
               </button>
             </div>
           )}
-          {completeCall.error && <p className="hint hint--error">{completeCall.error}</p>}
-          {noShowCall.error && <p className="hint hint--error">{noShowCall.error}</p>}
-          {cancelCall.error && <p className="hint hint--error">{cancelCall.error}</p>}
+          {bookingAction.error && <p className="hint hint--error">{bookingAction.error}</p>}
         </Card>
       )}
 
-      {isOwner && !myBooking && item.status === "recruiting" && (
-        <Card title="예약 확정 (낙찰자 지정)">
+      {isOwner && item.status === "recruiting" && (
+        <Card title="예약 요청 (낙찰자 지정)">
           <p className="hint">
-            협의가 끝난 구매자의 회원 ID로 예약을 확정합니다. 낙찰금은 구매자 포인트에서
-            즉시 차감되어 에스크로에 보관됩니다.
+            협의가 끝난 구매자의 회원 ID로 예약을 요청합니다. 구매자가 수락하면 낙찰금이
+            구매자 포인트에서 차감되어 에스크로에 보관됩니다.
           </p>
           <div className="field">
             <span>buyer_id</span>
@@ -263,7 +296,7 @@ export default function SkillItemDetailPage() {
           </div>
           <div className="actions">
             <button className="btn btn-primary" onClick={submitBooking} disabled={createBooking.loading}>
-              예약 확정
+              예약 요청
             </button>
           </div>
           {createBooking.error && <p className="hint hint--error">{createBooking.error}</p>}

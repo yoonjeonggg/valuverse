@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { api, getToken } from "../../lib/api";
+import { api, getToken, errorMessage } from "../../lib/api";
 import { Card, Countdown, Icon, useCall } from "../../lib/ui";
 
 type Prediction = {
@@ -87,7 +87,7 @@ export default function PredictionDetailPage() {
   useEffect(() => {
     api<Prediction>(`/predictions/${predictionId}`)
       .then(setPrediction)
-      .catch((e) => setLoadError(String(e)));
+      .catch((e) => setLoadError(errorMessage(e)));
     loadOdds();
     loadMyBets();
     // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { api, getToken } from "../lib/api";
+import { api, getToken, errorMessage } from "../lib/api";
 import { Card, PageHeader } from "../lib/ui";
 
 type Review = {
@@ -32,7 +32,7 @@ export default function ReviewsPage() {
         return api<Review[]>("/reviews", { query: { target_user_id: u.id } });
       })
       .then(setReviews)
-      .catch((e) => setLoadError(String(e)));
+      .catch((e) => setLoadError(errorMessage(e)));
   }, []);
 
   const avg =
