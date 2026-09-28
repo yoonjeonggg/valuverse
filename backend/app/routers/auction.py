@@ -37,11 +37,13 @@ def create_item(
 def list_items(
     category: str | None = None,
     status_filter: str | None = Query(default=None, alias="status"),
-    skip: int = 0,
-    limit: int = Query(default=50, le=200),
+    ids: list[int] | None = Query(default=None, max_length=200),
+    skip: int = Query(default=0, ge=0),
+    limit: int = Query(default=50, ge=1, le=200),
     db: Session = Depends(get_db),
 ):
-    return auction_service.list_items(db, category, status_filter, skip, limit)
+    """`ids` 를 주면 그 상품들만 돌려준다 (마이페이지처럼 여러 상품을 한 번에 조회할 때)."""
+    return auction_service.list_items(db, category, status_filter, skip, limit, ids)
 
 
 @item_router.get("/{item_id}", response_model=ItemResponse)

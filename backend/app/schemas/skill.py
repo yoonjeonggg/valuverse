@@ -56,7 +56,9 @@ class SkillBookingCreate(BaseModel):
 
 class SkillBookingUpdate(BaseModel):
     scheduled_at: Optional[datetime] = None
-    status: Optional[Literal["in_progress", "completed", "no_show", "cancelled"]] = None
+    status: Optional[
+        Literal["pending", "in_progress", "completed", "no_show", "cancelled"]
+    ] = None
 
 
 class SkillBookingNoShow(BaseModel):
@@ -76,14 +78,14 @@ class SkillBookingResponse(ORMModel):
 
 # ----- Escrow -----
 class EscrowCreate(BaseModel):
-    booking_id: Optional[int] = None
-    item_id: Optional[int] = None
+    # 스킬 예약 에스크로는 예약 수락 시 자동 생성되므로, 직접 결제는 일반 경매 상품만 대상.
+    item_id: int
     payee_id: int
     amount: int = Field(gt=0)
 
 
 class EscrowUpdate(BaseModel):
-    status: Literal["holding", "settled", "refunded"]
+    status: Literal["settled", "refunded"]
 
 
 class EscrowResponse(ORMModel):

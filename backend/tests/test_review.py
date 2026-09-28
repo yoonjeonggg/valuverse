@@ -109,6 +109,7 @@ def test_review_after_completed_skill_booking(client, make_user, set_points):
     )
     assert early.status_code == 409
 
+    client.post(f"/skill-bookings/{booking['id']}/accept", headers=buyer_h)
     client.post(f"/skill-bookings/{booking['id']}/complete", headers=buyer_h)
     ok = _review(
         client, buyer_h, target_user_id=seller["id"], skill_item_id=skill["id"], rating=5

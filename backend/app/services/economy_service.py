@@ -9,12 +9,11 @@ from typing import Callable
 
 from fastapi import HTTPException, status
 from sqlalchemy import exists, func
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from sqlalchemy.sql.expression import Exists
 
 from app.core.config import settings
-from app.core.db_utils import get_or_404
+from app.core.db_utils import commit_or_conflict, get_or_404
 from app.core.timeutils import aware, now, is_past
 from app.models.auction import Bid, Item
 from app.models.economy import Attendance, Coupon, MissionClaim
@@ -22,15 +21,6 @@ from app.models.point import PointTransaction
 from app.models.review import Review
 from app.models.user import User
 from app.services.point_service import apply_delta as _grant
-
-
-def _commit_or_conflict(db: Session, message: str) -> None:
-    """커밋 시도 후 UNIQUE 제약 위반(동시 중복 요청)이면 409로 변환한다."""
-    try:
-        db.commit()
-    except IntegrityError:
-        db.rollback()
-        raise HTTPException(status.HTTP_409_CONFLICT, message)
 
 
 # ==================== 출석 체크 ====================
@@ -96,7 +86,7 @@ def check_in(db: Session, user: User) -> dict:
     )
     _grant(db, user, reward, "attendance", f"출석 체크 ({streak}일 연속)")
     # 동시에 두 번 출석 요청이 오면 UNIQUE(user_id, check_date) 위반 -> 409로 변환.
-    _commit_or_conflict(db, "오늘은 이미 출석했습니다.")
+    commit_or_conflict(db, "오늘은 이미 출석했습니다.")
     return {
         "check_date": today_str,
         "streak": streak,
@@ -169,7 +159,7 @@ def claim_mission(db: Session, user: User, key: str) -> dict:
     db.add(MissionClaim(user_id=user.id, mission_key=key, reward=reward))
     _grant(db, user, reward, "mission", f"미션 보상: {desc}")
     # 동시에 두 번 수령 요청이 오면 UNIQUE(user_id, mission_key) 위반 -> 409로 변환.
-    _commit_or_conflict(db, "이미 보상을 받은 미션입니다.")
+    commit_or_conflict(db, "이미 보상을 받은 미션입니다.")
     return {"key": key, "reward": reward, "balance": user.points}
 
 

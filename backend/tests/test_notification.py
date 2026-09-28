@@ -91,7 +91,10 @@ def test_skill_booking_and_settlement_notifications(client, make_user, set_point
         },
         headers=seller_h,
     ).json()
-    assert [n["type"] for n in _notifs(client, buyer_h)] == ["booking"]
+    assert [n["type"] for n in _notifs(client, buyer_h)] == ["booking"]  # 예약 요청
+
+    client.post(f"/skill-bookings/{booking['id']}/accept", headers=buyer_h)
+    assert "booking" in [n["type"] for n in _notifs(client, seller_h)]  # 수락 알림
 
     client.post(f"/skill-bookings/{booking['id']}/complete", headers=buyer_h)
     assert "settlement" in [n["type"] for n in _notifs(client, seller_h)]
@@ -160,7 +163,7 @@ def test_cannot_read_others_notification(client, make_user):
     client.post(f"/items/{item['id']}/bids", json={"amount": 3000}, headers=b2_h)
 
     nid = _notifs(client, b1_h)[0]["id"]
-    assert client.post(f"/notifications/{nid}/read", headers=other_h).status_code == 403
+    assert client.post(f"/notifications/{nid}/read", headers=other_h).status_code == 404
 
 
 def test_read_all(client, make_user):

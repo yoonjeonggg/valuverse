@@ -1,7 +1,7 @@
 from datetime import timedelta
 
 from fastapi import HTTPException, status
-from sqlalchemy import case
+from sqlalchemy import case, or_
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -23,6 +23,20 @@ def _iso(dt) -> str | None:
     return dt.isoformat() if dt else None
 
 
+def _broadcast_closed(item: Item, **extra) -> None:
+    ws_manager.broadcast(
+        item.id,
+        {
+            "type": "closed",
+            "item_id": item.id,
+            "status": item.status,
+            "winner_id": item.winner_id,
+            "final_price": item.final_price,
+            **extra,
+        },
+    )
+
+
 # ==================== 낙찰/마감 ====================
 def _top_bid(db: Session, item_id: int) -> Bid | None:
     return (
@@ -36,8 +50,8 @@ def _top_bid(db: Session, item_id: int) -> Bid | None:
 def _finalize(db: Session, item: Item) -> Item:
     """경매를 마감 상태로 확정한다. 최고 입찰자를 낙찰자로 기록.
 
-    일반 입찰(Bid)과 블라인드 입찰(BlindBid) 중 존재하는 쪽을 사용하며,
-    블라인드는 1st-price(제시가 그대로 낙찰)로 처리한다. 입찰이 없으면 유찰.
+    일반 입찰(Bid)과 블라인드 입찰(BlindBid) 중 존재하는 쪽을 사용한다. 블라인드는
+    blind_price_rule 에 따라 1st-price(제시가) 또는 Vickrey(2위가)로 결제. 입찰이 없으면 유찰.
     """
     top = _top_bid(db, item.id)
     if top is None:
@@ -69,16 +83,7 @@ def _finalize(db: Session, item: Item) -> Item:
         )
     db.commit()
     db.refresh(item)
-    ws_manager.broadcast(
-        item.id,
-        {
-            "type": "closed",
-            "item_id": item.id,
-            "status": item.status,
-            "winner_id": item.winner_id,
-            "final_price": item.final_price,
-        },
-    )
+    _broadcast_closed(item)
     return item
 
 
@@ -116,13 +121,26 @@ def list_items(
     status_filter: str | None = None,
     skip: int = 0,
     limit: int = 50,
+    ids: list[int] | None = None,
 ) -> list[Item]:
     q = db.query(Item).filter(Item.is_deleted.is_(False))
+    if ids:
+        q = q.filter(Item.id.in_(ids))
     if category:
         q = q.filter(Item.category == category)
 
-    # 상단 노출권이 살아있는 상품을 먼저 정렬한다 (FR-PRD-08).
+    # 마감 시간이 지났지만 아직 확정(_finalize) 전인 상품은 DB 상 status 가 ongoing 이다.
+    # 그래서 상태 필터는 end_time 까지 보고 SQL 에서 걸어야 한다: 예전처럼 LIMIT 이후
+    # 파이썬에서 거르면 한 페이지가 비거나 모자라게 나왔다.
     now_naive = now().replace(tzinfo=None)
+    if status_filter == "ongoing":
+        q = q.filter(Item.status == "ongoing", Item.end_time > now_naive)
+    elif status_filter == "closed":
+        q = q.filter(or_(Item.status == "closed", Item.end_time <= now_naive))
+    elif status_filter:
+        q = q.filter(Item.status == status_filter)
+
+    # 상단 노출권이 살아있는 상품을 먼저 정렬한다 (FR-PRD-08).
     spotlighted = case(
         (Item.spotlight_until.is_(None), 0),
         (Item.spotlight_until < now_naive, 0),
@@ -136,8 +154,6 @@ def list_items(
     )
     for item in items:
         _finalize_if_ended(db, item)
-    if status_filter:
-        items = [i for i in items if i.status == status_filter]
     return items
 
 
@@ -224,7 +240,8 @@ def close_item(db: Session, item_id: int, user_id: int) -> Item:
 
 def buy_now(db: Session, item_id: int, buyer_id: int) -> Item:
     """즉시구매가로 경매를 즉시 낙찰 처리한다."""
-    item = get_item(db, item_id)
+    # 동시에 들어온 입찰/즉시구매와 겹치지 않도록 상품 행을 잠근다.
+    item = _lock_item(db, item_id)
     if item.auction_type != "general":
         raise HTTPException(
             status.HTTP_409_CONFLICT, "블라인드 경매는 즉시구매를 지원하지 않습니다."
@@ -253,17 +270,7 @@ def buy_now(db: Session, item_id: int, buyer_id: int) -> Item:
     )
     db.commit()
     db.refresh(item)
-    ws_manager.broadcast(
-        item.id,
-        {
-            "type": "closed",
-            "item_id": item.id,
-            "status": item.status,
-            "winner_id": item.winner_id,
-            "final_price": item.final_price,
-            "reason": "buy_now",
-        },
-    )
+    _broadcast_closed(item, reason="buy_now")
     return item
 
 
@@ -271,14 +278,12 @@ def buy_now(db: Session, item_id: int, buyer_id: int) -> Item:
 def _lock_item(db: Session, item_id: int) -> Item:
     """입찰 처리 동안 상품 행을 잠근다 (NFR-02, 동시 입찰 정합성).
 
-    SQLite 는 행 잠금을 지원하지 않으므로 그 경우엔 일반 조회로 대체한다.
+    SQLite 방언은 FOR UPDATE 를 무시하므로 테스트에서도 그대로 동작한다.
     """
-    q = db.query(Item).filter(Item.id == item_id, Item.is_deleted.is_(False))
-    if db.bind and db.bind.dialect.name != "sqlite":
-        q = q.with_for_update()
-    item = q.first()
-    if not item:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "상품을 찾을 수 없습니다.")
+    item = get_or_404(
+        db, Item, item_id, "상품을 찾을 수 없습니다.",
+        Item.is_deleted.is_(False), for_update=True,
+    )
     return _finalize_if_ended(db, item)
 
 
@@ -366,29 +371,29 @@ def list_my_bids(db: Session, user_id: int) -> list[Bid]:
 
 
 def cancel_bid(db: Session, bid_id: int, user_id: int) -> None:
-    bid = get_or_404(db, Bid, bid_id, "입찰을 찾을 수 없습니다.")
-    if bid.bidder_id != user_id:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "본인 입찰만 취소할 수 있습니다.")
+    bid = get_or_404(
+        db, Bid, bid_id, "입찰을 찾을 수 없습니다.", Bid.bidder_id == user_id
+    )
     if bid.is_cancelled:
         raise HTTPException(status.HTTP_409_CONFLICT, "이미 취소된 입찰입니다.")
 
-    # 정책: 등록 직후 5분 이내에만 취소 허용
+    # 정책: 등록 직후 일정 시간 이내에만 취소 허용
+    window = settings.bid_cancel_window_seconds
     created = aware(bid.created_at)
-    if created is not None and (now() - created).total_seconds() > 300:
+    if created is not None and (now() - created).total_seconds() > window:
         raise HTTPException(
-            status.HTTP_409_CONFLICT, "입찰 후 5분이 지나 취소할 수 없습니다."
+            status.HTTP_409_CONFLICT, f"입찰 후 {window // 60}분이 지나 취소할 수 없습니다."
         )
 
-    bid.is_cancelled = True
+    # 현재가 재계산이 동시 입찰과 엇갈리지 않도록 상품을 잠그고, 마감된 경매는 막는다
+    # (예전엔 즉시구매/조기마감 직후에도 취소돼 낙찰된 상품의 현재가가 바뀌었다).
+    item = _lock_item(db, bid.item_id)
+    if item.status != "ongoing":
+        raise HTTPException(status.HTTP_409_CONFLICT, "마감된 경매의 입찰은 취소할 수 없습니다.")
 
-    # 최고가였다면 현재가 재계산
-    item = get_item(db, bid.item_id)
-    top = (
-        db.query(Bid)
-        .filter(Bid.item_id == bid.item_id, Bid.is_cancelled.is_(False))
-        .order_by(Bid.amount.desc())
-        .first()
-    )
+    bid.is_cancelled = True
+    db.flush()
+    top = _top_bid(db, bid.item_id)
     item.current_price = top.amount if top else item.start_price
     db.commit()
 
@@ -453,8 +458,8 @@ def get_my_blind_rank(db: Session, item_id: int, user_id: int) -> dict:
 
 
 def get_blind_results(db: Session, item_id: int) -> list[dict]:
-    item = get_item(db, item_id)
-    if item.status != "closed" and not is_past(item.end_time):
+    item = get_item(db, item_id)  # 마감 시간이 지났으면 여기서 closed 로 확정된다
+    if item.status != "closed":
         raise HTTPException(
             status.HTTP_409_CONFLICT, "마감 후에만 결과를 조회할 수 있습니다."
         )
@@ -466,9 +471,9 @@ def get_blind_results(db: Session, item_id: int) -> list[dict]:
 
 
 def cancel_blind_bid(db: Session, bid_id: int, user_id: int) -> None:
-    bid = get_or_404(db, BlindBid, bid_id, "입찰을 찾을 수 없습니다.")
-    if bid.bidder_id != user_id:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "본인 입찰만 취소할 수 있습니다.")
+    bid = get_or_404(
+        db, BlindBid, bid_id, "입찰을 찾을 수 없습니다.", BlindBid.bidder_id == user_id
+    )
     item = get_item(db, bid.item_id)
     if item.status == "closed" or is_past(item.end_time):
         raise HTTPException(status.HTTP_409_CONFLICT, "마감 후에는 취소할 수 없습니다.")

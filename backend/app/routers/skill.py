@@ -95,7 +95,7 @@ def get_booking(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    return skill_service.get_booking(db, booking_id, user.id)
+    return skill_service.get_booking(db, booking_id, user)
 
 
 @booking_router.patch("/{booking_id}", response_model=SkillBookingResponse)
@@ -105,7 +105,17 @@ def update_booking(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    return skill_service.update_booking(db, booking_id, user.id, payload)
+    return skill_service.update_booking(db, booking_id, user, payload)
+
+
+@booking_router.post("/{booking_id}/accept", response_model=SkillBookingResponse)
+def accept_booking(
+    booking_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """구매자가 예약 요청을 수락한다. 이때 포인트가 차감돼 에스크로에 보관된다."""
+    return skill_service.accept_booking(db, booking_id, user)
 
 
 @booking_router.post("/{booking_id}/complete", response_model=SkillBookingResponse)
@@ -133,7 +143,7 @@ def cancel_booking(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    skill_service.cancel_booking(db, booking_id, user.id)
+    skill_service.cancel_booking(db, booking_id, user)
 
 
 # ==================== Escrow ====================

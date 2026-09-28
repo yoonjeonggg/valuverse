@@ -1,4 +1,5 @@
 from fastapi import HTTPException, status
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 
@@ -15,3 +16,12 @@ def get_or_404(
     if not obj:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail)
     return obj
+
+
+def commit_or_conflict(db: Session, message: str) -> None:
+    """커밋 시도 후 UNIQUE 제약 위반(동시 중복 요청)이면 500 대신 409로 변환한다."""
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status.HTTP_409_CONFLICT, message)

@@ -1,7 +1,9 @@
 from fastapi import HTTPException, status
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.core.db_utils import get_or_404
+from app.models.auction import Item
 from app.models.skill import SkillItem, SkillBooking, Escrow
 from app.models.user import User
 from app.schemas.skill import (
@@ -98,6 +100,11 @@ def delete_skill_item(db: Session, item_id: int, user_id: int) -> None:
 
 
 # ==================== SkillBooking ====================
+_OPEN_BOOKING = ("pending", "in_progress")
+
+# 흐름: 판매자가 구매자에게 예약을 "요청"(pending) -> 구매자가 수락하면 그때 구매자
+# 포인트를 차감해 에스크로에 보관(in_progress) -> 완료(정산) / 노쇼 / 취소(환불).
+# 구매자 동의 없이 판매자가 남의 포인트를 차감하지 못하도록 차감은 수락 시점에만 한다.
 def create_booking(
     db: Session, seller: User, payload: SkillBookingCreate
 ) -> SkillBooking:
@@ -110,45 +117,62 @@ def create_booking(
         raise HTTPException(status.HTTP_409_CONFLICT, "이미 낙찰된 스킬 상품입니다.")
     if payload.buyer_id == seller.id:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "본인에게 예약할 수 없습니다.")
-
-    # 동시에 여러 번 예약 요청이 오면 잔액을 초과해 차감할 수 있으므로 잠그고 다시 읽는다.
     buyer = get_or_404(
-        db, User, payload.buyer_id, "구매자를 찾을 수 없습니다.", for_update=True
+        db, User, payload.buyer_id, "구매자를 찾을 수 없습니다.", User.is_active.is_(True)
     )
-    if buyer.points < payload.amount:
-        raise HTTPException(
-            status.HTTP_400_BAD_REQUEST, "구매자의 보유 포인트가 부족합니다."
-        )
 
     booking = SkillBooking(
-        skill_item_id=payload.skill_item_id,
+        skill_item_id=skill_item.id,
         seller_id=seller.id,
         buyer_id=buyer.id,
         amount=payload.amount,
         scheduled_at=payload.scheduled_at,
-        status="in_progress",
+        status="pending",
     )
     db.add(booking)
-    db.flush()  # booking.id 확보
+    # 수락/거절 전까지 다른 구매자에게 중복 요청하지 못하게 잡아둔다.
+    skill_item.status = "awarded"
+    notification_service.notify(
+        db, buyer.id, "booking",
+        f"'{skill_item.title}' 스킬 예약 요청이 도착했습니다. "
+        f"수락하면 {payload.amount} 포인트가 에스크로에 보관됩니다.",
+        "skill_item", skill_item.id,
+    )
+    db.commit()
+    db.refresh(booking)
+    return booking
 
-    # 낙찰가를 구매자 포인트에서 차감해 에스크로에 보관한다 (FR-SKL-03)
+
+def accept_booking(db: Session, booking_id: int, user: User) -> SkillBooking:
+    """구매자가 예약 요청을 수락하면 포인트를 차감해 에스크로에 보관한다 (FR-SKL-03)."""
+    booking = _lock_booking(db, booking_id, user)
+    if user.id != booking.buyer_id:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "구매자만 수락할 수 있습니다.")
+    if booking.status != "pending":
+        raise HTTPException(status.HTTP_409_CONFLICT, "수락 대기중인 예약이 아닙니다.")
+
+    # 동시에 여러 번 결제 요청이 오면 잔액을 초과해 차감할 수 있으므로 잠그고 다시 읽는다.
+    buyer = get_or_404(db, User, user.id, "사용자를 찾을 수 없습니다.", for_update=True)
+    if buyer.points < booking.amount:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "보유 포인트가 부족합니다.")
+
     _move_points(
-        db, buyer, -payload.amount, "spend", f"스킬 낙찰 보관 #{skill_item.id}"
+        db, buyer, -booking.amount, "spend", f"스킬 낙찰 보관 #{booking.skill_item_id}"
     )
     db.add(
         Escrow(
             booking_id=booking.id,
             payer_id=buyer.id,
-            payee_id=seller.id,
-            amount=payload.amount,
+            payee_id=booking.seller_id,
+            amount=booking.amount,
             status="holding",
         )
     )
-    skill_item.status = "awarded"
+    booking.status = "in_progress"
     notification_service.notify(
-        db, buyer.id, "booking",
-        f"'{skill_item.title}' 스킬 예약이 확정되었습니다.",
-        "skill_item", skill_item.id,
+        db, booking.seller_id, "booking",
+        "구매자가 스킬 예약을 수락했습니다.",
+        "skill_item", booking.skill_item_id,
     )
     db.commit()
     db.refresh(booking)
@@ -157,7 +181,7 @@ def create_booking(
 
 def complete_booking(db: Session, booking_id: int, user: User) -> SkillBooking:
     """구매자가 서비스 완료를 확인하면 에스크로를 판매자에게 정산한다 (FR-SKL-03)."""
-    booking = get_booking(db, booking_id, user.id)
+    booking = _lock_booking(db, booking_id, user)
     if user.id != booking.buyer_id and not user.is_admin:
         raise HTTPException(
             status.HTTP_403_FORBIDDEN, "구매자만 완료를 확인할 수 있습니다."
@@ -169,7 +193,7 @@ def complete_booking(db: Session, booking_id: int, user: User) -> SkillBooking:
     if escrow:
         _settle_escrow(db, escrow)
     booking.status = "completed"
-    _close_skill_item(db, booking.skill_item_id)
+    _set_skill_item_status(db, booking.skill_item_id, "closed")
     notification_service.notify(
         db, booking.seller_id, "settlement",
         f"스킬 거래가 완료되어 {booking.amount} 포인트가 정산되었습니다.",
@@ -183,14 +207,20 @@ def complete_booking(db: Session, booking_id: int, user: User) -> SkillBooking:
 def no_show_booking(
     db: Session, booking_id: int, user: User, party: str
 ) -> SkillBooking:
-    """노쇼 처리 (FR-SKL-05).
+    """노쇼 처리 (FR-SKL-05). 신고는 거래 상대방에 대해서만 할 수 있다.
 
-    - 판매자 노쇼: 구매자에게 전액 환불.
-    - 구매자 노쇼: 판매자에게 정산 (노쇼한 구매자가 포인트를 잃는다).
+    - 판매자 노쇼(구매자가 신고): 구매자에게 전액 환불.
+    - 구매자 노쇼(판매자가 신고): 판매자에게 정산 (노쇼한 구매자가 포인트를 잃는다).
     """
-    booking = get_booking(db, booking_id, user.id)
+    booking = _lock_booking(db, booking_id, user)
     if booking.status != "in_progress":
         raise HTTPException(status.HTTP_409_CONFLICT, "진행중인 예약이 아닙니다.")
+    # 스스로 노쇼했다고 신고해 환불받거나, 제3자가 대신 신고하지 못하게 한다.
+    reporter = booking.buyer_id if party == "seller" else booking.seller_id
+    if user.id != reporter and not user.is_admin:
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN, "노쇼는 거래 상대방만 신고할 수 있습니다."
+        )
 
     escrow = _booking_escrow(db, booking.id)
     if escrow:
@@ -199,7 +229,7 @@ def no_show_booking(
         else:
             _settle_escrow(db, escrow)
     booking.status = "no_show"
-    _close_skill_item(db, booking.skill_item_id)
+    _set_skill_item_status(db, booking.skill_item_id, "closed")
 
     victim = booking.buyer_id if party == "seller" else booking.seller_id
     who = "판매자" if party == "seller" else "구매자"
@@ -213,10 +243,10 @@ def no_show_booking(
     return booking
 
 
-def _close_skill_item(db: Session, skill_item_id: int) -> None:
+def _set_skill_item_status(db: Session, skill_item_id: int, new_status: str) -> None:
     item = db.get(SkillItem, skill_item_id)
     if item:
-        item.status = "closed"
+        item.status = new_status
 
 
 def list_my_bookings(db: Session, user_id: int) -> list[SkillBooking]:
@@ -230,27 +260,40 @@ def list_my_bookings(db: Session, user_id: int) -> list[SkillBooking]:
     )
 
 
-def get_booking(db: Session, booking_id: int, user_id: int) -> SkillBooking:
-    booking = db.query(SkillBooking).filter(SkillBooking.id == booking_id).first()
-    if not booking:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "예약을 찾을 수 없습니다.")
-    if user_id not in (booking.seller_id, booking.buyer_id):
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "조회 권한이 없습니다.")
-    return booking
+def _party_filter(user: User, *cols):
+    """관리자가 아니면 당사자 행만 보이게 한다. 남의 행은 403 대신 404 로 존재 여부를 숨긴다."""
+    if user.is_admin:
+        return ()
+    return (or_(*(c == user.id for c in cols)),)
+
+
+def get_booking(
+    db: Session, booking_id: int, user: User, for_update: bool = False
+) -> SkillBooking:
+    return get_or_404(
+        db, SkillBooking, booking_id, "예약을 찾을 수 없습니다.",
+        *_party_filter(user, SkillBooking.seller_id, SkillBooking.buyer_id),
+        for_update=for_update,
+    )
+
+
+def _lock_booking(db: Session, booking_id: int, user: User) -> SkillBooking:
+    """상태 전환(수락/완료/노쇼/취소)이 동시에 와도 이중 정산·환불하지 않도록 행을 잠근다."""
+    return get_booking(db, booking_id, user, for_update=True)
 
 
 def update_booking(
-    db: Session, booking_id: int, user_id: int, payload: SkillBookingUpdate
+    db: Session, booking_id: int, user: User, payload: SkillBookingUpdate
 ) -> SkillBooking:
-    booking = get_booking(db, booking_id, user_id)
-    if booking.status != "in_progress":
+    booking = get_booking(db, booking_id, user)
+    if booking.status not in _OPEN_BOOKING:
         raise HTTPException(status.HTTP_409_CONFLICT, "진행중인 예약만 변경할 수 있습니다.")
     data = payload.model_dump(exclude_unset=True)
-    # 상태 전환(정산/노쇼/취소)은 전용 엔드포인트로만 처리한다.
-    if data.get("status") not in (None, "in_progress"):
+    # 상태 전환(수락/정산/노쇼/취소)은 전용 엔드포인트로만 처리한다.
+    if data.get("status") not in (None, booking.status):
         raise HTTPException(
             status.HTTP_400_BAD_REQUEST,
-            "상태 변경은 complete / no-show / DELETE 엔드포인트를 사용하세요.",
+            "상태 변경은 accept / complete / no-show / DELETE 엔드포인트를 사용하세요.",
         )
     if payload.scheduled_at is not None:
         booking.scheduled_at = payload.scheduled_at
@@ -259,28 +302,41 @@ def update_booking(
     return booking
 
 
-def cancel_booking(db: Session, booking_id: int, user_id: int) -> None:
-    booking = get_booking(db, booking_id, user_id)
-    if booking.status in ("completed", "no_show"):
+
+def cancel_booking(db: Session, booking_id: int, user: User) -> None:
+    """예약 취소(요청 거절 포함). 수락 전이면 상품을 다시 모집중으로, 수락 후면 환불하고 종료."""
+    booking = _lock_booking(db, booking_id, user)
+    if booking.status not in _OPEN_BOOKING:
         raise HTTPException(status.HTTP_409_CONFLICT, "이미 종료된 예약입니다.")
-    escrow = _booking_escrow(db, booking.id)
-    if escrow and escrow.status == "holding":
-        _refund_escrow(db, escrow)
+    if booking.status == "pending":
+        _set_skill_item_status(db, booking.skill_item_id, "recruiting")
+    else:
+        escrow = _booking_escrow(db, booking.id)
+        if escrow and escrow.status == "holding":
+            _refund_escrow(db, escrow)
+        _set_skill_item_status(db, booking.skill_item_id, "closed")
     booking.status = "cancelled"
-    _close_skill_item(db, booking.skill_item_id)
+    other = booking.seller_id if user.id == booking.buyer_id else booking.buyer_id
+    notification_service.notify(
+        db, other, "booking", "스킬 예약이 취소되었습니다.",
+        "skill_item", booking.skill_item_id,
+    )
     db.commit()
 
 
 # ==================== Escrow ====================
+# 스킬 예약에 딸린 에스크로는 예약 엔드포인트(accept/complete/no-show/cancel)로만 움직인다.
+# 여기는 일반 경매 상품 대금을 직접 맡기는 용도.
 def create_escrow(db: Session, payer: User, payload: EscrowCreate) -> Escrow:
-    if not payload.booking_id and not payload.item_id:
+    item = get_or_404(
+        db, Item, payload.item_id, "상품을 찾을 수 없습니다.", Item.is_deleted.is_(False)
+    )
+    if payload.payee_id != item.seller_id:
         raise HTTPException(
-            status.HTTP_400_BAD_REQUEST, "booking_id 또는 item_id 가 필요합니다."
+            status.HTTP_400_BAD_REQUEST, "상품 판매자에게만 에스크로 결제할 수 있습니다."
         )
     if payload.payee_id == payer.id:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "본인에게 보낼 수 없습니다.")
-    if not db.get(User, payload.payee_id):
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "수취인을 찾을 수 없습니다.")
     # 동시에 여러 번 결제 요청이 오면 잔액을 초과해 차감할 수 있으므로 잠그고 다시 읽는다.
     payer = get_or_404(db, User, payer.id, "사용자를 찾을 수 없습니다.", for_update=True)
     if payer.points < payload.amount:
@@ -289,8 +345,7 @@ def create_escrow(db: Session, payer: User, payload: EscrowCreate) -> Escrow:
     # 결제자 포인트를 차감해 보관한다. 정산/환불 시 이동한다.
     _move_points(db, payer, -payload.amount, "spend", "에스크로 보관")
     escrow = Escrow(
-        booking_id=payload.booking_id,
-        item_id=payload.item_id,
+        item_id=item.id,
         payer_id=payer.id,
         payee_id=payload.payee_id,
         amount=payload.amount,
@@ -302,24 +357,37 @@ def create_escrow(db: Session, payer: User, payload: EscrowCreate) -> Escrow:
     return escrow
 
 
-def get_escrow(db: Session, escrow_id: int, user: User) -> Escrow:
-    escrow = db.query(Escrow).filter(Escrow.id == escrow_id).first()
-    if not escrow:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "에스크로를 찾을 수 없습니다.")
-    if not user.is_admin and user.id not in (escrow.payer_id, escrow.payee_id):
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "조회 권한이 없습니다.")
-    return escrow
+def get_escrow(
+    db: Session, escrow_id: int, user: User, for_update: bool = False
+) -> Escrow:
+    return get_or_404(
+        db, Escrow, escrow_id, "에스크로를 찾을 수 없습니다.",
+        *_party_filter(user, Escrow.payer_id, Escrow.payee_id),
+        for_update=for_update,
+    )
 
 
 def update_escrow_status(
     db: Session, escrow_id: int, user: User, payload: EscrowUpdate
 ) -> Escrow:
-    escrow = get_escrow(db, escrow_id, user)
-    if payload.status == "holding":
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "holding 으로 되돌릴 수 없습니다.")
+    escrow = get_escrow(db, escrow_id, user, for_update=True)
+    if escrow.booking_id is not None:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, "스킬 예약 에스크로는 예약에서 처리해야 합니다."
+        )
+    # 받는 쪽이 스스로 정산하거나 낸 쪽이 일방적으로 환불받지 못하게 한다:
+    # 정산(판매자에게 지급)은 결제자가 확정하고, 환불은 수취인이 승인한다.
     if payload.status == "settled":
+        if user.id != escrow.payer_id and not user.is_admin:
+            raise HTTPException(
+                status.HTTP_403_FORBIDDEN, "결제자만 정산을 확정할 수 있습니다."
+            )
         _settle_escrow(db, escrow)
     else:  # refunded
+        if user.id != escrow.payee_id and not user.is_admin:
+            raise HTTPException(
+                status.HTTP_403_FORBIDDEN, "수취인만 환불을 승인할 수 있습니다."
+            )
         _refund_escrow(db, escrow)
     db.commit()
     db.refresh(escrow)

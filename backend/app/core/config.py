@@ -28,6 +28,7 @@ class Settings(BaseSettings):
     auction_extend_window_seconds: int = 180
     auction_extend_by_seconds: int = 180
     auction_max_extensions: int = 10
+    bid_cancel_window_seconds: int = 300  # 입찰 후 취소 가능 시간
 
     # 포인트 이코노미 (FR-PRD-05~08)
     point_checkin_base: int = 10          # 출석 기본 지급

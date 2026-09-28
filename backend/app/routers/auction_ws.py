@@ -1,6 +1,8 @@
 """실시간 입찰 WebSocket 엔드포인트: WS /items/{id}/bid (FR-AUC-02)."""
 
-from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
+import logging
+
+from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
 from sqlalchemy.orm import Session
 from starlette.concurrency import run_in_threadpool
 
@@ -12,6 +14,7 @@ from app.services import auction_service
 from app.services.ws_manager import manager
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 def _snapshot(item) -> dict:
@@ -79,10 +82,16 @@ async def auction_bid_ws(
                     user.id,
                     BidCreate(amount=amount),
                 )
-            except Exception as exc:
+            except HTTPException as exc:
                 db.rollback()
-                detail = getattr(exc, "detail", str(exc))
-                await websocket.send_json({"type": "error", "detail": detail})
+                await websocket.send_json({"type": "error", "detail": exc.detail})
+            except Exception:
+                # 내부 예외 메시지(SQL, 스택 정보 등)를 클라이언트에 그대로 보내지 않는다.
+                db.rollback()
+                logger.exception("WS 입찰 처리 실패 (item_id=%s)", item_id)
+                await websocket.send_json(
+                    {"type": "error", "detail": "입찰을 처리하지 못했습니다."}
+                )
     except WebSocketDisconnect:
         pass
     finally:

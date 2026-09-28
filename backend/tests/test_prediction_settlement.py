@@ -207,3 +207,39 @@ def test_settled_prediction_result_recorded(
     got = client.get(f"/predictions/{pred['id']}").json()
     assert got["status"] == "settled"
     assert got["result"] == "yes"
+
+
+def test_patch_cannot_mark_settled_without_payout(client, make_user):
+    """PATCH 로 settled 를 찍으면 배당 없이 정산 완료로 막혀 베팅 포인트가 묶였다."""
+    admin_h, _ = make_user(admin=True)
+    pred = _create_prediction(client, admin_h)
+    r = client.patch(
+        f"/predictions/{pred['id']}", json={"status": "settled"}, headers=admin_h
+    )
+    assert r.status_code == 422
+
+
+def test_cancel_others_bet_is_not_found(client, make_user, set_points):
+    admin_h, _ = make_user(admin=True)
+    u_h, u = make_user()
+    other_h, _ = make_user()
+    set_points(u["id"], 1000)
+    pred = _create_prediction(client, admin_h)
+    bet = _bet(client, u_h, pred["id"], "yes", 500)
+    assert client.delete(f"/prediction-bets/{bet['id']}", headers=other_h).status_code == 404
+
+
+def test_odds_aggregates_pools(client, make_user, set_points):
+    admin_h, _ = make_user(admin=True)
+    a_h, a = make_user()
+    b_h, b = make_user()
+    set_points(a["id"], 5000)
+    set_points(b["id"], 5000)
+    pred = _create_prediction(client, admin_h)
+    _bet(client, a_h, pred["id"], "yes", 300)
+    _bet(client, a_h, pred["id"], "yes", 100)
+    _bet(client, b_h, pred["id"], "no", 400)
+    odds = client.get(f"/predictions/{pred['id']}/odds").json()
+    assert odds["yes_pool"] == 400 and odds["yes_backers"] == 2
+    assert odds["no_pool"] == 400 and odds["no_backers"] == 1
+    assert odds["yes_odds"] == 2.0 and odds["no_odds"] == 2.0

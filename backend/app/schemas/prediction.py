@@ -21,8 +21,9 @@ class PredictionUpdate(BaseModel):
     end_time: Optional[datetime] = None
     yes_odds: Optional[float] = Field(default=None, gt=1.0)
     no_odds: Optional[float] = Field(default=None, gt=1.0)
-    status: Optional[Literal["ongoing", "closed", "settled"]] = None
-    result: Optional[Literal["yes", "no"]] = None
+    # "settled" 와 result 는 배당 지급이 함께 일어나야 하므로 정산 엔드포인트로만 바꾼다.
+    # (PATCH 로 settled 를 찍으면 배당 없이 정산 완료로 막혀 베팅 포인트가 묶였다.)
+    status: Optional[Literal["ongoing", "closed"]] = None
 
 
 class PredictionResponse(ORMModel):

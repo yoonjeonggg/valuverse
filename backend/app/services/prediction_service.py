@@ -1,4 +1,5 @@
 from fastapi import HTTPException, status
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core.db_utils import get_or_404
@@ -15,14 +16,11 @@ from app.services import notification_service
 from app.services.point_service import apply_delta
 
 
-def _active_bets(db: Session, prediction_id: int) -> list[PredictionBet]:
+def _pending_bets_filter(prediction_id: int) -> tuple:
     return (
-        db.query(PredictionBet)
-        .filter(
-            PredictionBet.prediction_id == prediction_id,
-            PredictionBet.is_cancelled.is_(False),
-        )
-        .all()
+        PredictionBet.prediction_id == prediction_id,
+        PredictionBet.is_cancelled.is_(False),
+        PredictionBet.result == "pending",
     )
 
 
@@ -54,8 +52,12 @@ def list_predictions(
     return q.order_by(Prediction.created_at.desc()).all()
 
 
-def get_prediction(db: Session, prediction_id: int) -> Prediction:
-    return get_or_404(db, Prediction, prediction_id, "명제를 찾을 수 없습니다.")
+def get_prediction(
+    db: Session, prediction_id: int, for_update: bool = False
+) -> Prediction:
+    return get_or_404(
+        db, Prediction, prediction_id, "명제를 찾을 수 없습니다.", for_update=for_update
+    )
 
 
 def update_prediction(
@@ -80,15 +82,14 @@ def update_prediction(
 
 def delete_prediction(db: Session, prediction_id: int) -> None:
     prediction = get_prediction(db, prediction_id)
-    has_bets = (
+    has_bets = db.query(
         db.query(PredictionBet.id)
         .filter(
             PredictionBet.prediction_id == prediction_id,
             PredictionBet.is_cancelled.is_(False),
         )
-        .first()
-        is not None
-    )
+        .exists()
+    ).scalar()
     if has_bets:
         raise HTTPException(
             status.HTTP_409_CONFLICT, "베팅이 있는 명제는 삭제할 수 없습니다."
@@ -126,19 +127,27 @@ def create_bet(
 def get_odds(db: Session, prediction_id: int) -> dict:
     """현재 베팅 풀 기준 파리뮤추얼 배당 배수를 계산한다 (FR-PRD-03)."""
     get_prediction(db, prediction_id)
-    bets = [b for b in _active_bets(db, prediction_id) if b.result == "pending"]
-    yes = [b for b in bets if b.position == "yes"]
-    no = [b for b in bets if b.position == "no"]
-    yes_pool = sum(b.amount for b in yes)
-    no_pool = sum(b.amount for b in no)
+    # 베팅 행을 전부 가져와 파이썬에서 합산하지 않고, 포지션별 합계/인원을 DB 에서 집계한다.
+    pools = {
+        position: (pool, backers)
+        for position, pool, backers in db.query(
+            PredictionBet.position,
+            func.sum(PredictionBet.amount),
+            func.count(PredictionBet.id),
+        )
+        .filter(*_pending_bets_filter(prediction_id))
+        .group_by(PredictionBet.position)
+    }
+    yes_pool, yes_backers = pools.get("yes", (0, 0))
+    no_pool, no_backers = pools.get("no", (0, 0))
     total = yes_pool + no_pool
     return {
         "prediction_id": prediction_id,
         "yes_pool": yes_pool,
         "no_pool": no_pool,
         "total_pool": total,
-        "yes_backers": len(yes),
-        "no_backers": len(no),
+        "yes_backers": yes_backers,
+        "no_backers": no_backers,
         "yes_odds": round(total / yes_pool, 2) if yes_pool else None,
         "no_odds": round(total / no_pool, 2) if no_pool else None,
     }
@@ -152,7 +161,8 @@ def settle_prediction(
     - 승리 풀이 비어 있으면(아무도 정답을 고르지 않음) 전원 원금 환불.
     - 그 외에는 승자가 전체 풀을 자기 지분 비율로 나눠 가진다.
     """
-    prediction = get_prediction(db, prediction_id)
+    # 정산 요청이 동시에 두 번 오면 배당이 이중 지급될 수 있으므로 명제 행을 잠그고 읽는다.
+    prediction = get_prediction(db, prediction_id, for_update=True)
     if prediction.status == "settled":
         raise HTTPException(status.HTTP_409_CONFLICT, "이미 정산된 명제입니다.")
     if not is_past(prediction.end_time):
@@ -160,7 +170,7 @@ def settle_prediction(
             status.HTTP_409_CONFLICT, "마감 시간 전에는 정산할 수 없습니다."
         )
 
-    bets = [b for b in _active_bets(db, prediction_id) if b.result == "pending"]
+    bets = db.query(PredictionBet).filter(*_pending_bets_filter(prediction_id)).all()
     total_pool = sum(b.amount for b in bets)
     winners = [b for b in bets if b.position == payload.result]
     losers = [b for b in bets if b.position != payload.result]
@@ -169,11 +179,15 @@ def settle_prediction(
     total_payout = 0
     refunded = winning_pool == 0
 
-    users = {b.user_id: db.get(User, b.user_id) for b in bets}
+    # 베팅자마다 한 번씩 조회하지 않고 한 쿼리로 가져온다.
+    user_ids = {b.user_id for b in bets}
+    users = (
+        {u.id: u for u in db.query(User).filter(User.id.in_(user_ids))} if user_ids else {}
+    )
 
     if refunded:
         for b in bets:
-            _pay(db, users[b.user_id], b, b.amount, "refunded", "refund",
+            _pay(db, users.get(b.user_id), b, b.amount, "refunded", "refund",
                  f"예측 정산 환불 #{prediction_id}")
             total_payout += b.amount
             notification_service.notify(
@@ -184,7 +198,7 @@ def settle_prediction(
     else:
         for b in winners:
             amount = b.amount * total_pool // winning_pool
-            _pay(db, users[b.user_id], b, amount, "won", "bet",
+            _pay(db, users.get(b.user_id), b, amount, "won", "bet",
                  f"예측 정산 배당 #{prediction_id}")
             total_payout += amount
             notification_service.notify(
@@ -243,11 +257,11 @@ def list_my_bets(db: Session, user_id: int) -> list[PredictionBet]:
 
 
 def cancel_bet(db: Session, bet_id: int, user: User) -> None:
-    bet = db.query(PredictionBet).filter(PredictionBet.id == bet_id).first()
-    if not bet:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "베팅을 찾을 수 없습니다.")
-    if bet.user_id != user.id:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "본인 베팅만 취소할 수 있습니다.")
+    # 본인 베팅만 조회(남의 베팅이면 404)하고, 동시 취소로 이중 환불되지 않게 행을 잠근다.
+    bet = get_or_404(
+        db, PredictionBet, bet_id, "베팅을 찾을 수 없습니다.",
+        PredictionBet.user_id == user.id, for_update=True,
+    )
     if bet.is_cancelled:
         raise HTTPException(status.HTTP_409_CONFLICT, "이미 취소된 베팅입니다.")
 

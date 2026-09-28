@@ -202,3 +202,41 @@ def test_blind_auction_finalizes_first_price(client, make_user, move_deadline):
     assert got["status"] == "closed"
     assert got["winner_id"] == b2["id"]
     assert got["final_price"] == 7000
+
+
+def test_status_filter_is_applied_before_pagination(client, make_user, move_deadline):
+    """마감 시간이 지난 상품이 한 페이지를 채워도 ongoing 필터가 진행중 상품을 돌려줘야 한다
+    (예전엔 LIMIT 후 파이썬에서 걸러 빈 페이지가 나왔다)."""
+    seller_h, _ = make_user()
+    live = _create_item(client, seller_h)
+    for _ in range(3):
+        ended = _create_item(client, seller_h)
+        move_deadline(ended["id"], -60)
+    got = client.get("/items", params={"status": "ongoing", "limit": 2}).json()
+    assert [i["id"] for i in got] == [live["id"]]
+    closed = client.get("/items", params={"status": "closed", "limit": 10}).json()
+    assert len(closed) == 3 and all(i["status"] == "closed" for i in closed)
+
+
+def test_bid_cannot_be_cancelled_after_auction_closed(client, make_user):
+    """즉시구매/조기마감 직후 입찰을 취소하면 낙찰된 상품의 현재가가 바뀌던 문제."""
+    seller_h, _ = make_user()
+    bidder_h, _ = make_user()
+    item = _create_item(client, seller_h)
+    bid = client.post(
+        f"/items/{item['id']}/bids", json={"amount": 2000}, headers=bidder_h
+    ).json()
+    assert client.post(f"/items/{item['id']}/close", headers=seller_h).status_code == 200
+
+    r = client.delete(f"/bids/{bid['id']}", headers=bidder_h)
+    assert r.status_code == 409
+    assert client.get(f"/items/{item['id']}").json()["current_price"] == 2000
+
+
+def test_list_items_by_ids(client, make_user):
+    seller_h, _ = make_user()
+    a = _create_item(client, seller_h)
+    _create_item(client, seller_h)
+    c = _create_item(client, seller_h)
+    got = client.get("/items", params=[("ids", a["id"]), ("ids", c["id"])]).json()
+    assert sorted(i["id"] for i in got) == sorted([a["id"], c["id"]])

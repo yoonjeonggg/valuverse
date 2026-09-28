@@ -21,6 +21,8 @@ class UserUpdateRequest(BaseModel):
     nickname: Optional[str] = Field(default=None, min_length=2, max_length=20)
     profile_image: Optional[str] = Field(default=None, max_length=500)
     password: Optional[str] = Field(default=None, min_length=8, max_length=64)
+    # 비밀번호를 바꿀 때만 필요
+    current_password: Optional[str] = Field(default=None, max_length=64)
 
 
 class UserResponse(ORMModel):
