@@ -5,11 +5,13 @@
 """
 
 from datetime import timedelta
+from typing import Callable
 
 from fastapi import HTTPException, status
-from sqlalchemy import func
+from sqlalchemy import exists, func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
+from sqlalchemy.sql.expression import Exists
 
 from app.core.config import settings
 from app.core.db_utils import get_or_404
@@ -59,6 +61,13 @@ def get_active_attendance_streak(db: Session, user_id: int) -> int:
     return _active_streak(_latest_attendance(db, user_id), now().date())
 
 
+def _check_in_reward(streak: int) -> int:
+    bonus_days = min(streak, settings.point_checkin_streak_cap)
+    return settings.point_checkin_base + settings.point_checkin_streak_bonus * (
+        bonus_days - 1
+    )
+
+
 def get_check_in_status(db: Session, user: User) -> dict:
     today = now().date()
     latest = _latest_attendance(db, user.id)
@@ -78,10 +87,7 @@ def check_in(db: Session, user: User) -> dict:
 
     streak = (latest.streak + 1) if latest and latest.check_date == _yesterday_str(today) else 1
 
-    bonus_days = min(streak, settings.point_checkin_streak_cap)
-    reward = settings.point_checkin_base + settings.point_checkin_streak_bonus * (
-        bonus_days - 1
-    )
+    reward = _check_in_reward(streak)
 
     db.add(
         Attendance(
@@ -96,80 +102,71 @@ def check_in(db: Session, user: User) -> dict:
         "streak": streak,
         "reward": reward,
         "balance": user.points,
+        "next_check_in_reward": _check_in_reward(streak + 1),
     }
 
 
 # ==================== 미션 ====================
-# key -> (보상, 설명, 달성 조건 검증 함수)
-def _did_bid(db: Session, user_id: int) -> bool:
-    return db.query(Bid.id).filter(Bid.bidder_id == user_id).first() is not None
-
-
-def _did_register_item(db: Session, user_id: int) -> bool:
-    return db.query(Item.id).filter(Item.seller_id == user_id).first() is not None
-
-
-def _did_review(db: Session, user_id: int) -> bool:
-    return (
-        db.query(Review.id)
-        .filter(Review.author_id == user_id, Review.is_deleted.is_(False))
-        .first()
-        is not None
-    )
-
-
-MISSIONS: dict[str, tuple[int, str]] = {
-    "first_bid": (50, "첫 입찰하기"),
-    "first_item": (50, "상품 처음 등록하기"),
-    "first_review": (30, "리뷰 처음 작성하기"),
-}
-
-_CHECKERS = {
-    "first_bid": _did_bid,
-    "first_item": _did_register_item,
-    "first_review": _did_review,
+# key -> (보상, 설명, 달성 조건). 조건은 EXISTS 식이라 목록 조회 시 모든 미션을
+# SELECT 한 번으로 확인할 수 있다 (미션 수만큼 쿼리를 날리지 않는다).
+MISSIONS: dict[str, tuple[int, str, Callable[[int], Exists]]] = {
+    "first_bid": (
+        50,
+        "첫 입찰하기",
+        lambda uid: exists().where(Bid.bidder_id == uid),
+    ),
+    "first_item": (
+        50,
+        "상품 처음 등록하기",
+        lambda uid: exists().where(Item.seller_id == uid),
+    ),
+    "first_review": (
+        30,
+        "리뷰 처음 작성하기",
+        lambda uid: exists().where(
+            Review.author_id == uid, Review.is_deleted.is_(False)
+        ),
+    ),
 }
 
 
 def list_missions(db: Session, user: User) -> list[dict]:
     claimed = {
-        c.mission_key
-        for c in db.query(MissionClaim).filter(MissionClaim.user_id == user.id)
-    }
-    out = []
-    for key, (reward, desc) in MISSIONS.items():
-        out.append(
-            {
-                "key": key,
-                "description": desc,
-                "reward": reward,
-                "achieved": _CHECKERS[key](db, user.id),
-                "claimed": key in claimed,
-            }
+        key
+        for (key,) in db.query(MissionClaim.mission_key).filter(
+            MissionClaim.user_id == user.id
         )
-    return out
+    }
+    achieved = db.query(*(cond(user.id) for _, _, cond in MISSIONS.values())).one()
+    return [
+        {
+            "key": key,
+            "description": desc,
+            "reward": reward,
+            "achieved": bool(done),
+            "claimed": key in claimed,
+        }
+        for (key, (reward, desc, _)), done in zip(MISSIONS.items(), achieved)
+    ]
 
 
 def _already_claimed(db: Session, user_id: int, key: str) -> bool:
-    return (
-        db.query(MissionClaim.id)
-        .filter(MissionClaim.user_id == user_id, MissionClaim.mission_key == key)
-        .first()
-        is not None
-    )
+    return db.query(
+        exists().where(MissionClaim.user_id == user_id, MissionClaim.mission_key == key)
+    ).scalar()
 
 
 def claim_mission(db: Session, user: User, key: str) -> dict:
     if key not in MISSIONS:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "존재하지 않는 미션입니다.")
+    reward, desc, cond = MISSIONS[key]
     if _already_claimed(db, user.id, key):
         raise HTTPException(status.HTTP_409_CONFLICT, "이미 보상을 받은 미션입니다.")
-    if not _CHECKERS[key](db, user.id):
+    if not db.query(cond(user.id)).scalar():
         raise HTTPException(status.HTTP_409_CONFLICT, "아직 달성하지 못한 미션입니다.")
 
-    reward = MISSIONS[key][0]
     db.add(MissionClaim(user_id=user.id, mission_key=key, reward=reward))
-    _grant(db, user, reward, "mission", f"미션 보상: {MISSIONS[key][1]}")
+    _grant(db, user, reward, "mission", f"미션 보상: {desc}")
     # 동시에 두 번 수령 요청이 오면 UNIQUE(user_id, mission_key) 위반 -> 409로 변환.
     _commit_or_conflict(db, "이미 보상을 받은 미션입니다.")
     return {"key": key, "reward": reward, "balance": user.points}
@@ -222,9 +219,8 @@ def list_my_coupons(db: Session, user_id: int, unused_only: bool = False) -> lis
 
 
 def use_coupon(db: Session, coupon_id: int, user_id: int) -> Coupon:
-    coupon = db.query(Coupon).filter(Coupon.id == coupon_id).first()
-    if not coupon:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "쿠폰을 찾을 수 없습니다.")
+    # 동시에 두 번 사용 요청이 오면 둘 다 is_used=False 를 보고 통과할 수 있으므로 잠그고 읽는다.
+    coupon = get_or_404(db, Coupon, coupon_id, "쿠폰을 찾을 수 없습니다.", for_update=True)
     if coupon.user_id != user_id:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "본인 쿠폰만 사용할 수 있습니다.")
     if coupon.is_used:
@@ -239,17 +235,24 @@ def use_coupon(db: Session, coupon_id: int, user_id: int) -> Coupon:
 
 
 # ==================== 광고 보상 ====================
-def ad_reward(db: Session, user: User) -> dict:
+def _ad_views_today(db: Session, user_id: int) -> int:
     today_start = now().replace(hour=0, minute=0, second=0, microsecond=0)
-    views_today = (
+    return (
         db.query(func.count(PointTransaction.id))
         .filter(
-            PointTransaction.user_id == user.id,
+            PointTransaction.user_id == user_id,
             PointTransaction.type == "ad",
             PointTransaction.created_at >= today_start,
         )
         .scalar()
     )
+
+
+def ad_reward(db: Session, user: User) -> dict:
+    # 동시 요청이 모두 "아직 한도 미만"으로 세고 통과하지 않도록, 세기 전에 사용자 행을 잠가
+    # 같은 사용자의 광고 보상 요청을 직렬화한다.
+    user = get_or_404(db, User, user.id, "사용자를 찾을 수 없습니다.", for_update=True)
+    views_today = _ad_views_today(db, user.id)
     if views_today >= settings.point_ad_daily_limit:
         raise HTTPException(
             status.HTTP_409_CONFLICT, "오늘 광고 보상 한도를 모두 사용했습니다."
@@ -263,4 +266,21 @@ def ad_reward(db: Session, user: User) -> dict:
         "views_today": views_today + 1,
         "daily_limit": settings.point_ad_daily_limit,
         "balance": user.points,
+    }
+
+
+# ==================== 포인트 센터 요약 ====================
+def get_points_summary(db: Session, user: User) -> dict:
+    """포인트 화면 첫 진입에 필요한 상태(잔액/출석/광고)를 한 번에 돌려준다."""
+    check_in_status = get_check_in_status(db, user)
+    streak = check_in_status["streak"]
+    return {
+        "balance": user.points,
+        **check_in_status,
+        "streak_cap": settings.point_checkin_streak_cap,
+        # 오늘 출석하면 받을 보상 (이미 출석했으면 내일 이어서 출석할 때의 보상)
+        "next_check_in_reward": _check_in_reward(streak + 1),
+        "ad_views_today": _ad_views_today(db, user.id),
+        "ad_daily_limit": settings.point_ad_daily_limit,
+        "ad_reward": settings.point_ad_reward,
     }

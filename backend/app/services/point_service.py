@@ -1,5 +1,7 @@
 from fastapi import HTTPException, status
+from sqlalchemy import update
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.attributes import set_committed_value
 
 from app.core.db_utils import get_or_404
 from app.models.point import PointTransaction
@@ -18,14 +20,26 @@ def apply_delta(
 
     잔액/권한 검증은 호출자 책임이며, 커밋도 호출자가 한다.
     (양수=적립, 음수=차감. `type` 예: attendance|mission|ad|bet|spend|refund|etc)
+
+    메모리의 user.points 에 더하지 않고 `UPDATE ... SET points = points + :amount
+    RETURNING points` 한 문장으로 DB 에서 원자적으로 증감한다. 요청 시작 시점에
+    로드해둔 stale 한 잔액에 더해 덮어쓰면, 그 사이 다른 요청이 커밋한 증감이
+    사라진다(lost update: 예) 출석 적립과 쿠폰 교환이 동시에 오면 차감이 무효화).
     """
-    user.points += amount
+    balance = db.execute(
+        update(User)
+        .where(User.id == user.id)
+        .values(points=User.points + amount)
+        .returning(User.points)
+        .execution_options(synchronize_session=False)
+    ).scalar_one()
+    set_committed_value(user, "points", balance)
     tx = PointTransaction(
         user_id=user.id,
         amount=amount,
         type=tx_type,
         memo=memo,
-        balance_after=user.points,
+        balance_after=balance,
     )
     db.add(tx)
     return tx

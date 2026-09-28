@@ -57,6 +57,9 @@ def test_check_in_streak_bonus(client, make_user):
     assert body["streak"] == 4
     expected = settings.point_checkin_base + settings.point_checkin_streak_bonus * 3
     assert body["reward"] == expected
+    assert body["next_check_in_reward"] == (
+        settings.point_checkin_base + settings.point_checkin_streak_bonus * 4
+    )
 
 
 def test_check_in_streak_resets_after_gap(client, make_user):
@@ -110,6 +113,25 @@ def test_missions_list_reports_achievement(client, make_user):
     keys = {m["key"] for m in missions}
     assert keys == {"first_bid", "first_item", "first_review"}
     assert all(m["achieved"] is False for m in missions)
+
+
+def test_missions_list_reflects_each_condition(client, make_user):
+    h, _ = make_user()
+    client.post(
+        "/items",
+        json={
+            "title": "x",
+            "start_price": 100,
+            "end_time": (now() + timedelta(days=1)).isoformat(),
+        },
+        headers=h,
+    )
+    client.post("/points/missions/first_item/claim", headers=h)
+    missions = {m["key"]: m for m in client.get("/points/missions", headers=h).json()}
+    assert missions["first_item"]["achieved"] is True
+    assert missions["first_item"]["claimed"] is True
+    assert missions["first_bid"]["achieved"] is False
+    assert missions["first_review"]["achieved"] is False
 
 
 def test_claim_mission_requires_achievement(client, make_user):
@@ -195,6 +217,63 @@ def test_ad_reward_daily_limit(client, make_user, get_points):
     r = client.post("/points/ad-reward", headers=h)
     assert r.status_code == 409
     assert get_points(h) == settings.point_ad_reward * settings.point_ad_daily_limit
+
+
+def test_check_in_does_not_overwrite_concurrent_spend(client, make_user, set_points):
+    """적립 시 메모리상 stale 잔액에 더해 덮어쓰면, 그 사이 다른 요청이 커밋한
+    차감이 사라진다(lost update). 적립은 DB 의 최신 잔액에 더해져야 한다."""
+    _, user = make_user()
+    set_points(user["id"], 500)
+
+    from app.services.economy_service import check_in
+
+    session = TestingSessionLocal()
+    stale_user = session.query(User).filter(User.id == user["id"]).one()
+    assert stale_user.points == 500
+
+    _spend_concurrently(user["id"], remaining_points=100)  # 다른 요청이 400P 사용
+
+    body = check_in(session, stale_user)
+    assert body["balance"] == 100 + settings.point_checkin_base
+    session.close()
+
+    check = TestingSessionLocal()
+    assert (
+        check.query(User.points).filter(User.id == user["id"]).scalar()
+        == 100 + settings.point_checkin_base
+    )
+    check.close()
+
+
+# ---------- 포인트 센터 요약 ----------
+def test_points_summary(client, make_user):
+    h, _ = make_user()
+    before = client.get("/users/me/points/summary", headers=h).json()
+    assert before == {
+        "balance": 0,
+        "checked_in_today": False,
+        "streak": 0,
+        "streak_cap": settings.point_checkin_streak_cap,
+        "next_check_in_reward": settings.point_checkin_base,
+        "ad_views_today": 0,
+        "ad_daily_limit": settings.point_ad_daily_limit,
+        "ad_reward": settings.point_ad_reward,
+    }
+
+    client.post("/points/check-in", headers=h)
+    client.post("/points/ad-reward", headers=h)
+    after = client.get("/users/me/points/summary", headers=h).json()
+    assert after["checked_in_today"] is True
+    assert after["streak"] == 1
+    assert after["next_check_in_reward"] == (
+        settings.point_checkin_base + settings.point_checkin_streak_bonus
+    )
+    assert after["ad_views_today"] == 1
+    assert after["balance"] == settings.point_checkin_base + settings.point_ad_reward
+
+
+def test_points_summary_requires_login(client):
+    assert client.get("/users/me/points/summary").status_code == 401
 
 
 # ---------- 상단 노출권 ----------

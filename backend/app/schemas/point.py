@@ -35,11 +35,24 @@ class CheckInResponse(BaseModel):
     streak: int
     reward: int
     balance: int
+    # 내일 이어서 출석할 때 받을 보상 (화면이 요약을 다시 불러오지 않아도 되도록)
+    next_check_in_reward: int
 
 
 class CheckInStatusResponse(BaseModel):
     checked_in_today: bool
     streak: int
+
+
+class PointsSummaryResponse(BaseModel):
+    balance: int
+    checked_in_today: bool
+    streak: int
+    streak_cap: int
+    next_check_in_reward: int
+    ad_views_today: int
+    ad_daily_limit: int
+    ad_reward: int
 
 
 class MissionStatus(BaseModel):

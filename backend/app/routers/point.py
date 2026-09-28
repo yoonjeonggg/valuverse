@@ -10,6 +10,7 @@ from app.schemas.point import (
     PointBalanceResponse,
     CheckInResponse,
     CheckInStatusResponse,
+    PointsSummaryResponse,
     MissionStatus,
     MissionClaimResponse,
     AdRewardResponse,
@@ -54,6 +55,14 @@ def get_my_point_balance(
     return PointBalanceResponse(
         user_id=user.id, balance=point_service.get_balance(db, user.id)
     )
+
+
+@router.get("/users/me/points/summary", response_model=PointsSummaryResponse)
+def get_my_points_summary(
+    db: Session = Depends(get_db), user: User = Depends(get_current_user)
+):
+    """포인트 센터 첫 화면용: 잔액 + 출석 상태 + 오늘 광고 시청 현황을 한 번에."""
+    return economy_service.get_points_summary(db, user)
 
 
 # ==================== 적립 (출석 / 미션 / 광고) ====================
