@@ -63,19 +63,30 @@ def create_transaction(
     if target.points + payload.amount < 0:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "보유 포인트가 부족합니다.")
 
-    tx = apply_delta(db, target, payload.amount, payload.type, payload.memo)
+    # 행위자(관리자) 기록 -- 누가 조정했는지 이력에서 추적할 수 있게 남긴다.
+    memo = f"[관리자 #{requester.id}] {payload.memo}"
+    tx = apply_delta(db, target, payload.amount, payload.type, memo)
     db.commit()
     db.refresh(tx)
     return tx
 
 
 def list_transactions(
-    db: Session, user_id: int, type_filter: str | None = None
+    db: Session,
+    user_id: int,
+    type_filter: str | None = None,
+    skip: int = 0,
+    limit: int = 50,
 ) -> list[PointTransaction]:
     q = db.query(PointTransaction).filter(PointTransaction.user_id == user_id)
     if type_filter:
         q = q.filter(PointTransaction.type == type_filter)
-    return q.order_by(PointTransaction.created_at.desc()).all()
+    return (
+        q.order_by(PointTransaction.created_at.desc(), PointTransaction.id.desc())
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
 
 
 def get_balance(db: Session, user_id: int) -> int:

@@ -85,7 +85,7 @@ def test_cannot_use_others_coupon(client, make_user, set_points):
     coupon = client.post("/points/coupons/fee_5/redeem", headers=h).json()
     assert client.post(
         f"/points/coupons/{coupon['id']}/use", headers=other_h
-    ).status_code == 403
+    ).status_code == 404  # 403 이면 남의 쿠폰 ID 가 존재한다는 사실이 드러난다
 
 
 def test_expired_coupon_cannot_be_used(client, make_user, set_points):

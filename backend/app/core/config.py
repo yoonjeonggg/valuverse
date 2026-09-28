@@ -35,6 +35,8 @@ class Settings(BaseSettings):
     point_checkin_streak_cap: int = 7     # 보너스가 붙는 최대 연속일수
     point_ad_reward: int = 5              # 광고 1회 시청 지급
     point_ad_daily_limit: int = 5         # 하루 광고 보상 횟수 상한
+    point_ad_min_interval_seconds: int = 30  # 광고 보상 사이 최소 간격 (광고 길이보다 빠른 스크립트 연타 차단)
+    point_admin_adjust_max: int = 1_000_000  # 관리자 수동 조정 1회 한도 (절댓값)
     spotlight_cost: int = 100             # 상단 노출권 가격
     spotlight_hours: int = 24             # 상단 노출 지속 시간
     coupon_valid_days: int = 30           # 교환한 쿠폰 유효기간(일)

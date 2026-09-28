@@ -41,11 +41,13 @@ def create_point_transaction(
     response_model=list[PointTransactionResponse],
 )
 def list_my_point_transactions(
-    type_filter: str | None = Query(default=None, alias="type"),
+    type_filter: str | None = Query(default=None, alias="type", max_length=30),
+    skip: int = Query(default=0, ge=0),
+    limit: int = Query(default=50, ge=1, le=200),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    return point_service.list_transactions(db, user.id, type_filter)
+    return point_service.list_transactions(db, user.id, type_filter, skip, limit)
 
 
 @router.get("/users/me/points/balance", response_model=PointBalanceResponse)

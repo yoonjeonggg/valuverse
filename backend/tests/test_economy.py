@@ -134,6 +134,35 @@ def test_missions_list_reflects_each_condition(client, make_user):
     assert missions["first_review"]["achieved"] is False
 
 
+def test_cancelled_bid_does_not_achieve_first_bid_mission(client, make_user):
+    """입찰 후 바로 취소하는 것만으로 미션 보상을 받을 수 없어야 한다."""
+    seller_h, _ = make_user()
+    bidder_h, _ = make_user()
+    item = client.post(
+        "/items",
+        json={
+            "title": "x",
+            "start_price": 100,
+            "end_time": (now() + timedelta(days=1)).isoformat(),
+        },
+        headers=seller_h,
+    ).json()
+    bid = client.post(
+        f"/items/{item['id']}/bids", json={"amount": 200}, headers=bidder_h
+    ).json()
+
+    session = TestingSessionLocal()
+    from app.models.auction import Bid
+
+    session.query(Bid).filter(Bid.id == bid["id"]).update({"is_cancelled": True})
+    session.commit()
+    session.close()
+
+    assert client.post(
+        "/points/missions/first_bid/claim", headers=bidder_h
+    ).status_code == 409
+
+
 def test_claim_mission_requires_achievement(client, make_user):
     h, _ = make_user()
     r = client.post("/points/missions/first_item/claim", headers=h)
@@ -209,7 +238,8 @@ def test_claim_mission_race_returns_conflict_not_500(client, make_user, monkeypa
 
 
 # ---------- 광고 ----------
-def test_ad_reward_daily_limit(client, make_user, get_points):
+def test_ad_reward_daily_limit(client, make_user, get_points, monkeypatch):
+    monkeypatch.setattr(settings, "point_ad_min_interval_seconds", 0)
     h, _ = make_user()
     for i in range(settings.point_ad_daily_limit):
         r = client.post("/points/ad-reward", headers=h)
@@ -245,6 +275,16 @@ def test_check_in_does_not_overwrite_concurrent_spend(client, make_user, set_poi
     check.close()
 
 
+def test_ad_reward_cooldown_blocks_rapid_calls(client, make_user, get_points):
+    """광고 시청은 서버가 검증할 수 없으므로 광고 길이보다 빠른 연속 호출은 429."""
+    h, _ = make_user()
+    assert client.post("/points/ad-reward", headers=h).status_code == 200
+    r = client.post("/points/ad-reward", headers=h)
+    assert r.status_code == 429
+    assert "Retry-After" in r.headers
+    assert get_points(h) == settings.point_ad_reward
+
+
 # ---------- 포인트 센터 요약 ----------
 def test_points_summary(client, make_user):
     h, _ = make_user()
@@ -258,6 +298,7 @@ def test_points_summary(client, make_user):
         "ad_views_today": 0,
         "ad_daily_limit": settings.point_ad_daily_limit,
         "ad_reward": settings.point_ad_reward,
+        "ad_next_available_at": None,
     }
 
     client.post("/points/check-in", headers=h)
@@ -269,6 +310,7 @@ def test_points_summary(client, make_user):
         settings.point_checkin_base + settings.point_checkin_streak_bonus
     )
     assert after["ad_views_today"] == 1
+    assert after["ad_next_available_at"] is not None  # 방금 받았으므로 쿨다운 중
     assert after["balance"] == settings.point_checkin_base + settings.point_ad_reward
 
 
@@ -394,3 +436,39 @@ def test_raw_point_transaction_allowed_for_admin(client, make_user, get_points):
     )
     assert r.status_code == 201, r.text
     assert r.json()["balance_after"] == 300
+    # 누가 조정했는지 이력에 남는다
+    assert r.json()["memo"].startswith("[관리자 #")
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"amount": 100, "type": "ad", "memo": "적립 유형 위조"},
+        {"amount": 100, "type": "attendance", "memo": "적립 유형 위조"},
+        {"amount": 0, "type": "admin", "memo": "0P"},
+        {"amount": settings.point_admin_adjust_max + 1, "type": "admin", "memo": "한도 초과"},
+        {"amount": 100, "type": "admin"},  # 사유 누락
+        {"amount": 100, "type": "admin", "memo": ""},
+    ],
+)
+def test_raw_point_transaction_rejects_invalid_admin_payload(client, make_user, payload):
+    admin_h, _ = make_user(admin=True)
+    _, target = make_user()
+    r = client.post(
+        "/point-transactions", json={"user_id": target["id"], **payload}, headers=admin_h
+    )
+    assert r.status_code == 422, r.text
+
+
+def test_point_transaction_history_is_paginated(client, make_user, monkeypatch):
+    monkeypatch.setattr(settings, "point_ad_min_interval_seconds", 0)
+    h, _ = make_user()
+    for _ in range(3):
+        client.post("/points/ad-reward", headers=h)
+    page = client.get("/users/me/point-transactions?limit=2", headers=h).json()
+    assert len(page) == 2
+    rest = client.get("/users/me/point-transactions?skip=2&limit=2", headers=h).json()
+    assert len(rest) == 1
+    assert client.get(
+        "/users/me/point-transactions?limit=1000", headers=h
+    ).status_code == 422

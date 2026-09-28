@@ -14,6 +14,7 @@ type Summary = {
   ad_views_today: number;
   ad_daily_limit: number;
   ad_reward: number;
+  ad_next_available_at: string | null;
 };
 
 type Mission = {
@@ -81,6 +82,23 @@ export default function PointsPage() {
       .catch(() => setCoupons([]));
   }, []);
 
+  // 광고 쿨다운 남은 초 (서버가 429 로 막기 전에 버튼을 미리 잠근다)
+  const adAvailableAt = summary?.ad_next_available_at
+    ? new Date(summary.ad_next_available_at).getTime()
+    : null;
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  useEffect(() => {
+    if (adAvailableAt === null) return;
+    const id = setInterval(() => {
+      const t = Date.now();
+      setNowMs(t);
+      if (t >= adAvailableAt) clearInterval(id);
+    }, 1000);
+    return () => clearInterval(id);
+  }, [adAvailableAt]);
+  const adCooldownSec =
+    adAvailableAt !== null && adAvailableAt > nowMs ? Math.ceil((adAvailableAt - nowMs) / 1000) : 0;
+
   const patchSummary = (patch: Partial<Summary>) =>
     setSummary((s) => (s ? { ...s, ...patch } : s));
 
@@ -111,14 +129,27 @@ export default function PointsPage() {
   };
 
   const adCall = useCall(() =>
-    api<{ views_today: number; daily_limit: number; balance: number }>("/points/ad-reward", {
+    api<{
+      views_today: number;
+      daily_limit: number;
+      balance: number;
+      next_available_at: string;
+    }>("/points/ad-reward", {
       method: "POST",
       auth: true,
     }),
   );
   const submitAd = async () => {
     const r = await adCall.run();
-    if (r) patchSummary({ balance: r.balance, ad_views_today: r.views_today, ad_daily_limit: r.daily_limit });
+    if (r) {
+      setNowMs(Date.now());
+      patchSummary({
+        balance: r.balance,
+        ad_views_today: r.views_today,
+        ad_daily_limit: r.daily_limit,
+        ad_next_available_at: r.next_available_at,
+      });
+    }
   };
 
   // 응답만으로 화면 상태를 갱신한다 (목록 전체를 다시 불러오지 않는다).
@@ -288,10 +319,16 @@ export default function PointsPage() {
             <button
               className="btn btn-primary btn-lg"
               onClick={submitAd}
-              disabled={!summary || adLimitReached || adCall.loading}
+              disabled={!summary || adLimitReached || adCooldownSec > 0 || adCall.loading}
             >
-              <Icon name="play" size={16} />
-              {adLimitReached ? "오늘 한도를 모두 채웠어요" : adCall.loading ? "처리 중…" : "광고 보고 포인트 받기"}
+              <Icon name={adCooldownSec > 0 ? "clock" : "play"} size={16} />
+              {adLimitReached
+                ? "오늘 한도를 모두 채웠어요"
+                : adCall.loading
+                  ? "처리 중…"
+                  : adCooldownSec > 0
+                    ? `${adCooldownSec}초 후 다시 받을 수 있어요`
+                    : "광고 보고 포인트 받기"}
             </button>
           </div>
           {adCall.error && <p className="notice notice--error">{adCall.error}</p>}

@@ -15,7 +15,7 @@ from sqlalchemy.sql.expression import Exists
 
 from app.core.config import settings
 from app.core.db_utils import get_or_404
-from app.core.timeutils import now, is_past
+from app.core.timeutils import aware, now, is_past
 from app.models.auction import Bid, Item
 from app.models.economy import Attendance, Coupon, MissionClaim
 from app.models.point import PointTransaction
@@ -113,12 +113,13 @@ MISSIONS: dict[str, tuple[int, str, Callable[[int], Exists]]] = {
     "first_bid": (
         50,
         "첫 입찰하기",
-        lambda uid: exists().where(Bid.bidder_id == uid),
+        # 입찰 후 취소해도 달성으로 치면 입찰-취소만으로 보상을 받을 수 있다.
+        lambda uid: exists().where(Bid.bidder_id == uid, Bid.is_cancelled.is_(False)),
     ),
     "first_item": (
         50,
         "상품 처음 등록하기",
-        lambda uid: exists().where(Item.seller_id == uid),
+        lambda uid: exists().where(Item.seller_id == uid, Item.is_deleted.is_(False)),
     ),
     "first_review": (
         30,
@@ -219,10 +220,13 @@ def list_my_coupons(db: Session, user_id: int, unused_only: bool = False) -> lis
 
 
 def use_coupon(db: Session, coupon_id: int, user_id: int) -> Coupon:
+    # 본인 쿠폰으로 범위를 좁혀 조회한다: 남의 쿠폰이면 403 대신 404 를 돌려줘 쿠폰 ID 존재
+    # 여부가 드러나지 않게 하고(열거 방지), 남의 행을 잠그지도 않는다.
     # 동시에 두 번 사용 요청이 오면 둘 다 is_used=False 를 보고 통과할 수 있으므로 잠그고 읽는다.
-    coupon = get_or_404(db, Coupon, coupon_id, "쿠폰을 찾을 수 없습니다.", for_update=True)
-    if coupon.user_id != user_id:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "본인 쿠폰만 사용할 수 있습니다.")
+    coupon = get_or_404(
+        db, Coupon, coupon_id, "쿠폰을 찾을 수 없습니다.",
+        Coupon.user_id == user_id, for_update=True,
+    )
     if coupon.is_used:
         raise HTTPException(status.HTTP_409_CONFLICT, "이미 사용한 쿠폰입니다.")
     if is_past(coupon.expires_at):
@@ -235,6 +239,23 @@ def use_coupon(db: Session, coupon_id: int, user_id: int) -> Coupon:
 
 
 # ==================== 광고 보상 ====================
+def _last_ad_reward_at(db: Session, user_id: int):
+    return (
+        db.query(func.max(PointTransaction.created_at))
+        .filter(PointTransaction.user_id == user_id, PointTransaction.type == "ad")
+        .scalar()
+    )
+
+
+def _ad_next_available_at(db: Session, user_id: int):
+    """쿨다운 중이면 다시 받을 수 있는 시각, 아니면 None."""
+    last = aware(_last_ad_reward_at(db, user_id))
+    if last is None:
+        return None
+    available_at = last + timedelta(seconds=settings.point_ad_min_interval_seconds)
+    return available_at if available_at > now() else None
+
+
 def _ad_views_today(db: Session, user_id: int) -> int:
     today_start = now().replace(hour=0, minute=0, second=0, microsecond=0)
     return (
@@ -257,6 +278,16 @@ def ad_reward(db: Session, user: User) -> dict:
         raise HTTPException(
             status.HTTP_409_CONFLICT, "오늘 광고 보상 한도를 모두 사용했습니다."
         )
+    # 광고 시청 여부를 서버가 검증할 수 없으므로, 최소한 광고 길이보다 빠른 연속 호출
+    # (스크립트 연타)은 막는다.
+    available_at = _ad_next_available_at(db, user.id)
+    if available_at is not None:
+        wait = int((available_at - now()).total_seconds()) + 1
+        raise HTTPException(
+            status.HTTP_429_TOO_MANY_REQUESTS,
+            f"광고 보상은 {wait}초 후에 다시 받을 수 있습니다.",
+            headers={"Retry-After": str(wait)},
+        )
 
     reward = settings.point_ad_reward
     _grant(db, user, reward, "ad", "리워드 광고 시청")
@@ -266,6 +297,8 @@ def ad_reward(db: Session, user: User) -> dict:
         "views_today": views_today + 1,
         "daily_limit": settings.point_ad_daily_limit,
         "balance": user.points,
+        "next_available_at": now()
+        + timedelta(seconds=settings.point_ad_min_interval_seconds),
     }
 
 
@@ -283,4 +316,5 @@ def get_points_summary(db: Session, user: User) -> dict:
         "ad_views_today": _ad_views_today(db, user.id),
         "ad_daily_limit": settings.point_ad_daily_limit,
         "ad_reward": settings.point_ad_reward,
+        "ad_next_available_at": _ad_next_available_at(db, user.id),
     }

@@ -1,17 +1,35 @@
 from datetime import datetime
-from typing import Optional
+from typing import Literal, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
+from app.core.config import settings
 from app.schemas.common import ORMModel
+
+
+# 관리자 수동 조정에 쓸 수 있는 유형. attendance/mission/ad 같은 적립 유형을 위조하면
+# 광고 일일 한도 집계와 감사 이력이 오염되므로 허용하지 않는다.
+AdminTxType = Literal["admin", "refund", "etc"]
 
 
 class PointTransactionCreate(BaseModel):
     # 대상 유저. 생략 시 요청자 본인.
     user_id: Optional[int] = None
-    amount: int = Field(description="양수=적립, 음수=차감")
-    type: str = Field(min_length=1, max_length=30)
-    memo: Optional[str] = Field(default=None, max_length=255)
+    amount: int = Field(
+        ge=-settings.point_admin_adjust_max,
+        le=settings.point_admin_adjust_max,
+        description="양수=적립, 음수=차감 (0 불가)",
+    )
+    type: AdminTxType = "admin"
+    # 감사 추적을 위해 조정 사유는 필수.
+    memo: str = Field(min_length=1, max_length=200)
+
+    @field_validator("amount")
+    @classmethod
+    def _non_zero(cls, v: int) -> int:
+        if v == 0:
+            raise ValueError("0 포인트는 조정할 수 없습니다.")
+        return v
 
 
 class PointTransactionResponse(ORMModel):
@@ -53,6 +71,7 @@ class PointsSummaryResponse(BaseModel):
     ad_views_today: int
     ad_daily_limit: int
     ad_reward: int
+    ad_next_available_at: Optional[datetime] = None
 
 
 class MissionStatus(BaseModel):
@@ -74,6 +93,7 @@ class AdRewardResponse(BaseModel):
     views_today: int
     daily_limit: int
     balance: int
+    next_available_at: datetime
 
 
 class SpotlightResponse(BaseModel):
