@@ -2,7 +2,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
-from app.core.db_utils import get_or_404
+from app.core.db_utils import apply_patch, get_or_404
 from app.models.auction import Item
 from app.models.skill import SkillItem, SkillBooking, Escrow
 from app.models.user import User
@@ -14,8 +14,7 @@ from app.schemas.skill import (
     EscrowCreate,
     EscrowUpdate,
 )
-from app.services import notification_service
-from app.services.point_service import apply_delta as _move_points
+from app.services import notification_service, point_service
 
 
 def _settle_escrow(db: Session, escrow: Escrow) -> None:
@@ -25,7 +24,9 @@ def _settle_escrow(db: Session, escrow: Escrow) -> None:
             status.HTTP_409_CONFLICT, "보관중 상태의 에스크로만 정산할 수 있습니다."
         )
     payee = db.get(User, escrow.payee_id)
-    _move_points(db, payee, escrow.amount, "etc", f"스킬 거래 정산 (에스크로 #{escrow.id})")
+    point_service.apply_delta(
+        db, payee, escrow.amount, "etc", f"스킬 거래 정산 (에스크로 #{escrow.id})"
+    )
     escrow.status = "settled"
 
 
@@ -36,7 +37,9 @@ def _refund_escrow(db: Session, escrow: Escrow) -> None:
             status.HTTP_409_CONFLICT, "보관중 상태의 에스크로만 환불할 수 있습니다."
         )
     payer = db.get(User, escrow.payer_id)
-    _move_points(db, payer, escrow.amount, "refund", f"스킬 거래 환불 (에스크로 #{escrow.id})")
+    point_service.apply_delta(
+        db, payer, escrow.amount, "refund", f"스킬 거래 환불 (에스크로 #{escrow.id})"
+    )
     escrow.status = "refunded"
 
 
@@ -82,8 +85,7 @@ def update_skill_item(
         raise HTTPException(status.HTTP_403_FORBIDDEN, "본인 상품만 수정할 수 있습니다.")
     if item.status != "recruiting":
         raise HTTPException(status.HTTP_409_CONFLICT, "낙찰 후에는 수정할 수 없습니다.")
-    for field, value in payload.model_dump(exclude_unset=True).items():
-        setattr(item, field, value)
+    apply_patch(item, payload)
     db.commit()
     db.refresh(item)
     return item
@@ -151,18 +153,13 @@ def accept_booking(db: Session, booking_id: int, user: User) -> SkillBooking:
     if booking.status != "pending":
         raise HTTPException(status.HTTP_409_CONFLICT, "수락 대기중인 예약이 아닙니다.")
 
-    # 동시에 여러 번 결제 요청이 오면 잔액을 초과해 차감할 수 있으므로 잠그고 다시 읽는다.
-    buyer = get_or_404(db, User, user.id, "사용자를 찾을 수 없습니다.", for_update=True)
-    if buyer.points < booking.amount:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "보유 포인트가 부족합니다.")
-
-    _move_points(
-        db, buyer, -booking.amount, "spend", f"스킬 낙찰 보관 #{booking.skill_item_id}"
+    point_service.spend(
+        db, user.id, booking.amount, "spend", f"스킬 낙찰 보관 #{booking.skill_item_id}"
     )
     db.add(
         Escrow(
             booking_id=booking.id,
-            payer_id=buyer.id,
+            payer_id=user.id,
             payee_id=booking.seller_id,
             amount=booking.amount,
             status="holding",
@@ -302,7 +299,6 @@ def update_booking(
     return booking
 
 
-
 def cancel_booking(db: Session, booking_id: int, user: User) -> None:
     """예약 취소(요청 거절 포함). 수락 전이면 상품을 다시 모집중으로, 수락 후면 환불하고 종료."""
     booking = _lock_booking(db, booking_id, user)
@@ -337,13 +333,8 @@ def create_escrow(db: Session, payer: User, payload: EscrowCreate) -> Escrow:
         )
     if payload.payee_id == payer.id:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "본인에게 보낼 수 없습니다.")
-    # 동시에 여러 번 결제 요청이 오면 잔액을 초과해 차감할 수 있으므로 잠그고 다시 읽는다.
-    payer = get_or_404(db, User, payer.id, "사용자를 찾을 수 없습니다.", for_update=True)
-    if payer.points < payload.amount:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "보유 포인트가 부족합니다.")
-
     # 결제자 포인트를 차감해 보관한다. 정산/환불 시 이동한다.
-    _move_points(db, payer, -payload.amount, "spend", "에스크로 보관")
+    point_service.spend(db, payer.id, payload.amount, "spend", "에스크로 보관")
     escrow = Escrow(
         item_id=item.id,
         payer_id=payer.id,

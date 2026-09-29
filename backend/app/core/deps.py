@@ -1,3 +1,5 @@
+from typing import Annotated
+
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
@@ -47,3 +49,9 @@ def get_current_admin(current_user: User = Depends(get_current_user)) -> User:
             detail="관리자 권한이 필요합니다.",
         )
     return current_user
+
+
+# 라우터 시그니처용 별칭. `db: DbSession, user: CurrentUser` 처럼 쓴다.
+DbSession = Annotated[Session, Depends(get_db)]
+CurrentUser = Annotated[User, Depends(get_current_user)]
+CurrentAdmin = Annotated[User, Depends(get_current_admin)]

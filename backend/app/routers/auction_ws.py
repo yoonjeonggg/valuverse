@@ -2,12 +2,12 @@
 
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
 from sqlalchemy.orm import Session
 from starlette.concurrency import run_in_threadpool
 
-from app.core.deps import lookup_user_by_token
-from app.database import get_db
+from app.core.deps import DbSession, lookup_user_by_token
+from app.core.timeutils import iso
 from app.models.user import User
 from app.schemas.auction import BidCreate
 from app.services import auction_service
@@ -24,7 +24,7 @@ def _snapshot(item) -> dict:
         "title": item.title,
         "current_price": item.current_price,
         "status": item.status,
-        "end_time": item.end_time.isoformat() if item.end_time else None,
+        "end_time": iso(item.end_time),
         "extended_count": item.extended_count,
         "auction_type": item.auction_type,
     }
@@ -36,9 +36,7 @@ def _user_from_token(db: Session, token: str | None) -> User | None:
 
 
 @router.websocket("/items/{item_id}/bid")
-async def auction_bid_ws(
-    websocket: WebSocket, item_id: int, db: Session = Depends(get_db)
-):
+async def auction_bid_ws(websocket: WebSocket, item_id: int, db: DbSession):
     await manager.connect(item_id, websocket)
     try:
         try:

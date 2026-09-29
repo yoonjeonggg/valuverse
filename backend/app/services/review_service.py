@@ -2,7 +2,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.core.db_utils import get_or_404
+from app.core.db_utils import apply_patch, get_or_404
 from app.core.timeutils import now, aware
 from app.models.auction import Item
 from app.models.review import Review
@@ -25,10 +25,6 @@ def _assert_traded(
                 status.HTTP_409_CONFLICT, "낙찰이 완료된 거래에만 리뷰를 남길 수 있습니다."
             )
         parties = {item.seller_id, item.winner_id}
-        if author_id not in parties or target_id not in parties:
-            raise HTTPException(
-                status.HTTP_403_FORBIDDEN, "해당 거래의 당사자만 리뷰를 남길 수 있습니다."
-            )
         dup_col = Review.item_id == payload.item_id
     else:
         booking = (
@@ -44,11 +40,12 @@ def _assert_traded(
                 status.HTTP_409_CONFLICT, "완료된 스킬 거래에만 리뷰를 남길 수 있습니다."
             )
         parties = {booking.seller_id, booking.buyer_id}
-        if author_id not in parties or target_id not in parties:
-            raise HTTPException(
-                status.HTTP_403_FORBIDDEN, "해당 거래의 당사자만 리뷰를 남길 수 있습니다."
-            )
         dup_col = Review.skill_item_id == payload.skill_item_id
+
+    if author_id not in parties or target_id not in parties:
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN, "해당 거래의 당사자만 리뷰를 남길 수 있습니다."
+        )
 
     dup = (
         db.query(Review.id)
@@ -68,7 +65,7 @@ def recalc_rating(db: Session, target_user_id: int) -> None:
         )
         .scalar()
     )
-    user = db.query(User).filter(User.id == target_user_id).first()
+    user = db.get(User, target_user_id)
     if user:
         user.rating = round(float(avg), 2) if avg is not None else 0.0
 
@@ -131,8 +128,7 @@ def update_review(
             status.HTTP_409_CONFLICT,
             f"작성 후 {EDIT_WINDOW_DAYS}일이 지나 수정할 수 없습니다.",
         )
-    for field, value in payload.model_dump(exclude_unset=True).items():
-        setattr(review, field, value)
+    apply_patch(review, payload)
     db.flush()
     recalc_rating(db, review.target_user_id)
     db.commit()

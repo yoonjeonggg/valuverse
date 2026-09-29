@@ -20,7 +20,7 @@ from app.models.economy import Attendance, Coupon, MissionClaim
 from app.models.point import PointTransaction
 from app.models.review import Review
 from app.models.user import User
-from app.services.point_service import apply_delta as _grant
+from app.services import point_service
 
 
 # ==================== 출석 체크 ====================
@@ -84,7 +84,7 @@ def check_in(db: Session, user: User) -> dict:
             user_id=user.id, check_date=today_str, streak=streak, reward=reward
         )
     )
-    _grant(db, user, reward, "attendance", f"출석 체크 ({streak}일 연속)")
+    point_service.apply_delta(db, user, reward, "attendance", f"출석 체크 ({streak}일 연속)")
     # 동시에 두 번 출석 요청이 오면 UNIQUE(user_id, check_date) 위반 -> 409로 변환.
     commit_or_conflict(db, "오늘은 이미 출석했습니다.")
     return {
@@ -157,7 +157,7 @@ def claim_mission(db: Session, user: User, key: str) -> dict:
         raise HTTPException(status.HTTP_409_CONFLICT, "아직 달성하지 못한 미션입니다.")
 
     db.add(MissionClaim(user_id=user.id, mission_key=key, reward=reward))
-    _grant(db, user, reward, "mission", f"미션 보상: {desc}")
+    point_service.apply_delta(db, user, reward, "mission", f"미션 보상: {desc}")
     # 동시에 두 번 수령 요청이 오면 UNIQUE(user_id, mission_key) 위반 -> 409로 변환.
     commit_or_conflict(db, "이미 보상을 받은 미션입니다.")
     return {"key": key, "reward": reward, "balance": user.points}
@@ -183,12 +183,7 @@ def redeem_coupon(db: Session, user: User, key: str) -> Coupon:
     if key not in COUPON_CATALOG:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "존재하지 않는 쿠폰입니다.")
     cost, discount, desc = COUPON_CATALOG[key]
-    # 동시에 여러 번 교환 요청이 오면 잔액을 초과해 차감할 수 있으므로 잠그고 다시 읽는다.
-    user = get_or_404(db, User, user.id, "사용자를 찾을 수 없습니다.", for_update=True)
-    if user.points < cost:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "보유 포인트가 부족합니다.")
-
-    _grant(db, user, -cost, "spend", f"쿠폰 교환: {desc}")
+    point_service.spend(db, user.id, cost, "spend", f"쿠폰 교환: {desc}")
     coupon = Coupon(
         user_id=user.id,
         catalog_key=key,
@@ -262,7 +257,7 @@ def _ad_views_today(db: Session, user_id: int) -> int:
 def ad_reward(db: Session, user: User) -> dict:
     # 동시 요청이 모두 "아직 한도 미만"으로 세고 통과하지 않도록, 세기 전에 사용자 행을 잠가
     # 같은 사용자의 광고 보상 요청을 직렬화한다.
-    user = get_or_404(db, User, user.id, "사용자를 찾을 수 없습니다.", for_update=True)
+    user = point_service.lock_user(db, user.id)
     views_today = _ad_views_today(db, user.id)
     if views_today >= settings.point_ad_daily_limit:
         raise HTTPException(
@@ -280,7 +275,7 @@ def ad_reward(db: Session, user: User) -> dict:
         )
 
     reward = settings.point_ad_reward
-    _grant(db, user, reward, "ad", "리워드 광고 시청")
+    point_service.apply_delta(db, user, reward, "ad", "리워드 광고 시청")
     db.commit()
     return {
         "reward": reward,

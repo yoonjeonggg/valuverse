@@ -45,6 +45,24 @@ def apply_delta(
     return tx
 
 
+def lock_user(db: Session, user_id: int) -> User:
+    """사용자 행을 잠그고 최신 잔액으로 다시 읽는다. 같은 사용자의 확인-후-처리 요청을 직렬화한다."""
+    return get_or_404(db, User, user_id, "사용자를 찾을 수 없습니다.", for_update=True)
+
+
+def spend(db: Session, user_id: int, amount: int, tx_type: str, memo: str) -> User:
+    """잔액을 확인하고 `amount` 만큼 차감한다. 커밋은 호출자가 한다.
+
+    동시에 여러 번 결제 요청이 오면 둘 다 잔액 확인을 통과해 잔액을 초과해 차감할 수
+    있으므로, 사용자 행을 잠그고 다시 읽은 뒤 확인한다.
+    """
+    user = lock_user(db, user_id)
+    if user.points < amount:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "보유 포인트가 부족합니다.")
+    apply_delta(db, user, -amount, tx_type, memo)
+    return user
+
+
 def create_transaction(
     db: Session, requester: User, payload: PointTransactionCreate
 ) -> PointTransaction:

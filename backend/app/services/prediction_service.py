@@ -2,7 +2,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.core.db_utils import get_or_404
+from app.core.db_utils import apply_patch, get_or_404
 from app.core.timeutils import is_past
 from app.models.prediction import Prediction, PredictionBet
 from app.models.user import User
@@ -12,8 +12,7 @@ from app.schemas.prediction import (
     PredictionBetCreate,
     PredictionSettleRequest,
 )
-from app.services import notification_service
-from app.services.point_service import apply_delta
+from app.services import notification_service, point_service
 
 
 def _pending_bets_filter(prediction_id: int) -> tuple:
@@ -73,8 +72,7 @@ def update_prediction(
                 status.HTTP_409_CONFLICT,
                 "마감된 명제는 상태/결과만 변경할 수 있습니다.",
             )
-    for field, value in data.items():
-        setattr(prediction, field, value)
+    apply_patch(prediction, payload)
     db.commit()
     db.refresh(prediction)
     return prediction
@@ -105,11 +103,9 @@ def create_bet(
     prediction = get_prediction(db, prediction_id)
     if prediction.status != "ongoing" or is_past(prediction.end_time):
         raise HTTPException(status.HTTP_409_CONFLICT, "마감된 명제입니다.")
-    # 동시에 여러 번 베팅 요청이 오면 잔액을 초과해 차감할 수 있으므로 잠그고 다시 읽는다.
-    user = get_or_404(db, User, user.id, "사용자를 찾을 수 없습니다.", for_update=True)
-    if user.points < payload.amount:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "보유 포인트가 부족합니다.")
-
+    point_service.spend(
+        db, user.id, payload.amount, "bet", f"예측 베팅 #{prediction_id}"
+    )
     bet = PredictionBet(
         prediction_id=prediction_id,
         user_id=user.id,
@@ -118,7 +114,6 @@ def create_bet(
         result="pending",
     )
     db.add(bet)
-    apply_delta(db, user, -payload.amount, "bet", f"예측 베팅 #{prediction_id}")
     db.commit()
     db.refresh(bet)
     return bet
@@ -244,7 +239,7 @@ def _pay(
     bet.payout = amount
     if amount <= 0 or user is None:
         return
-    apply_delta(db, user, amount, tx_type, memo)
+    point_service.apply_delta(db, user, amount, tx_type, memo)
 
 
 def list_my_bets(db: Session, user_id: int) -> list[PredictionBet]:
@@ -271,7 +266,7 @@ def cancel_bet(db: Session, bet_id: int, user: User) -> None:
 
     bet.is_cancelled = True
     bet.result = "refunded"
-    apply_delta(
+    point_service.apply_delta(
         db, user, bet.amount, "refund", f"예측 베팅 취소 #{bet.prediction_id}"
     )
     db.commit()

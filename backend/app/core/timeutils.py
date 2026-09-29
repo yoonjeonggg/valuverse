@@ -15,3 +15,7 @@ def aware(dt: datetime | None) -> datetime | None:
 def is_past(dt: datetime | None) -> bool:
     a = aware(dt)
     return a is not None and a <= now()
+
+
+def iso(dt: datetime | None) -> str | None:
+    return dt.isoformat() if dt else None

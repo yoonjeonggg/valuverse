@@ -1,9 +1,6 @@
-from fastapi import APIRouter, Depends, Query, status
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, Query, status
 
-from app.core.deps import get_current_user, get_current_admin
-from app.database import get_db
-from app.models.user import User
+from app.core.deps import DbSession, CurrentUser, CurrentAdmin
 from app.schemas.prediction import (
     PredictionCreate,
     PredictionUpdate,
@@ -24,29 +21,25 @@ bet_router = APIRouter(tags=["Prediction Bet"])
 @prediction_router.post(
     "", response_model=PredictionResponse, status_code=status.HTTP_201_CREATED
 )
-def create_prediction(
-    payload: PredictionCreate,
-    db: Session = Depends(get_db),
-    admin: User = Depends(get_current_admin),
-):
+def create_prediction(payload: PredictionCreate, db: DbSession, admin: CurrentAdmin):
     return prediction_service.create_prediction(db, admin, payload)
 
 
 @prediction_router.get("", response_model=list[PredictionResponse])
 def list_predictions(
+    db: DbSession,
     status_filter: str | None = Query(default=None, alias="status"),
-    db: Session = Depends(get_db),
 ):
     return prediction_service.list_predictions(db, status_filter)
 
 
 @prediction_router.get("/{prediction_id}", response_model=PredictionResponse)
-def get_prediction(prediction_id: int, db: Session = Depends(get_db)):
+def get_prediction(prediction_id: int, db: DbSession):
     return prediction_service.get_prediction(db, prediction_id)
 
 
 @prediction_router.get("/{prediction_id}/odds", response_model=PredictionOddsResponse)
-def get_odds(prediction_id: int, db: Session = Depends(get_db)):
+def get_odds(prediction_id: int, db: DbSession):
     return prediction_service.get_odds(db, prediction_id)
 
 
@@ -56,8 +49,8 @@ def get_odds(prediction_id: int, db: Session = Depends(get_db)):
 def settle_prediction(
     prediction_id: int,
     payload: PredictionSettleRequest,
-    db: Session = Depends(get_db),
-    admin: User = Depends(get_current_admin),
+    db: DbSession,
+    admin: CurrentAdmin,
 ):
     return prediction_service.settle_prediction(db, prediction_id, payload)
 
@@ -66,8 +59,8 @@ def settle_prediction(
 def update_prediction(
     prediction_id: int,
     payload: PredictionUpdate,
-    db: Session = Depends(get_db),
-    admin: User = Depends(get_current_admin),
+    db: DbSession,
+    admin: CurrentAdmin,
 ):
     return prediction_service.update_prediction(db, prediction_id, payload)
 
@@ -75,11 +68,7 @@ def update_prediction(
 @prediction_router.delete(
     "/{prediction_id}", status_code=status.HTTP_204_NO_CONTENT
 )
-def delete_prediction(
-    prediction_id: int,
-    db: Session = Depends(get_db),
-    admin: User = Depends(get_current_admin),
-):
+def delete_prediction(prediction_id: int, db: DbSession, admin: CurrentAdmin):
     prediction_service.delete_prediction(db, prediction_id)
 
 
@@ -93,8 +82,8 @@ def delete_prediction(
 def create_bet(
     prediction_id: int,
     payload: PredictionBetCreate,
-    db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
+    db: DbSession,
+    user: CurrentUser,
 ):
     return prediction_service.create_bet(db, prediction_id, user, payload)
 
@@ -104,9 +93,7 @@ def create_bet(
     response_model=list[PredictionBetResponse],
     tags=["Prediction Bet"],
 )
-def list_my_bets(
-    db: Session = Depends(get_db), user: User = Depends(get_current_user)
-):
+def list_my_bets(db: DbSession, user: CurrentUser):
     return prediction_service.list_my_bets(db, user.id)
 
 
@@ -115,9 +102,5 @@ def list_my_bets(
     status_code=status.HTTP_204_NO_CONTENT,
     tags=["Prediction Bet"],
 )
-def cancel_bet(
-    bet_id: int,
-    db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
-):
+def cancel_bet(bet_id: int, db: DbSession, user: CurrentUser):
     prediction_service.cancel_bet(db, bet_id, user)

@@ -1,4 +1,5 @@
 from fastapi import HTTPException, status
+from pydantic import BaseModel
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -25,3 +26,9 @@ def commit_or_conflict(db: Session, message: str) -> None:
     except IntegrityError:
         db.rollback()
         raise HTTPException(status.HTTP_409_CONFLICT, message)
+
+
+def apply_patch(obj, payload: BaseModel) -> None:
+    """PATCH 요청에서 클라이언트가 보낸 필드만 모델에 반영한다."""
+    for field, value in payload.model_dump(exclude_unset=True).items():
+        setattr(obj, field, value)

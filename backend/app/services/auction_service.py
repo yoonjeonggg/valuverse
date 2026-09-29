@@ -5,8 +5,8 @@ from sqlalchemy import case, or_
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.core.db_utils import get_or_404
-from app.core.timeutils import now, aware, is_past
+from app.core.db_utils import apply_patch, get_or_404
+from app.core.timeutils import now, aware, is_past, iso
 from app.models.auction import Item, Bid, BlindBid
 from app.models.user import User
 from app.services import notification_service, point_service
@@ -17,10 +17,6 @@ from app.schemas.auction import (
     BidCreate,
     BlindBidCreate,
 )
-
-
-def _iso(dt) -> str | None:
-    return dt.isoformat() if dt else None
 
 
 def _broadcast_closed(item: Item, **extra) -> None:
@@ -164,20 +160,15 @@ def buy_spotlight(db: Session, item_id: int, user: User) -> Item:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "본인 상품만 노출할 수 있습니다.")
     if item.status != "ongoing":
         raise HTTPException(status.HTTP_409_CONFLICT, "진행중인 경매만 노출할 수 있습니다.")
-    # 동시에 여러 번 구매 요청이 오면 잔액을 초과해 차감할 수 있으므로 잠그고 다시 읽는다.
-    user = get_or_404(db, User, user.id, "사용자를 찾을 수 없습니다.", for_update=True)
-    if user.points < settings.spotlight_cost:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "보유 포인트가 부족합니다.")
+    point_service.spend(
+        db, user.id, settings.spotlight_cost, "spend", f"상단 노출권 구매 #{item.id}"
+    )
 
     base = now()
     current = aware(item.spotlight_until)
     if current and current > base:
         base = current  # 남은 시간에 이어붙인다
     item.spotlight_until = base + timedelta(hours=settings.spotlight_hours)
-
-    point_service.apply_delta(
-        db, user, -settings.spotlight_cost, "spend", f"상단 노출권 구매 #{item.id}"
-    )
     db.commit()
     db.refresh(item)
     return item
@@ -207,8 +198,7 @@ def update_item(db: Session, item_id: int, user_id: int, payload: ItemUpdate) ->
         raise HTTPException(
             status.HTTP_409_CONFLICT, "입찰이 시작된 상품은 수정할 수 없습니다."
         )
-    for field, value in payload.model_dump(exclude_unset=True).items():
-        setattr(item, field, value)
+    apply_patch(item, payload)
     db.commit()
     db.refresh(item)
     return item
@@ -331,7 +321,7 @@ def create_bid(db: Session, item_id: int, bidder_id: int, payload: BidCreate) ->
             "bidder_id": bidder_id,
             "amount": bid.amount,
             "current_price": item.current_price,
-            "end_time": _iso(item.end_time),
+            "end_time": iso(item.end_time),
             "extended_count": item.extended_count,
         },
     )
