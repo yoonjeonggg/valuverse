@@ -1,26 +1,18 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { api } from "../lib/api";
+import { AuctionCard } from "../lib/cards";
 import { toIso } from "../lib/format";
-import { Card, PageHeader, useCall } from "../lib/ui";
-
-type ItemRow = {
-  id: number;
-  title: string;
-  category: string | null;
-  current_price: number;
-  auction_type: string;
-  status: string;
-};
+import type { Item } from "../lib/types";
+import { Card, ErrorText, Field, PageHeader, SelectField, useCall } from "../lib/ui";
 
 export default function ItemsPage() {
-  const [feed, setFeed] = useState<ItemRow[] | null>(null);
+  const [feed, setFeed] = useState<Item[] | null>(null);
   const [statusFilter, setStatusFilter] = useState("ongoing");
 
   const loadFeed = (status: string) =>
-    api<ItemRow[]>("/items", { query: { status } })
+    api<Item[]>("/items", { query: { status } })
       .then(setFeed)
       .catch(() => setFeed([]));
 
@@ -105,27 +97,15 @@ export default function ItemsPage() {
         ) : (
           <div className="item-grid">
             {feed.map((it) => (
-              <Link key={it.id} href={`/items/${it.id}`} className="item-card">
-                <span className="cat">
-                  {it.auction_type === "blind" ? "블라인드" : "일반"} · {it.category || "미분류"}
-                </span>
-                <span className="ttl">{it.title}</span>
-                <span className="price">{it.current_price.toLocaleString()}원</span>
-              </Link>
+              <AuctionCard key={it.id} item={it} />
             ))}
           </div>
         )}
       </Card>
 
       <Card title="상품 등록">
-        <div className="field">
-          <span>제목</span>
-          <input value={title} onChange={(e) => setTitle(e.target.value)} />
-        </div>
-        <div className="field">
-          <span>설명</span>
-          <input value={description} onChange={(e) => setDescription(e.target.value)} />
-        </div>
+        <Field label="제목" value={title} onChange={(e) => setTitle(e.target.value)} />
+        <Field label="설명" value={description} onChange={(e) => setDescription(e.target.value)} />
         <div className="actions">
           <button
             className="btn-sm"
@@ -155,46 +135,50 @@ export default function ItemsPage() {
             )}
           </div>
         )}
-        <div className="field">
-          <span>카테고리</span>
-          <input value={createCategory} onChange={(e) => setCreateCategory(e.target.value)} />
-        </div>
-        <div className="field">
-          <span>이미지 URL</span>
-          <input value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} />
-        </div>
-        <div className="field">
-          <span>시작가</span>
-          <input type="number" value={startPrice} onChange={(e) => setStartPrice(e.target.value)} />
-        </div>
-        <div className="field">
-          <span>즉시구매가 (선택)</span>
-          <input
-            type="number"
-            value={buyNowPrice}
-            onChange={(e) => setBuyNowPrice(e.target.value)}
-          />
-        </div>
-        <div className="field">
-          <span>경매 방식</span>
-          <select value={auctionType} onChange={(e) => setAuctionType(e.target.value)}>
-            <option value="general">일반 (공개 실시간)</option>
-            <option value="blind">블라인드 (밀봉)</option>
-          </select>
-        </div>
+        <Field
+          label="카테고리"
+          value={createCategory}
+          onChange={(e) => setCreateCategory(e.target.value)}
+        />
+        <Field label="이미지 URL" value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} />
+        <Field
+          label="시작가"
+          type="number"
+          value={startPrice}
+          onChange={(e) => setStartPrice(e.target.value)}
+        />
+        <Field
+          label="즉시구매가 (선택)"
+          type="number"
+          value={buyNowPrice}
+          onChange={(e) => setBuyNowPrice(e.target.value)}
+        />
+        <SelectField
+          label="경매 방식"
+          value={auctionType}
+          onChange={(e) => setAuctionType(e.target.value)}
+          options={[
+            ["general", "일반 (공개 실시간)"],
+            ["blind", "블라인드 (밀봉)"],
+          ]}
+        />
         {auctionType === "blind" && (
-          <div className="field">
-            <span>블라인드 낙찰 규칙</span>
-            <select value={blindPriceRule} onChange={(e) => setBlindPriceRule(e.target.value)}>
-              <option value="first">1st-price</option>
-              <option value="second">Vickrey (2nd-price)</option>
-            </select>
-          </div>
+          <SelectField
+            label="블라인드 낙찰 규칙"
+            value={blindPriceRule}
+            onChange={(e) => setBlindPriceRule(e.target.value)}
+            options={[
+              ["first", "1st-price"],
+              ["second", "Vickrey (2nd-price)"],
+            ]}
+          />
         )}
-        <div className="field">
-          <span>마감 시간</span>
-          <input type="datetime-local" value={endTime} onChange={(e) => setEndTime(e.target.value)} />
-        </div>
+        <Field
+          label="마감 시간"
+          type="datetime-local"
+          value={endTime}
+          onChange={(e) => setEndTime(e.target.value)}
+        />
         <div className="actions">
           <button
             className="btn btn-primary"
@@ -204,7 +188,7 @@ export default function ItemsPage() {
             등록
           </button>
         </div>
-        {create.error && <p className="hint hint--error">{create.error}</p>}
+        <ErrorText error={create.error} />
       </Card>
     </div>
   );

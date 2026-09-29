@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { api } from "../lib/api";
-import { Card, PageHeader, useCall } from "../lib/ui";
+import { Card, ErrorText, Field, PageHeader, SelectField, useCall } from "../lib/ui";
 
 const TARGET_TYPES: [string, string][] = [
   ["item", "일반/블라인드 상품"],
@@ -39,29 +39,25 @@ export default function ReportsPage() {
       </PageHeader>
 
       <Card title="신고 접수">
-        <div className="field">
-          <span>대상 종류</span>
-          <select value={targetType} onChange={(e) => setTargetType(e.target.value)}>
-            {TARGET_TYPES.map(([v, label]) => (
-              <option key={v} value={v}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="field">
-          <span>대상 ID</span>
-          <input
-            type="number"
-            value={targetId}
-            onChange={(e) => setTargetId(e.target.value)}
-            placeholder="신고할 상품/회원/리뷰의 번호"
-          />
-        </div>
-        <div className="field">
-          <span>사유</span>
-          <input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="신고 사유를 입력하세요" />
-        </div>
+        <SelectField
+          label="대상 종류"
+          value={targetType}
+          onChange={(e) => setTargetType(e.target.value)}
+          options={TARGET_TYPES}
+        />
+        <Field
+          label="대상 ID"
+          type="number"
+          value={targetId}
+          onChange={(e) => setTargetId(e.target.value)}
+          placeholder="신고할 상품/회원/리뷰의 번호"
+        />
+        <Field
+          label="사유"
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          placeholder="신고 사유를 입력하세요"
+        />
         <div className="actions">
           <button
             className="btn btn-primary"
@@ -74,7 +70,7 @@ export default function ReportsPage() {
         {create.data !== null && create.data !== undefined && !create.error && (
           <p className="hint">신고가 접수되었습니다. 담당자가 검토 후 처리합니다.</p>
         )}
-        {create.error && <p className="hint hint--error">{create.error}</p>}
+        <ErrorText error={create.error} />
       </Card>
     </div>
   );

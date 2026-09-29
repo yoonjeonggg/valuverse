@@ -4,19 +4,8 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { api, getToken, errorMessage } from "../../lib/api";
-import { Card, Countdown, Icon, useCall } from "../../lib/ui";
-
-type Prediction = {
-  id: number;
-  title: string;
-  description: string | null;
-  end_time: string;
-  status: string;
-  yes_odds: number;
-  no_odds: number;
-  result: string | null;
-  created_by: number;
-};
+import { PREDICTION_STATUS_LABEL, type Prediction } from "../../lib/types";
+import { Card, Countdown, ErrorText, Icon, useCall } from "../../lib/ui";
 
 type Odds = {
   prediction_id: number;
@@ -38,12 +27,6 @@ type Bet = {
   result: string;
   payout: number;
   is_cancelled: boolean;
-};
-
-const STATUS_LABEL: Record<string, string> = {
-  ongoing: "진행중",
-  closed: "마감 (정산 대기)",
-  settled: "정산 완료",
 };
 
 export default function PredictionDetailPage() {
@@ -120,7 +103,7 @@ export default function PredictionDetailPage() {
     <div>
       <div className="detail-head">
         <div>
-          <span className="cat">예측시장 · {STATUS_LABEL[prediction.status] ?? prediction.status}</span>
+          <span className="cat">예측시장 · {PREDICTION_STATUS_LABEL[prediction.status] ?? prediction.status}</span>
           <h1>{prediction.title}</h1>
         </div>
         {isOngoing ? (
@@ -174,7 +157,7 @@ export default function PredictionDetailPage() {
                 베팅
               </button>
             </div>
-            {betCall.error && <p className="hint hint--error">{betCall.error}</p>}
+            <ErrorText error={betCall.error} />
           </>
         )}
       </Card>
@@ -200,7 +183,7 @@ export default function PredictionDetailPage() {
             ))}
           </ul>
         )}
-        {cancelCall.error && <p className="hint hint--error">{cancelCall.error}</p>}
+        <ErrorText error={cancelCall.error} />
       </Card>
 
       <p>

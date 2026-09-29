@@ -1,11 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { api } from "../lib/api";
-import { Card, PageHeader, useCall } from "../lib/ui";
-
-type SkillItemRow = { id: number; title: string; category: string | null; start_price: number; status: string };
+import { SkillCard } from "../lib/cards";
+import type { SkillItem } from "../lib/types";
+import { Card, ErrorText, Field, PageHeader, useCall } from "../lib/ui";
 
 const STATUS_LABEL: Record<string, string> = {
   recruiting: "모집중",
@@ -14,11 +13,11 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 export default function SkillItemsPage() {
-  const [feed, setFeed] = useState<SkillItemRow[] | null>(null);
+  const [feed, setFeed] = useState<SkillItem[] | null>(null);
   const [statusFilter, setStatusFilter] = useState("recruiting");
 
   const loadFeed = (status: string) =>
-    api<SkillItemRow[]>("/skill-items", { query: { status } })
+    api<SkillItem[]>("/skill-items", { query: { status } })
       .then(setFeed)
       .catch(() => setFeed([]));
 
@@ -92,28 +91,21 @@ export default function SkillItemsPage() {
         ) : (
           <div className="item-grid">
             {feed.map((it) => (
-              <Link key={it.id} href={`/skill-items/${it.id}`} className="item-card">
-                <span className="cat">{it.category || "미분류"}</span>
-                <span className="ttl">{it.title}</span>
-                <span className="price">
-                  {it.start_price.toLocaleString()}원
-                  {it.status !== "recruiting" && ` · ${STATUS_LABEL[it.status] ?? it.status}`}
-                </span>
-              </Link>
+              <SkillCard
+                key={it.id}
+                item={it}
+                priceSuffix={
+                  it.status !== "recruiting" ? ` · ${STATUS_LABEL[it.status] ?? it.status}` : undefined
+                }
+              />
             ))}
           </div>
         )}
       </Card>
 
       <Card title="스킬 상품 등록">
-        <div className="field">
-          <span>제목</span>
-          <input value={title} onChange={(e) => setTitle(e.target.value)} />
-        </div>
-        <div className="field">
-          <span>소개글</span>
-          <input value={description} onChange={(e) => setDescription(e.target.value)} />
-        </div>
+        <Field label="제목" value={title} onChange={(e) => setTitle(e.target.value)} />
+        <Field label="소개글" value={description} onChange={(e) => setDescription(e.target.value)} />
         <div className="actions">
           <button className="btn-sm" onClick={() => skillTag.run()} disabled={!description || skillTag.loading}>
             AI 카테고리/난이도 제안
@@ -132,44 +124,37 @@ export default function SkillItemsPage() {
             </div>
           </div>
         )}
-        <div className="field">
-          <span>카테고리</span>
-          <input value={category} onChange={(e) => setCategory(e.target.value)} />
-        </div>
-        <div className="field">
-          <span>가격</span>
-          <input type="number" value={startPrice} onChange={(e) => setStartPrice(e.target.value)} />
-        </div>
-        <div className="field">
-          <span>소요 시간(분)</span>
-          <input
-            type="number"
-            value={durationMinutes}
-            onChange={(e) => setDurationMinutes(e.target.value)}
-          />
-        </div>
-        <div className="field">
-          <span>제공 형태</span>
-          <input
-            value={provideType}
-            onChange={(e) => setProvideType(e.target.value)}
-            placeholder="온라인/오프라인 등"
-          />
-        </div>
-        <div className="field">
-          <span>가능 일정</span>
-          <input
-            value={availableSchedule}
-            onChange={(e) => setAvailableSchedule(e.target.value)}
-            placeholder="예: 평일 저녁, 주말"
-          />
-        </div>
+        <Field label="카테고리" value={category} onChange={(e) => setCategory(e.target.value)} />
+        <Field
+          label="가격"
+          type="number"
+          value={startPrice}
+          onChange={(e) => setStartPrice(e.target.value)}
+        />
+        <Field
+          label="소요 시간(분)"
+          type="number"
+          value={durationMinutes}
+          onChange={(e) => setDurationMinutes(e.target.value)}
+        />
+        <Field
+          label="제공 형태"
+          value={provideType}
+          onChange={(e) => setProvideType(e.target.value)}
+          placeholder="온라인/오프라인 등"
+        />
+        <Field
+          label="가능 일정"
+          value={availableSchedule}
+          onChange={(e) => setAvailableSchedule(e.target.value)}
+          placeholder="예: 평일 저녁, 주말"
+        />
         <div className="actions">
           <button className="btn btn-primary" onClick={submitCreate} disabled={create.loading || !title}>
             등록
           </button>
         </div>
-        {create.error && <p className="hint hint--error">{create.error}</p>}
+        <ErrorText error={create.error} />
       </Card>
     </div>
   );

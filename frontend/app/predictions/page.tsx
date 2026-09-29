@@ -3,22 +3,15 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { api } from "../lib/api";
+import { PREDICTION_STATUS_LABEL, type Prediction } from "../lib/types";
 import { Card, PageHeader } from "../lib/ui";
-
-type PredictionRow = { id: number; title: string; end_time: string; status: string };
-
-const STATUS_LABEL: Record<string, string> = {
-  ongoing: "진행중",
-  closed: "마감 (정산 대기)",
-  settled: "정산 완료",
-};
 
 export default function PredictionsPage() {
   const [statusFilter, setStatusFilter] = useState("ongoing");
-  const [feed, setFeed] = useState<PredictionRow[] | null>(null);
+  const [feed, setFeed] = useState<Prediction[] | null>(null);
 
   useEffect(() => {
-    api<PredictionRow[]>("/predictions", { query: { status: statusFilter } })
+    api<Prediction[]>("/predictions", { query: { status: statusFilter } })
       .then(setFeed)
       .catch(() => setFeed([]));
   }, [statusFilter]);
@@ -47,7 +40,7 @@ export default function PredictionsPage() {
           <div className="item-grid">
             {feed.map((p) => (
               <Link key={p.id} href={`/predictions/${p.id}`} className="item-card">
-                <span className="cat">예측시장 · {STATUS_LABEL[p.status] ?? p.status}</span>
+                <span className="cat">예측시장 · {PREDICTION_STATUS_LABEL[p.status] ?? p.status}</span>
                 <span className="ttl">{p.title}</span>
                 <span className="meta">마감 {new Date(p.end_time).toLocaleString()}</span>
               </Link>

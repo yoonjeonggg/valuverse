@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { POINTS_CHANGED, api, getToken } from "./lib/api";
+import { fetchMe, useMe } from "./lib/me";
 import { Icon } from "./lib/ui";
 
 const NAV: [string, string][] = [
@@ -17,14 +18,7 @@ const NAV: [string, string][] = [
 
 export function SiteNav() {
   const pathname = usePathname();
-  const [isAdmin, setIsAdmin] = useState(false);
-
-  useEffect(() => {
-    if (!getToken()) return;
-    api<{ is_admin: boolean }>("/users/me", { auth: true })
-      .then((u) => setIsAdmin(u.is_admin))
-      .catch(() => {});
-  }, []);
+  const isAdmin = useMe()?.is_admin ?? false;
 
   const items = isAdmin ? [...NAV, ["/admin", "관리자"] as [string, string]] : NAV;
 
@@ -124,7 +118,7 @@ export function HeaderAuth() {
     setSignedIn(!!token);
     setReady(true);
     if (!token) return;
-    api<{ points: number }>("/users/me", { auth: true })
+    fetchMe()
       .then((u) => setPoints(u.points))
       .catch(() => setPoints(null));
     const onChange = (e: Event) => setPoints((e as CustomEvent<number>).detail);

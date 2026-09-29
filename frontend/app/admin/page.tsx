@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { api, getToken, errorMessage } from "../lib/api";
 import { toIso } from "../lib/format";
-import { Card, Field, PageHeader, useCall } from "../lib/ui";
+import { PREDICTION_STATUS_LABEL, type Prediction } from "../lib/types";
+import { Card, ErrorText, Field, PageHeader, useCall } from "../lib/ui";
 
 type Report = {
   id: number;
@@ -14,17 +15,6 @@ type Report = {
   status: string;
   admin_memo: string | null;
   created_at: string;
-};
-
-type Prediction = {
-  id: number;
-  title: string;
-  description: string | null;
-  end_time: string;
-  status: string;
-  yes_odds: number;
-  no_odds: number;
-  result: string | null;
 };
 
 type SettleResult = {
@@ -42,12 +32,6 @@ const REPORT_STATUS_LABEL: Record<string, string> = {
   in_progress: "처리중",
   resolved: "처리완료 (제재)",
   rejected: "반려",
-};
-
-const PRED_STATUS_LABEL: Record<string, string> = {
-  ongoing: "진행중",
-  closed: "마감 (정산 대기)",
-  settled: "정산 완료",
 };
 
 export default function AdminPage() {
@@ -235,7 +219,7 @@ export default function AdminPage() {
                 </div>
               ))
             )}
-            {updateReportCall.error && <p className="hint hint--error">{updateReportCall.error}</p>}
+            <ErrorText error={updateReportCall.error} />
           </Card>
 
           <Card title="예측시장 명제 등록">
@@ -272,9 +256,7 @@ export default function AdminPage() {
                 등록
               </button>
             </div>
-            {createPredictionCall.error && (
-              <p className="hint hint--error">{createPredictionCall.error}</p>
-            )}
+            <ErrorText error={createPredictionCall.error} />
           </Card>
 
           <Card title="예측시장 명제 관리">
@@ -286,7 +268,7 @@ export default function AdminPage() {
                   <div className="top">
                     <span className="title">{p.title}</span>
                     <span className="badge badge--red">
-                      {PRED_STATUS_LABEL[p.status] ?? p.status}
+                      {PREDICTION_STATUS_LABEL[p.status] ?? p.status}
                       {p.result && ` · 결과 ${p.result.toUpperCase()}`}
                     </span>
                   </div>
@@ -344,10 +326,8 @@ export default function AdminPage() {
                 </div>
               ))
             )}
-            {settleCall.error && <p className="hint hint--error">{settleCall.error}</p>}
-            {deletePredictionCall.error && (
-              <p className="hint hint--error">{deletePredictionCall.error}</p>
-            )}
+            <ErrorText error={settleCall.error} />
+            <ErrorText error={deletePredictionCall.error} />
           </Card>
         </>
       )}

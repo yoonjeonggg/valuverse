@@ -6,41 +6,9 @@ import Link from "next/link";
 import { api, getToken, errorMessage } from "../../lib/api";
 import { ChatWidget } from "../../lib/chat-widget";
 import { toIso } from "../../lib/format";
-import { Card, Icon, useCall } from "../../lib/ui";
-
-type SkillItem = {
-  id: number;
-  seller_id: number;
-  title: string;
-  description: string | null;
-  category: string | null;
-  start_price: number;
-  duration_minutes: number | null;
-  provide_type: string | null;
-  available_schedule: string | null;
-  end_time: string | null;
-  status: string;
-};
-
-type Booking = {
-  id: number;
-  skill_item_id: number;
-  seller_id: number;
-  buyer_id: number;
-  amount: number;
-  scheduled_at: string;
-  status: string;
-};
-
-type Review = {
-  id: number;
-  author_id: number;
-  target_user_id: number;
-  skill_item_id: number | null;
-  rating: number;
-  content: string | null;
-  created_at: string;
-};
+import { useMe } from "../../lib/me";
+import type { Booking, Review, SkillItem } from "../../lib/types";
+import { Card, ErrorText, Field, Icon, useCall } from "../../lib/ui";
 
 const ITEM_STATUS_LABEL: Record<string, string> = {
   recruiting: "모집중",
@@ -62,7 +30,7 @@ export default function SkillItemDetailPage() {
 
   const [item, setItem] = useState<SkillItem | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [meId, setMeId] = useState<number | null>(null);
+  const meId = useMe()?.id ?? null;
   const [myBooking, setMyBooking] = useState<Booking | null>(null);
   const [reviews, setReviews] = useState<Review[] | null>(null);
 
@@ -137,9 +105,6 @@ export default function SkillItemDetailPage() {
     loadReviews();
 
     if (getToken()) {
-      api<{ id: number }>("/users/me", { auth: true })
-        .then((u) => setMeId(u.id))
-        .catch(() => {});
       api<Booking[]>("/skill-bookings", { auth: true })
         .then((list) => {
           const mine = list.find((b) => b.skill_item_id === itemId);
@@ -264,7 +229,7 @@ export default function SkillItemDetailPage() {
               </button>
             </div>
           )}
-          {bookingAction.error && <p className="hint hint--error">{bookingAction.error}</p>}
+          <ErrorText error={bookingAction.error} />
         </Card>
       )}
 
@@ -274,32 +239,25 @@ export default function SkillItemDetailPage() {
             협의가 끝난 구매자의 회원 ID로 예약을 요청합니다. 구매자가 수락하면 낙찰금이
             구매자 포인트에서 차감되어 에스크로에 보관됩니다.
           </p>
-          <div className="field">
-            <span>buyer_id</span>
-            <input value={buyerId} onChange={(e) => setBuyerId(e.target.value)} />
-          </div>
-          <div className="field">
-            <span>금액</span>
-            <input
-              type="number"
-              value={bookingAmount}
-              onChange={(e) => setBookingAmount(e.target.value)}
-            />
-          </div>
-          <div className="field">
-            <span>일정</span>
-            <input
-              type="datetime-local"
-              value={scheduledAt}
-              onChange={(e) => setScheduledAt(e.target.value)}
-            />
-          </div>
+          <Field label="buyer_id" value={buyerId} onChange={(e) => setBuyerId(e.target.value)} />
+          <Field
+            label="금액"
+            type="number"
+            value={bookingAmount}
+            onChange={(e) => setBookingAmount(e.target.value)}
+          />
+          <Field
+            label="일정"
+            type="datetime-local"
+            value={scheduledAt}
+            onChange={(e) => setScheduledAt(e.target.value)}
+          />
           <div className="actions">
             <button className="btn btn-primary" onClick={submitBooking} disabled={createBooking.loading}>
               예약 요청
             </button>
           </div>
-          {createBooking.error && <p className="hint hint--error">{createBooking.error}</p>}
+          <ErrorText error={createBooking.error} />
         </Card>
       )}
 
@@ -342,7 +300,7 @@ export default function SkillItemDetailPage() {
                 후기 등록
               </button>
             </div>
-            {createReview.error && <p className="hint hint--error">{createReview.error}</p>}
+            <ErrorText error={createReview.error} />
           </>
         )}
       </Card>

@@ -2,18 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { api, getToken, errorMessage } from "../lib/api";
+import { fetchMe } from "../lib/me";
+import type { Review } from "../lib/types";
 import { Card, PageHeader } from "../lib/ui";
-
-type Review = {
-  id: number;
-  author_id: number;
-  target_user_id: number;
-  item_id: number | null;
-  skill_item_id: number | null;
-  rating: number;
-  content: string | null;
-  created_at: string;
-};
 
 export default function ReviewsPage() {
   const [meId, setMeId] = useState<number | null>(null);
@@ -26,7 +17,7 @@ export default function ReviewsPage() {
       setLoadError("로그인하면 내가 받은 리뷰를 볼 수 있습니다.");
       return;
     }
-    api<{ id: number }>("/users/me", { auth: true })
+    fetchMe()
       .then((u) => {
         setMeId(u.id);
         return api<Review[]>("/reviews", { query: { target_user_id: u.id } });

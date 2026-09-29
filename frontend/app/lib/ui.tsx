@@ -52,6 +52,41 @@ export function Field({
   );
 }
 
+/* ---------- labelled select row ---------- */
+export function SelectField({
+  label,
+  options,
+  ...props
+}: {
+  label: string;
+  options: [value: string, label: string][];
+} & React.SelectHTMLAttributes<HTMLSelectElement>) {
+  return (
+    <label className="field">
+      <span>{label}</span>
+      <select {...props}>
+        {options.map(([value, text]) => (
+          <option key={value} value={value}>
+            {text}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+/* ---------- 요청 실패 메시지 (없으면 아무것도 그리지 않는다) ---------- */
+export function ErrorText({
+  error,
+  notice = false,
+}: {
+  error: string | null;
+  notice?: boolean;
+}) {
+  if (!error) return null;
+  return <p className={notice ? "notice notice--error" : "hint hint--error"}>{error}</p>;
+}
+
 /* ---------- consumer-facing card (Section 의 API 콘솔 스타일 대신) ---------- */
 export function Card({
   title,

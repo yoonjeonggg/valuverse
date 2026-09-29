@@ -3,32 +3,9 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { api, getToken } from "./lib/api";
+import { AuctionCard, SkillCard } from "./lib/cards";
+import type { Item, Mission, SkillItem } from "./lib/types";
 import { Icon } from "./lib/ui";
-
-type Item = {
-  id: number;
-  title: string;
-  category: string | null;
-  current_price: number;
-  auction_type: string;
-  end_time: string;
-};
-
-type SkillItem = {
-  id: number;
-  title: string;
-  category: string | null;
-  start_price: number;
-  duration_minutes: number | null;
-};
-
-type Mission = {
-  key: string;
-  description: string;
-  reward: number;
-  achieved: boolean;
-  claimed: boolean;
-};
 
 function remaining(end: string): string {
   const ms = new Date(end).getTime() - Date.now();
@@ -163,17 +140,7 @@ export default function Home() {
       ) : (
         <div className="item-grid">
           {items.map((it) => (
-            <Link key={it.id} href={`/items/${it.id}`} className="item-card">
-              <span className="cat">
-                {it.auction_type === "blind" ? "블라인드" : "일반"} ·{" "}
-                {it.category || "미분류"}
-              </span>
-              <span className="ttl">{it.title}</span>
-              <span className="price">
-                {it.current_price.toLocaleString()}원
-              </span>
-              <span className="meta">{remaining(it.end_time)}</span>
-            </Link>
+            <AuctionCard key={it.id} item={it} meta={remaining(it.end_time)} />
           ))}
         </div>
       )}
@@ -193,14 +160,11 @@ export default function Home() {
       ) : (
         <div className="item-grid">
           {skillItems.map((it) => (
-            <Link key={it.id} href={`/skill-items/${it.id}`} className="item-card">
-              <span className="cat">{it.category || "미분류"}</span>
-              <span className="ttl">{it.title}</span>
-              <span className="price">{it.start_price.toLocaleString()}원</span>
-              <span className="meta">
-                {it.duration_minutes ? `${it.duration_minutes}분` : "협의"}
-              </span>
-            </Link>
+            <SkillCard
+              key={it.id}
+              item={it}
+              meta={it.duration_minutes ? `${it.duration_minutes}분` : "협의"}
+            />
           ))}
         </div>
       )}

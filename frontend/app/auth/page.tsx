@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { api, getToken, setToken } from "../lib/api";
-import { Card, PageHeader, useCall } from "../lib/ui";
+import { Card, ErrorText, Field, PageHeader, useCall } from "../lib/ui";
 
 export default function AuthPage() {
   const router = useRouter();
@@ -69,24 +69,26 @@ export default function AuthPage() {
           </button>
         }
       >
-        <div className="field">
-          <span>이메일</span>
-          <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="user@example.com" />
-        </div>
-        <div className="field">
-          <span>비밀번호</span>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="8~64자"
-          />
-        </div>
+        <Field
+          label="이메일"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="user@example.com"
+        />
+        <Field
+          label="비밀번호"
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          placeholder="8~64자"
+        />
         {mode === "signup" && (
-          <div className="field">
-            <span>닉네임</span>
-            <input value={nickname} onChange={(e) => setNickname(e.target.value)} placeholder="2~20자" />
-          </div>
+          <Field
+            label="닉네임"
+            value={nickname}
+            onChange={(e) => setNickname(e.target.value)}
+            placeholder="2~20자"
+          />
         )}
         <div className="actions">
           {mode === "login" ? (
@@ -99,8 +101,7 @@ export default function AuthPage() {
             </button>
           )}
         </div>
-        {mode === "login" && login.error && <p className="hint hint--error">{login.error}</p>}
-        {mode === "signup" && signup.error && <p className="hint hint--error">{signup.error}</p>}
+        <ErrorText error={mode === "login" ? login.error : signup.error} />
         {mode === "signup" && signup.data !== null && signup.data !== undefined && !signup.error && (
           <p className="hint">가입이 완료되었습니다. 로그인해 주세요.</p>
         )}

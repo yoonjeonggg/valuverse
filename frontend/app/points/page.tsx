@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { announcePoints, api, getToken } from "../lib/api";
-import { Card, Icon, PageHeader, useCall } from "../lib/ui";
+import type { Coupon, Mission } from "../lib/types";
+import { Card, ErrorText, Icon, PageHeader, useCall } from "../lib/ui";
 
 type Summary = {
   balance: number;
@@ -17,28 +18,11 @@ type Summary = {
   ad_next_available_at: string | null;
 };
 
-type Mission = {
-  key: string;
-  description: string;
-  reward: number;
-  achieved: boolean;
-  claimed: boolean;
-};
-
 type CouponCatalogRow = {
   key: string;
   cost: number;
   discount_percent: number;
   description: string;
-};
-
-type Coupon = {
-  id: number;
-  catalog_key: string;
-  discount_percent: number;
-  cost: number;
-  is_used: boolean;
-  expires_at: string;
 };
 
 const MISSION_ICONS: Record<string, Parameters<typeof Icon>[0]["name"]> = {
@@ -297,7 +281,7 @@ export default function PointsPage() {
               {checkInCall.data.reward}P 적립
             </p>
           )}
-          {checkInCall.error && <p className="notice notice--error">{checkInCall.error}</p>}
+          <ErrorText error={checkInCall.error} notice />
         </Card>
 
         <Card eyebrow="Reward" title="광고 보상">
@@ -331,7 +315,7 @@ export default function PointsPage() {
                     : "광고 보고 포인트 받기"}
             </button>
           </div>
-          {adCall.error && <p className="notice notice--error">{adCall.error}</p>}
+          <ErrorText error={adCall.error} notice />
         </Card>
       </div>
 
@@ -379,7 +363,7 @@ export default function PointsPage() {
             })}
           </ul>
         )}
-        {claimCall.error && <p className="notice notice--error">{claimCall.error}</p>}
+        <ErrorText error={claimCall.error} notice />
       </Card>
 
       <Card eyebrow="Spend" title="수수료 할인 쿠폰 교환">
@@ -419,7 +403,7 @@ export default function PointsPage() {
             })}
           </div>
         )}
-        {redeemCall.error && <p className="notice notice--error">{redeemCall.error}</p>}
+        <ErrorText error={redeemCall.error} notice />
       </Card>
 
       <Card eyebrow="Wallet" title="내 쿠폰">
@@ -456,7 +440,7 @@ export default function PointsPage() {
             })}
           </ul>
         )}
-        {useCouponCall.error && <p className="notice notice--error">{useCouponCall.error}</p>}
+        <ErrorText error={useCouponCall.error} notice />
       </Card>
     </div>
   );

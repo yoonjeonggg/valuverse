@@ -5,34 +5,9 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { api, API_BASE_URL, getToken, errorMessage } from "../../lib/api";
 import { ChatWidget } from "../../lib/chat-widget";
-import { Card, Countdown, Icon, useCall } from "../../lib/ui";
-
-type Item = {
-  id: number;
-  seller_id: number;
-  title: string;
-  description: string | null;
-  category: string | null;
-  image_url: string | null;
-  start_price: number;
-  buy_now_price: number | null;
-  current_price: number;
-  auction_type: string;
-  blind_price_rule: string;
-  end_time: string;
-  status: string;
-  winner_id: number | null;
-  final_price: number | null;
-};
-
-type Bid = {
-  id: number;
-  item_id: number;
-  bidder_id: number;
-  amount: number;
-  is_cancelled: boolean;
-  created_at: string;
-};
+import { useMe } from "../../lib/me";
+import type { Bid, Item } from "../../lib/types";
+import { Card, Countdown, ErrorText, Icon, useCall } from "../../lib/ui";
 
 type RankInfo = { item_id: number; my_bid_id: number; rank: number; total_bids: number };
 type ResultRow = { id: number; bidder_id: number; amount: number; rank: number };
@@ -44,7 +19,7 @@ export default function ItemDetailPage() {
   const [item, setItem] = useState<Item | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [bids, setBids] = useState<Bid[]>([]);
-  const [meId, setMeId] = useState<number | null>(null);
+  const meId = useMe()?.id ?? null;
 
   const [bidAmount, setBidAmount] = useState("");
   const bidCall = useCall(() =>
@@ -73,12 +48,6 @@ export default function ItemDetailPage() {
     api<Item>(`/items/${itemId}`)
       .then(setItem)
       .catch((e) => setLoadError(errorMessage(e)));
-    const token = getToken();
-    if (token) {
-      api<{ id: number }>("/users/me", { auth: true })
-        .then((u) => setMeId(u.id))
-        .catch(() => {});
-    }
   }, [itemId]);
 
   // 일반 경매: 입찰 이력 + 실시간 WebSocket 갱신
@@ -215,8 +184,8 @@ export default function ItemDetailPage() {
                   </button>
                 )}
               </div>
-              {bidCall.error && <p className="hint hint--error">{bidCall.error}</p>}
-              {buyNowCall.error && <p className="hint hint--error">{buyNowCall.error}</p>}
+              <ErrorText error={bidCall.error} />
+              <ErrorText error={buyNowCall.error} />
             </>
           )}
         </Card>
@@ -262,7 +231,7 @@ export default function ItemDetailPage() {
               입찰
             </button>
           </div>
-          {blindBidCall.error && <p className="hint hint--error">{blindBidCall.error}</p>}
+          <ErrorText error={blindBidCall.error} />
           {rank && (
             <div className="rankcard">
               <div className="num">{rank.rank}위</div>

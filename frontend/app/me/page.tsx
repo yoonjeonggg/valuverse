@@ -2,50 +2,15 @@
 
 import { useEffect, useState } from "react";
 import { api } from "../lib/api";
-import { Card, PageHeader, useCall } from "../lib/ui";
-
-type Me = {
-  id: number;
-  email: string;
-  nickname: string;
-  points: number;
-  rating: number;
-  created_at: string;
-};
+import { useMe } from "../lib/me";
+import type { Bid, Booking, Item } from "../lib/types";
+import { Card, ErrorText, Field, PageHeader, useCall } from "../lib/ui";
 
 type Dashboard = {
   unread_notifications: number;
   attendance_streak: number;
   auction: { selling_ongoing: number; sold: number; won: number; active_bids: number };
   skill: { selling: number; bookings_in_progress: number; bookings_completed: number };
-};
-
-type Bid = {
-  id: number;
-  item_id: number;
-  bidder_id: number;
-  amount: number;
-  is_cancelled: boolean;
-  created_at: string;
-};
-
-type Item = {
-  id: number;
-  title: string;
-  status: string;
-  winner_id: number | null;
-  final_price: number | null;
-  current_price: number;
-};
-
-type Booking = {
-  id: number;
-  skill_item_id: number;
-  seller_id: number;
-  buyer_id: number;
-  amount: number;
-  scheduled_at: string;
-  status: string;
 };
 
 type PointTx = {
@@ -69,7 +34,7 @@ const TABS = ["입찰중", "낙찰완료", "예약(스킬)", "포인트내역"] 
 type Tab = (typeof TABS)[number];
 
 function MyActivity() {
-  const [myInfo, setMyInfo] = useState<Me | null>(null);
+  const myInfo = useMe();
   const [dash, setDash] = useState<Dashboard | null>(null);
   const [tab, setTab] = useState<Tab>("입찰중");
 
@@ -79,7 +44,6 @@ function MyActivity() {
   const [txs, setTxs] = useState<PointTx[] | null>(null);
 
   useEffect(() => {
-    api<Me>("/users/me", { auth: true }).then(setMyInfo).catch(() => {});
     api<Dashboard>("/users/me/dashboard", { auth: true }).then(setDash).catch(() => {});
   }, []);
 
@@ -270,45 +234,41 @@ export default function MePage() {
       <MyActivity />
 
       <Card title="정보 수정">
-        <div className="field">
-          <span>닉네임</span>
-          <input value={nickname} onChange={(e) => setNickname(e.target.value)} placeholder="변경할 닉네임" />
-        </div>
-        <div className="field">
-          <span>프로필 이미지 URL</span>
-          <input
-            value={profileImage}
-            onChange={(e) => setProfileImage(e.target.value)}
-            placeholder="https://…"
-          />
-        </div>
-        <div className="field">
-          <span>비밀번호</span>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="변경할 비밀번호"
-          />
-        </div>
+        <Field
+          label="닉네임"
+          value={nickname}
+          onChange={(e) => setNickname(e.target.value)}
+          placeholder="변경할 닉네임"
+        />
+        <Field
+          label="프로필 이미지 URL"
+          value={profileImage}
+          onChange={(e) => setProfileImage(e.target.value)}
+          placeholder="https://…"
+        />
+        <Field
+          label="비밀번호"
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          placeholder="변경할 비밀번호"
+        />
         {password && (
-          <div className="field">
-            <span>현재 비밀번호</span>
-            <input
-              type="password"
-              value={currentPassword}
-              onChange={(e) => setCurrentPassword(e.target.value)}
-              placeholder="본인 확인을 위해 입력"
-              autoComplete="current-password"
-            />
-          </div>
+          <Field
+            label="현재 비밀번호"
+            type="password"
+            value={currentPassword}
+            onChange={(e) => setCurrentPassword(e.target.value)}
+            placeholder="본인 확인을 위해 입력"
+            autoComplete="current-password"
+          />
         )}
         <div className="actions">
           <button className="btn btn-primary" onClick={submitUpdate} disabled={update.loading}>
             수정
           </button>
         </div>
-        {update.error && <p className="hint hint--error">{update.error}</p>}
+        <ErrorText error={update.error} />
       </Card>
 
       <Card title="회원 탈퇴">
@@ -318,7 +278,7 @@ export default function MePage() {
             탈퇴
           </button>
         </div>
-        {remove.error && <p className="hint hint--error">{remove.error}</p>}
+        <ErrorText error={remove.error} />
       </Card>
     </div>
   );
