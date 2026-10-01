@@ -58,7 +58,7 @@ def test_ws_bid_broadcasts_to_all_clients(client, make_user):
 
 def test_rest_bid_pushes_to_ws_client(client, make_user):
     seller_h, _ = make_user()
-    bidder_h, bidder = make_user()
+    bidder_h, _bidder = make_user()
     item = _item(client, seller_h)
 
     with client.websocket_connect(f"/items/{item['id']}/bid") as ws:

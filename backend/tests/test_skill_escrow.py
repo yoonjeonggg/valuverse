@@ -47,7 +47,7 @@ def _book(client, seller_h, buyer_h, skill_id, buyer_id, amount=3000):
 def test_booking_deducts_buyer_points_into_escrow(
     client, make_user, set_points, get_points
 ):
-    seller_h, seller = make_user()
+    seller_h, _seller = make_user()
     buyer_h, buyer = make_user()
     set_points(buyer["id"], 5000)
     skill = _create_skill(client, seller_h)
@@ -67,7 +67,7 @@ def test_booking_deducts_buyer_points_into_escrow(
 
 
 def test_booking_rejected_when_buyer_short_on_points(client, make_user, set_points):
-    seller_h, seller = make_user()
+    seller_h, _seller = make_user()
     buyer_h, buyer = make_user()
     set_points(buyer["id"], 1000)
     skill = _create_skill(client, seller_h)
@@ -77,9 +77,9 @@ def test_booking_rejected_when_buyer_short_on_points(client, make_user, set_poin
 
 
 def test_booking_rejected_for_non_seller(client, make_user, set_points):
-    seller_h, seller = make_user()
-    other_h, other = make_user()
-    buyer_h, buyer = make_user()
+    seller_h, _seller = make_user()
+    other_h, _other = make_user()
+    _buyer_h, buyer = make_user()
     set_points(buyer["id"], 5000)
     skill = _create_skill(client, seller_h)
     r = _request(client, other_h, skill["id"], buyer["id"])
@@ -87,9 +87,9 @@ def test_booking_rejected_for_non_seller(client, make_user, set_points):
 
 
 def test_double_booking_conflicts(client, make_user, set_points):
-    seller_h, seller = make_user()
-    b1_h, b1 = make_user()
-    b2_h, b2 = make_user()
+    seller_h, _seller = make_user()
+    _b1_h, b1 = make_user()
+    _b2_h, b2 = make_user()
     set_points(b1["id"], 5000)
     set_points(b2["id"], 5000)
     skill = _create_skill(client, seller_h)
@@ -99,7 +99,7 @@ def test_double_booking_conflicts(client, make_user, set_points):
 
 # ---------- 완료 정산 ----------
 def test_complete_settles_escrow_to_seller(client, make_user, set_points, get_points):
-    seller_h, seller = make_user()
+    seller_h, _seller = make_user()
     buyer_h, buyer = make_user()
     set_points(buyer["id"], 5000)
     skill = _create_skill(client, seller_h)
@@ -114,7 +114,7 @@ def test_complete_settles_escrow_to_seller(client, make_user, set_points, get_po
 
 
 def test_complete_only_by_buyer(client, make_user, set_points):
-    seller_h, seller = make_user()
+    seller_h, _seller = make_user()
     buyer_h, buyer = make_user()
     set_points(buyer["id"], 5000)
     skill = _create_skill(client, seller_h)
@@ -124,7 +124,7 @@ def test_complete_only_by_buyer(client, make_user, set_points):
 
 
 def test_complete_twice_conflicts(client, make_user, set_points):
-    seller_h, seller = make_user()
+    seller_h, _seller = make_user()
     buyer_h, buyer = make_user()
     set_points(buyer["id"], 5000)
     skill = _create_skill(client, seller_h)
@@ -138,7 +138,7 @@ def test_complete_twice_conflicts(client, make_user, set_points):
 
 # ---------- 노쇼 ----------
 def test_seller_no_show_refunds_buyer(client, make_user, set_points, get_points):
-    seller_h, seller = make_user()
+    seller_h, _seller = make_user()
     buyer_h, buyer = make_user()
     set_points(buyer["id"], 5000)
     skill = _create_skill(client, seller_h)
@@ -156,7 +156,7 @@ def test_seller_no_show_refunds_buyer(client, make_user, set_points, get_points)
 
 
 def test_buyer_no_show_settles_to_seller(client, make_user, set_points, get_points):
-    seller_h, seller = make_user()
+    seller_h, _seller = make_user()
     buyer_h, buyer = make_user()
     set_points(buyer["id"], 5000)
     skill = _create_skill(client, seller_h)
@@ -174,7 +174,7 @@ def test_buyer_no_show_settles_to_seller(client, make_user, set_points, get_poin
 
 # ---------- 취소 환불 ----------
 def test_cancel_booking_refunds_buyer(client, make_user, set_points, get_points):
-    seller_h, seller = make_user()
+    seller_h, _seller = make_user()
     buyer_h, buyer = make_user()
     set_points(buyer["id"], 5000)
     skill = _create_skill(client, seller_h)
@@ -187,7 +187,7 @@ def test_cancel_booking_refunds_buyer(client, make_user, set_points, get_points)
 
 
 def test_patch_booking_cannot_force_status(client, make_user, set_points):
-    seller_h, seller = make_user()
+    seller_h, _seller = make_user()
     buyer_h, buyer = make_user()
     set_points(buyer["id"], 5000)
     skill = _create_skill(client, seller_h)
@@ -204,13 +204,13 @@ def test_patch_booking_cannot_force_status(client, make_user, set_points):
 def test_escrow_race_rejects_using_fresh_balance(client, make_user, set_points):
     """요청 시작 시점엔 잔액이 충분해 보였어도(메모리상 stale 값), 그 사이 다른
     요청이 이미 잔액을 다 써버렸다면 최신 잔액 기준으로 거부해야 한다."""
-    payer_h, payer = make_user()
+    _payer_h, payer = make_user()
     payee_headers, payee = make_user()
     payee["headers"] = payee_headers
     set_points(payer["id"], 1000)
 
-    from app.services.skill_service import create_escrow
     from app.schemas.skill import EscrowCreate
+    from app.services.skill_service import create_escrow
 
     session = TestingSessionLocal()
     stale_payer = session.query(User).filter(User.id == payer["id"]).one()
@@ -260,7 +260,7 @@ def test_seller_cannot_take_points_without_buyer_acceptance(
 
 def test_only_buyer_can_accept(client, make_user, set_points):
     seller_h, _ = make_user()
-    buyer_h, buyer = make_user()
+    _buyer_h, buyer = make_user()
     set_points(buyer["id"], 5000)
     skill = _create_skill(client, seller_h)
     req = _request(client, seller_h, skill["id"], buyer["id"]).json()

@@ -4,15 +4,15 @@ from sqlalchemy.orm import Session
 
 from app.core.db_utils import apply_patch, get_or_404, save
 from app.models.auction import Item
-from app.models.skill import SkillItem, SkillBooking, Escrow
+from app.models.skill import Escrow, SkillBooking, SkillItem
 from app.models.user import User
 from app.schemas.skill import (
-    SkillItemCreate,
-    SkillItemUpdate,
-    SkillBookingCreate,
-    SkillBookingUpdate,
     EscrowCreate,
     EscrowUpdate,
+    SkillBookingCreate,
+    SkillBookingUpdate,
+    SkillItemCreate,
+    SkillItemUpdate,
 )
 from app.services import notification_service, point_service
 

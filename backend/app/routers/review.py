@@ -1,7 +1,7 @@
 from fastapi import APIRouter, status
 
-from app.core.deps import DbSession, CurrentUser
-from app.schemas.review import ReviewCreate, ReviewUpdate, ReviewResponse
+from app.core.deps import CurrentUser, DbSession
+from app.schemas.review import ReviewCreate, ReviewResponse, ReviewUpdate
 from app.services import review_service
 
 router = APIRouter(prefix="/reviews", tags=["Review"])

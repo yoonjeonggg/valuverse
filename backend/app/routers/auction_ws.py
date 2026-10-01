@@ -42,7 +42,13 @@ async def auction_bid_ws(websocket: WebSocket, item_id: int, db: DbSession):
         try:
             item = await run_in_threadpool(auction_service.get_item, db, item_id)
             snapshot = _snapshot(item)
+        except HTTPException:
+            await websocket.send_json(
+                {"type": "error", "detail": "상품을 찾을 수 없습니다."}
+            )
+            return
         except Exception:
+            logger.exception("WS 스냅샷 조회 실패 (item_id=%s)", item_id)
             await websocket.send_json(
                 {"type": "error", "detail": "상품을 찾을 수 없습니다."}
             )

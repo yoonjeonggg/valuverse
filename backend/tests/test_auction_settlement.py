@@ -74,7 +74,7 @@ def test_buy_now_rejected_when_current_price_reaches_buy_now(client, make_user):
 # ---------- 수동 마감 ----------
 def test_close_item_picks_highest_bidder(client, make_user):
     seller_h, _ = make_user()
-    b1_h, b1 = make_user()
+    b1_h, _b1 = make_user()
     b2_h, b2 = make_user()
     item = _create_item(client, seller_h)
 
@@ -189,7 +189,7 @@ def test_extension_capped_at_max(client, make_user, move_deadline):
 # ---------- 블라인드 경매 1st-price 낙찰 ----------
 def test_blind_auction_finalizes_first_price(client, make_user, move_deadline):
     seller_h, _ = make_user()
-    b1_h, b1 = make_user()
+    b1_h, _b1 = make_user()
     b2_h, b2 = make_user()
     item = _create_item(client, seller_h, auction_type="blind")
 

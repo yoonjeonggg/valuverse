@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional, Literal
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -14,7 +14,7 @@ class ReportCreate(BaseModel):
 
 class ReportUpdate(BaseModel):
     status: Literal["pending", "in_progress", "resolved", "rejected"]
-    admin_memo: Optional[str] = Field(default=None, max_length=2000)
+    admin_memo: str | None = Field(default=None, max_length=2000)
 
 
 class ReportResponse(ORMModel):
@@ -24,6 +24,6 @@ class ReportResponse(ORMModel):
     target_id: int
     reason: str
     status: str
-    admin_memo: Optional[str] = None
+    admin_memo: str | None = None
     created_at: datetime
-    updated_at: Optional[datetime] = None
+    updated_at: datetime | None = None

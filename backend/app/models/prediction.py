@@ -1,14 +1,15 @@
 from sqlalchemy import (
+    Boolean,
     Column,
+    DateTime,
+    Float,
+    ForeignKey,
     Integer,
     String,
     Text,
-    Boolean,
-    Float,
-    DateTime,
-    ForeignKey,
     func,
 )
+
 from app.database import Base
 
 

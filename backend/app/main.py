@@ -6,20 +6,20 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-import app.models  # noqa: F401  - 모든 모델을 메타데이터에 등록
+import app.models  # 모든 모델을 메타데이터에 등록 (import 부수효과)
 from app.core.config import settings
 from app.database import Base, engine
-from app.routers.user import auth_router, user_router
-from app.routers.auction import item_router, bid_router
-from app.routers.auction_ws import router as auction_ws_router
-from app.services.ws_manager import manager as ws_manager
-from app.routers.skill import skill_item_router, booking_router, escrow_router
-from app.routers.prediction import prediction_router, bet_router
-from app.routers.point import router as point_router
-from app.routers.review import router as review_router
-from app.routers.report import router as report_router
-from app.routers.notification import router as notification_router
 from app.routers.ai import router as ai_router
+from app.routers.auction import bid_router, item_router
+from app.routers.auction_ws import router as auction_ws_router
+from app.routers.notification import router as notification_router
+from app.routers.point import router as point_router
+from app.routers.prediction import bet_router, prediction_router
+from app.routers.report import router as report_router
+from app.routers.review import router as review_router
+from app.routers.skill import booking_router, escrow_router, skill_item_router
+from app.routers.user import auth_router, user_router
+from app.services.ws_manager import manager as ws_manager
 
 if settings.auto_create_tables:
     # 빠른 실행용. 마이그레이션(alembic)을 쓸 때는 AUTO_CREATE_TABLES=false 로 둔다.

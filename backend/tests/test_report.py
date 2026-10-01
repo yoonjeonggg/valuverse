@@ -82,7 +82,7 @@ def test_resolve_item_report_soft_deletes_item(client, make_user):
 def test_resolve_review_report_deletes_and_recalcs_rating(client, make_user):
     admin_h, _ = make_user(admin=True)
     reporter_h, _ = make_user()
-    author_h, author = make_user()
+    author_h, _author = make_user()
     target_h, target = make_user()
 
     item = _item(client, target_h)

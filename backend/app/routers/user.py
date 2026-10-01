@@ -1,16 +1,16 @@
 from fastapi import APIRouter, HTTPException, status
 
-from app.core.deps import DbSession, CurrentUser
-from app.schemas.user import (
-    SignupRequest,
-    LoginRequest,
-    UserUpdateRequest,
-    UserResponse,
-    PublicProfileResponse,
-    TokenResponse,
-)
-from app.services import user_service, dashboard_service
+from app.core.deps import CurrentUser, DbSession
 from app.core.security import create_access_token
+from app.schemas.user import (
+    LoginRequest,
+    PublicProfileResponse,
+    SignupRequest,
+    TokenResponse,
+    UserResponse,
+    UserUpdateRequest,
+)
+from app.services import dashboard_service, user_service
 
 auth_router = APIRouter(prefix="/auth", tags=["Auth"])
 user_router = APIRouter(prefix="/users", tags=["User"])

@@ -1,14 +1,14 @@
 from fastapi import APIRouter, Query
 
-from app.core.deps import DbSession, CurrentUser
+from app.core.deps import CurrentUser, DbSession
 from app.schemas.ai import (
-    PriceSuggestionResponse,
     AbuseCheckRequest,
     AbuseCheckResponse,
     ChatRequest,
     ChatResponse,
     DescriptionSuggestionRequest,
     DescriptionSuggestionResponse,
+    PriceSuggestionResponse,
     SkillTagRequest,
     SkillTagResponse,
 )

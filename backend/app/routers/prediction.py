@@ -1,15 +1,15 @@
 from fastapi import APIRouter, Query, status
 
-from app.core.deps import DbSession, CurrentUser, CurrentAdmin
+from app.core.deps import CurrentAdmin, CurrentUser, DbSession
 from app.schemas.prediction import (
-    PredictionCreate,
-    PredictionUpdate,
-    PredictionResponse,
     PredictionBetCreate,
     PredictionBetResponse,
+    PredictionCreate,
     PredictionOddsResponse,
+    PredictionResponse,
     PredictionSettleRequest,
     PredictionSettleResponse,
+    PredictionUpdate,
 )
 from app.services import prediction_service
 

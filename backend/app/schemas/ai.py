@@ -1,19 +1,19 @@
-from typing import Literal, Optional
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
 
 class PriceSuggestionResponse(BaseModel):
     category: str
-    auction_type: Optional[str] = None
+    auction_type: str | None = None
     sample_size: int
     enough_data: bool
-    avg_final_price: Optional[int] = None
-    median_final_price: Optional[int] = None
-    min_final_price: Optional[int] = None
-    max_final_price: Optional[int] = None
-    suggested_start_price: Optional[int] = None
-    suggested_buy_now_price: Optional[int] = None
+    avg_final_price: int | None = None
+    median_final_price: int | None = None
+    min_final_price: int | None = None
+    max_final_price: int | None = None
+    suggested_start_price: int | None = None
+    suggested_buy_now_price: int | None = None
 
 
 class AbuseCheckRequest(BaseModel):
@@ -29,15 +29,15 @@ class AbuseCheckResponse(BaseModel):
 
 class DescriptionSuggestionRequest(BaseModel):
     title: str = Field(min_length=1, max_length=200)
-    category: Optional[str] = None
+    category: str | None = None
     keywords: list[str] = Field(default_factory=list)
-    existing_description: Optional[str] = Field(default=None, max_length=5000)
+    existing_description: str | None = Field(default=None, max_length=5000)
 
 
 class DescriptionSuggestionResponse(BaseModel):
     draft_description: str
     suggestions: list[str]
-    market_context: Optional[PriceSuggestionResponse] = None
+    market_context: PriceSuggestionResponse | None = None
 
 
 class SkillTagRequest(BaseModel):
@@ -52,11 +52,11 @@ class SkillTagResponse(BaseModel):
 
 class ChatRequest(BaseModel):
     message: str = Field(min_length=1, max_length=1000)
-    item_id: Optional[int] = None
+    item_id: int | None = None
     item_type: Literal["item", "skill_item"] = "item"
 
 
 class ChatResponse(BaseModel):
     answer: str
     references: list[str]
-    item_id: Optional[int] = None
+    item_id: int | None = None

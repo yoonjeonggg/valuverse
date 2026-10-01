@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional, Literal
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -9,39 +9,39 @@ from app.schemas.common import ORMModel
 # ----- SkillItem -----
 class SkillItemCreate(BaseModel):
     title: str = Field(min_length=1, max_length=200)
-    description: Optional[str] = None
-    category: Optional[str] = Field(default=None, max_length=50)
-    image_url: Optional[str] = Field(default=None, max_length=500)
+    description: str | None = None
+    category: str | None = Field(default=None, max_length=50)
+    image_url: str | None = Field(default=None, max_length=500)
     start_price: int = Field(ge=0)
-    duration_minutes: Optional[int] = Field(default=None, ge=0)
-    provide_type: Optional[str] = Field(default=None, max_length=50)
-    available_schedule: Optional[str] = None
-    end_time: Optional[datetime] = None
+    duration_minutes: int | None = Field(default=None, ge=0)
+    provide_type: str | None = Field(default=None, max_length=50)
+    available_schedule: str | None = None
+    end_time: datetime | None = None
 
 
 class SkillItemUpdate(BaseModel):
-    title: Optional[str] = Field(default=None, min_length=1, max_length=200)
-    description: Optional[str] = None
-    category: Optional[str] = Field(default=None, max_length=50)
-    image_url: Optional[str] = Field(default=None, max_length=500)
-    duration_minutes: Optional[int] = Field(default=None, ge=0)
-    provide_type: Optional[str] = Field(default=None, max_length=50)
-    available_schedule: Optional[str] = None
-    end_time: Optional[datetime] = None
+    title: str | None = Field(default=None, min_length=1, max_length=200)
+    description: str | None = None
+    category: str | None = Field(default=None, max_length=50)
+    image_url: str | None = Field(default=None, max_length=500)
+    duration_minutes: int | None = Field(default=None, ge=0)
+    provide_type: str | None = Field(default=None, max_length=50)
+    available_schedule: str | None = None
+    end_time: datetime | None = None
 
 
 class SkillItemResponse(ORMModel):
     id: int
     seller_id: int
     title: str
-    description: Optional[str] = None
-    category: Optional[str] = None
-    image_url: Optional[str] = None
+    description: str | None = None
+    category: str | None = None
+    image_url: str | None = None
     start_price: int
-    duration_minutes: Optional[int] = None
-    provide_type: Optional[str] = None
-    available_schedule: Optional[str] = None
-    end_time: Optional[datetime] = None
+    duration_minutes: int | None = None
+    provide_type: str | None = None
+    available_schedule: str | None = None
+    end_time: datetime | None = None
     status: str
     created_at: datetime
 
@@ -55,10 +55,8 @@ class SkillBookingCreate(BaseModel):
 
 
 class SkillBookingUpdate(BaseModel):
-    scheduled_at: Optional[datetime] = None
-    status: Optional[
-        Literal["pending", "in_progress", "completed", "no_show", "cancelled"]
-    ] = None
+    scheduled_at: datetime | None = None
+    status: Literal["pending", "in_progress", "completed", "no_show", "cancelled"] | None = None
 
 
 class SkillBookingNoShow(BaseModel):
@@ -90,11 +88,11 @@ class EscrowUpdate(BaseModel):
 
 class EscrowResponse(ORMModel):
     id: int
-    booking_id: Optional[int] = None
-    item_id: Optional[int] = None
+    booking_id: int | None = None
+    item_id: int | None = None
     payer_id: int
     payee_id: int
     amount: int
     status: str
     created_at: datetime
-    updated_at: Optional[datetime] = None
+    updated_at: datetime | None = None

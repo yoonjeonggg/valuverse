@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Query
 
-from app.core.deps import DbSession, CurrentUser
+from app.core.deps import CurrentUser, DbSession
 from app.schemas.notification import NotificationResponse, UnreadCountResponse
 from app.services import notification_service
 

@@ -51,7 +51,7 @@ def test_buy_now_rejected_on_blind_item(client, make_user):
 # ---------- 1st-price ----------
 def test_first_price_winner_pays_own_bid(client, make_user, move_item):
     seller_h, _ = make_user()
-    b1_h, b1 = make_user()
+    b1_h, _b1 = make_user()
     b2_h, b2 = make_user()
     item = _create(client, seller_h, auction_type="blind", blind_price_rule="first")
     _blind_bid(client, b1_h, item["id"], 5000)
@@ -66,9 +66,9 @@ def test_first_price_winner_pays_own_bid(client, make_user, move_item):
 # ---------- Vickrey 2nd-price ----------
 def test_vickrey_winner_pays_second_price(client, make_user, move_item):
     seller_h, _ = make_user()
-    b1_h, b1 = make_user()
+    b1_h, _b1 = make_user()
     b2_h, b2 = make_user()
-    b3_h, b3 = make_user()
+    b3_h, _b3 = make_user()
     item = _create(client, seller_h, auction_type="blind", blind_price_rule="second")
     _blind_bid(client, b1_h, item["id"], 5000)
     _blind_bid(client, b2_h, item["id"], 9000)
@@ -94,7 +94,7 @@ def test_vickrey_single_bidder_pays_own_bid(client, make_user, move_item):
 
 def test_vickrey_close_endpoint(client, make_user):
     seller_h, _ = make_user()
-    b1_h, b1 = make_user()
+    b1_h, _b1 = make_user()
     b2_h, b2 = make_user()
     item = _create(client, seller_h, auction_type="blind", blind_price_rule="second")
     _blind_bid(client, b1_h, item["id"], 4000)

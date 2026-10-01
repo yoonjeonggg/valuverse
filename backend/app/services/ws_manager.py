@@ -8,7 +8,7 @@
 import asyncio
 from collections import defaultdict
 
-from fastapi import WebSocket
+from fastapi import WebSocket, WebSocketDisconnect
 
 
 class ConnectionManager:
@@ -33,7 +33,8 @@ class ConnectionManager:
         for ws in list(self._rooms.get(item_id, ())):
             try:
                 await ws.send_json(payload)
-            except Exception:
+            except (WebSocketDisconnect, RuntimeError, OSError):
+                # 이미 끊긴 소켓 (starlette 는 닫힌 소켓 send 에 RuntimeError, uvicorn 은 OSError 계열)
                 dead.append(ws)
         for ws in dead:
             self.disconnect(item_id, ws)

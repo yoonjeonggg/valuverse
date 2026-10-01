@@ -6,17 +6,17 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.db_utils import apply_patch, get_or_404, save
-from app.core.timeutils import now, aware, is_past, iso
-from app.models.auction import Item, Bid, BlindBid
+from app.core.timeutils import aware, is_past, iso, now
+from app.models.auction import Bid, BlindBid, Item
 from app.models.user import User
-from app.services import notification_service, point_service
-from app.services.ws_manager import manager as ws_manager
 from app.schemas.auction import (
-    ItemCreate,
-    ItemUpdate,
     BidCreate,
     BlindBidCreate,
+    ItemCreate,
+    ItemUpdate,
 )
+from app.services import notification_service, point_service
+from app.services.ws_manager import manager as ws_manager
 
 
 def _broadcast_closed(item: Item, **extra) -> None:

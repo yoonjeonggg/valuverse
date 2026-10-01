@@ -22,6 +22,7 @@ def _alembic(args, db_path):
         env=env,
         capture_output=True,
         text=True,
+        check=False,  # 실패 시 stderr 를 assert 메시지로 보여주기 위해 직접 확인한다
     )
 
 

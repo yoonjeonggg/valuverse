@@ -1,11 +1,10 @@
 from datetime import datetime
-from typing import Literal, Optional
+from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
 
 from app.core.config import settings
 from app.schemas.common import ORMModel
-
 
 # 관리자 수동 조정에 쓸 수 있는 유형. attendance/mission/ad 같은 적립 유형을 위조하면
 # 광고 일일 한도 집계와 감사 이력이 오염되므로 허용하지 않는다.
@@ -14,7 +13,7 @@ AdminTxType = Literal["admin", "refund", "etc"]
 
 class PointTransactionCreate(BaseModel):
     # 대상 유저. 생략 시 요청자 본인.
-    user_id: Optional[int] = None
+    user_id: int | None = None
     amount: int = Field(
         ge=-settings.point_admin_adjust_max,
         le=settings.point_admin_adjust_max,
@@ -37,7 +36,7 @@ class PointTransactionResponse(ORMModel):
     user_id: int
     amount: int
     type: str
-    memo: Optional[str] = None
+    memo: str | None = None
     balance_after: int
     created_at: datetime
 
@@ -71,7 +70,7 @@ class PointsSummaryResponse(BaseModel):
     ad_views_today: int
     ad_daily_limit: int
     ad_reward: int
-    ad_next_available_at: Optional[datetime] = None
+    ad_next_available_at: datetime | None = None
 
 
 class MissionStatus(BaseModel):
@@ -116,6 +115,6 @@ class CouponResponse(ORMModel):
     discount_percent: int
     cost: int
     is_used: bool
-    used_at: Optional[datetime] = None
+    used_at: datetime | None = None
     expires_at: datetime
     created_at: datetime

@@ -1,5 +1,4 @@
 from datetime import datetime
-from typing import Optional
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -8,10 +7,10 @@ from app.schemas.common import ORMModel
 
 class ReviewCreate(BaseModel):
     target_user_id: int
-    item_id: Optional[int] = None
-    skill_item_id: Optional[int] = None
+    item_id: int | None = None
+    skill_item_id: int | None = None
     rating: int = Field(ge=1, le=5)
-    content: Optional[str] = Field(default=None, max_length=2000)
+    content: str | None = Field(default=None, max_length=2000)
 
     @model_validator(mode="after")
     def _one_target(self):
@@ -21,17 +20,17 @@ class ReviewCreate(BaseModel):
 
 
 class ReviewUpdate(BaseModel):
-    rating: Optional[int] = Field(default=None, ge=1, le=5)
-    content: Optional[str] = Field(default=None, max_length=2000)
+    rating: int | None = Field(default=None, ge=1, le=5)
+    content: str | None = Field(default=None, max_length=2000)
 
 
 class ReviewResponse(ORMModel):
     id: int
     author_id: int
     target_user_id: int
-    item_id: Optional[int] = None
-    skill_item_id: Optional[int] = None
+    item_id: int | None = None
+    skill_item_id: int | None = None
     rating: int
-    content: Optional[str] = None
+    content: str | None = None
     created_at: datetime
-    updated_at: Optional[datetime] = None
+    updated_at: datetime | None = None

@@ -26,7 +26,7 @@ def _notifs(client, headers, unread=False):
 # ---------- 입찰 경쟁 ----------
 def test_outbid_notifies_previous_top_bidder(client, make_user):
     seller_h, _ = make_user()
-    b1_h, b1 = make_user()
+    b1_h, _b1 = make_user()
     b2_h, _ = make_user()
     item = _item(client, seller_h)
 
@@ -75,7 +75,7 @@ def test_buy_now_notifies_seller(client, make_user):
 
 # ---------- 스킬 ----------
 def test_skill_booking_and_settlement_notifications(client, make_user, set_points):
-    seller_h, seller = make_user()
+    seller_h, _seller = make_user()
     buyer_h, buyer = make_user()
     set_points(buyer["id"], 5000)
     skill = client.post(

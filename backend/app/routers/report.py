@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Query, status
 
-from app.core.deps import DbSession, CurrentUser, CurrentAdmin
-from app.schemas.report import ReportCreate, ReportUpdate, ReportResponse
+from app.core.deps import CurrentAdmin, CurrentUser, DbSession
+from app.schemas.report import ReportCreate, ReportResponse, ReportUpdate
 from app.services import report_service
 
 router = APIRouter(prefix="/reports", tags=["Report"])

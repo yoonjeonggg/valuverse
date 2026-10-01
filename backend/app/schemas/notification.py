@@ -1,5 +1,4 @@
 from datetime import datetime
-from typing import Optional
 
 from pydantic import BaseModel
 
@@ -11,8 +10,8 @@ class NotificationResponse(ORMModel):
     user_id: int
     type: str
     message: str
-    related_type: Optional[str] = None
-    related_id: Optional[int] = None
+    related_type: str | None = None
+    related_id: int | None = None
     is_read: bool
     created_at: datetime
 

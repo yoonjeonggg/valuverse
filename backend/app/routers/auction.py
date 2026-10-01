@@ -1,19 +1,21 @@
+from typing import Annotated
+
 from fastapi import APIRouter, Query, status
 
-from app.core.deps import DbSession, CurrentUser
+from app.core.config import settings
+from app.core.deps import CurrentUser, DbSession
 from app.schemas.auction import (
-    ItemCreate,
-    ItemUpdate,
-    ItemResponse,
-    BuyNowResponse,
     BidCreate,
     BidResponse,
     BlindBidCreate,
     BlindBidRankResponse,
     BlindBidResultRow,
+    BuyNowResponse,
+    ItemCreate,
+    ItemResponse,
+    ItemUpdate,
 )
 from app.schemas.point import SpotlightResponse
-from app.core.config import settings
 from app.services import auction_service
 
 item_router = APIRouter(prefix="/items", tags=["Item / Auction"])
@@ -31,7 +33,7 @@ def list_items(
     db: DbSession,
     category: str | None = None,
     status_filter: str | None = Query(default=None, alias="status"),
-    ids: list[int] | None = Query(default=None, max_length=200),
+    ids: Annotated[list[int] | None, Query(max_length=200)] = None,
     skip: int = Query(default=0, ge=0),
     limit: int = Query(default=50, ge=1, le=200),
 ):

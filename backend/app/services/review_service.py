@@ -3,7 +3,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core.db_utils import apply_patch, get_or_404, save
-from app.core.timeutils import now, aware
+from app.core.timeutils import aware, now
 from app.models.auction import Item
 from app.models.review import Review
 from app.models.skill import SkillBooking

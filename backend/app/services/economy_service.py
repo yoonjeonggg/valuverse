@@ -4,8 +4,8 @@
 현금 충전 경로는 없다.
 """
 
+from collections.abc import Callable
 from datetime import timedelta
-from typing import Callable
 
 from fastapi import HTTPException, status
 from sqlalchemy import exists, func
@@ -14,7 +14,7 @@ from sqlalchemy.sql.expression import Exists
 
 from app.core.config import settings
 from app.core.db_utils import commit_or_conflict, get_or_404, save
-from app.core.timeutils import aware, now, is_past
+from app.core.timeutils import aware, is_past, now
 from app.models.auction import Bid, Item
 from app.models.economy import Attendance, Coupon, MissionClaim
 from app.models.point import PointTransaction

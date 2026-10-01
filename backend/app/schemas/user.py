@@ -1,5 +1,4 @@
 from datetime import datetime
-from typing import Optional
 
 from pydantic import BaseModel, EmailStr, Field
 
@@ -18,18 +17,18 @@ class LoginRequest(BaseModel):
 
 
 class UserUpdateRequest(BaseModel):
-    nickname: Optional[str] = Field(default=None, min_length=2, max_length=20)
-    profile_image: Optional[str] = Field(default=None, max_length=500)
-    password: Optional[str] = Field(default=None, min_length=8, max_length=64)
+    nickname: str | None = Field(default=None, min_length=2, max_length=20)
+    profile_image: str | None = Field(default=None, max_length=500)
+    password: str | None = Field(default=None, min_length=8, max_length=64)
     # 비밀번호를 바꿀 때만 필요
-    current_password: Optional[str] = Field(default=None, max_length=64)
+    current_password: str | None = Field(default=None, max_length=64)
 
 
 class UserResponse(ORMModel):
     id: int
     email: EmailStr
     nickname: str
-    profile_image: Optional[str] = None
+    profile_image: str | None = None
     points: int
     rating: float
     is_admin: bool
@@ -39,7 +38,7 @@ class UserResponse(ORMModel):
 class PublicProfileResponse(ORMModel):
     id: int
     nickname: str
-    profile_image: Optional[str] = None
+    profile_image: str | None = None
     rating: float
 
 

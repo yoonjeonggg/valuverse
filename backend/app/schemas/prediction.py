@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional, Literal
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -9,32 +9,32 @@ from app.schemas.common import ORMModel
 # ----- Prediction -----
 class PredictionCreate(BaseModel):
     title: str = Field(min_length=1, max_length=300)
-    description: Optional[str] = None
+    description: str | None = None
     end_time: datetime
     yes_odds: float = Field(default=2.0, gt=1.0)
     no_odds: float = Field(default=2.0, gt=1.0)
 
 
 class PredictionUpdate(BaseModel):
-    title: Optional[str] = Field(default=None, min_length=1, max_length=300)
-    description: Optional[str] = None
-    end_time: Optional[datetime] = None
-    yes_odds: Optional[float] = Field(default=None, gt=1.0)
-    no_odds: Optional[float] = Field(default=None, gt=1.0)
+    title: str | None = Field(default=None, min_length=1, max_length=300)
+    description: str | None = None
+    end_time: datetime | None = None
+    yes_odds: float | None = Field(default=None, gt=1.0)
+    no_odds: float | None = Field(default=None, gt=1.0)
     # "settled" 와 result 는 배당 지급이 함께 일어나야 하므로 정산 엔드포인트로만 바꾼다.
     # (PATCH 로 settled 를 찍으면 배당 없이 정산 완료로 막혀 베팅 포인트가 묶였다.)
-    status: Optional[Literal["ongoing", "closed"]] = None
+    status: Literal["ongoing", "closed"] | None = None
 
 
 class PredictionResponse(ORMModel):
     id: int
     title: str
-    description: Optional[str] = None
+    description: str | None = None
     end_time: datetime
     status: str
     yes_odds: float
     no_odds: float
-    result: Optional[str] = None
+    result: str | None = None
     created_by: int
     created_at: datetime
 
@@ -66,8 +66,8 @@ class PredictionOddsResponse(BaseModel):
     yes_backers: int
     no_backers: int
     # 배당 배수(원금 포함). 해당 포지션 풀이 비어 있으면 null.
-    yes_odds: Optional[float] = None
-    no_odds: Optional[float] = None
+    yes_odds: float | None = None
+    no_odds: float | None = None
 
 
 class PredictionSettleRequest(BaseModel):

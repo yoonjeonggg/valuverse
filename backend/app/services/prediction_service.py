@@ -7,10 +7,10 @@ from app.core.timeutils import is_past
 from app.models.prediction import Prediction, PredictionBet
 from app.models.user import User
 from app.schemas.prediction import (
-    PredictionCreate,
-    PredictionUpdate,
     PredictionBetCreate,
+    PredictionCreate,
     PredictionSettleRequest,
+    PredictionUpdate,
 )
 from app.services import notification_service, point_service
 
