@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { api } from "../lib/api";
+import { api, apiPost } from "../lib/api";
 import { AuctionCard } from "../lib/cards";
 import { toIso } from "../lib/format";
 import type { Item } from "../lib/types";
@@ -31,32 +31,24 @@ export default function ItemsPage() {
   const [endTime, setEndTime] = useState("");
 
   const create = useCall(() =>
-    api<{ id: number }>("/items", {
-      method: "POST",
-      auth: true,
-      body: {
-        title,
-        description: description || undefined,
-        category: createCategory || undefined,
-        image_url: imageUrl || undefined,
-        start_price: Number(startPrice),
-        buy_now_price: buyNowPrice ? Number(buyNowPrice) : undefined,
-        auction_type: auctionType || undefined,
-        blind_price_rule: blindPriceRule || undefined,
-        end_time: toIso(endTime),
-      },
+    apiPost<{ id: number }>("/items", {
+      title,
+      description: description || undefined,
+      category: createCategory || undefined,
+      image_url: imageUrl || undefined,
+      start_price: Number(startPrice),
+      buy_now_price: buyNowPrice ? Number(buyNowPrice) : undefined,
+      auction_type: auctionType || undefined,
+      blind_price_rule: blindPriceRule || undefined,
+      end_time: toIso(endTime),
     }),
   );
 
   const descSuggestion = useCall(() =>
-    api<{ draft_description: string; suggestions: string[] }>("/ai/description-suggestion", {
-      method: "POST",
-      auth: true,
-      body: {
-        title,
-        category: createCategory || undefined,
-        existing_description: description || undefined,
-      },
+    apiPost<{ draft_description: string; suggestions: string[] }>("/ai/description-suggestion", {
+      title,
+      category: createCategory || undefined,
+      existing_description: description || undefined,
     }),
   );
 

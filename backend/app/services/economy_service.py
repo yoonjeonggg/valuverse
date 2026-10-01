@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.sql.expression import Exists
 
 from app.core.config import settings
-from app.core.db_utils import commit_or_conflict, get_or_404
+from app.core.db_utils import commit_or_conflict, get_or_404, save
 from app.core.timeutils import aware, now, is_past
 from app.models.auction import Bid, Item
 from app.models.economy import Attendance, Coupon, MissionClaim
@@ -192,9 +192,7 @@ def redeem_coupon(db: Session, user: User, key: str) -> Coupon:
         expires_at=now() + timedelta(days=settings.coupon_valid_days),
     )
     db.add(coupon)
-    db.commit()
-    db.refresh(coupon)
-    return coupon
+    return save(db, coupon)
 
 
 def list_my_coupons(db: Session, user_id: int, unused_only: bool = False) -> list[Coupon]:
@@ -218,9 +216,7 @@ def use_coupon(db: Session, coupon_id: int, user_id: int) -> Coupon:
         raise HTTPException(status.HTTP_409_CONFLICT, "유효기간이 지난 쿠폰입니다.")
     coupon.is_used = True
     coupon.used_at = now()
-    db.commit()
-    db.refresh(coupon)
-    return coupon
+    return save(db, coupon)
 
 
 # ==================== 광고 보상 ====================

@@ -2,7 +2,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.core.db_utils import get_or_404
+from app.core.db_utils import get_or_404, save
 from app.models.auction import Item
 from app.models.report import Report
 from app.models.review import Review
@@ -65,9 +65,7 @@ def create_report(db: Session, reporter: User, payload: ReportCreate) -> Report:
             "report", None,
         )
 
-    db.commit()
-    db.refresh(report)
-    return report
+    return save(db, report)
 
 
 def list_reports(
@@ -110,9 +108,7 @@ def update_report(db: Session, report_id: int, payload: ReportUpdate) -> Report:
             f"신고(#{report.id})가 반려되었습니다.", "report", report.id,
         )
 
-    db.commit()
-    db.refresh(report)
-    return report
+    return save(db, report)
 
 
 def _apply_sanction(db: Session, report: Report) -> None:

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { api, errorMessage } from "../lib/api";
+import { api, errorMessage, apiPost } from "../lib/api";
 import { Card, PageHeader, useCall } from "../lib/ui";
 
 type Notification = {
@@ -29,7 +29,7 @@ export default function NotificationsPage() {
   }, [unreadOnly]);
 
   const markReadCall = useCall((id: number) =>
-    api(`/notifications/${id}/read`, { method: "POST", auth: true }),
+    apiPost(`/notifications/${id}/read`),
   );
   const markRead = async (id: number) => {
     const res = await markReadCall.run(id);
@@ -37,7 +37,7 @@ export default function NotificationsPage() {
   };
 
   const readAllCall = useCall(() =>
-    api("/notifications/read-all", { method: "POST", auth: true }),
+    apiPost("/notifications/read-all"),
   );
   const markAllRead = async () => {
     const res = await readAllCall.run();

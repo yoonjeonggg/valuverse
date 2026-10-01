@@ -2,7 +2,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.core.db_utils import apply_patch, get_or_404
+from app.core.db_utils import apply_patch, get_or_404, save
 from app.core.timeutils import is_past
 from app.models.prediction import Prediction, PredictionBet
 from app.models.user import User
@@ -23,6 +23,11 @@ def _pending_bets_filter(prediction_id: int) -> tuple:
     )
 
 
+def _is_open(prediction: Prediction) -> bool:
+    """진행중이고 마감 시간 전이면 베팅/취소/내용 수정이 가능하다."""
+    return prediction.status == "ongoing" and not is_past(prediction.end_time)
+
+
 # ==================== Prediction ====================
 def create_prediction(
     db: Session, admin: User, payload: PredictionCreate
@@ -37,9 +42,7 @@ def create_prediction(
         created_by=admin.id,
     )
     db.add(prediction)
-    db.commit()
-    db.refresh(prediction)
-    return prediction
+    return save(db, prediction)
 
 
 def list_predictions(
@@ -65,7 +68,7 @@ def update_prediction(
     prediction = get_prediction(db, prediction_id)
     data = payload.model_dump(exclude_unset=True)
     # 마감 후에는 상태/결과(정산) 관련 필드만 허용
-    if prediction.status != "ongoing" or is_past(prediction.end_time):
+    if not _is_open(prediction):
         allowed = {"status", "result"}
         if set(data) - allowed:
             raise HTTPException(
@@ -73,9 +76,7 @@ def update_prediction(
                 "마감된 명제는 상태/결과만 변경할 수 있습니다.",
             )
     apply_patch(prediction, payload)
-    db.commit()
-    db.refresh(prediction)
-    return prediction
+    return save(db, prediction)
 
 
 def delete_prediction(db: Session, prediction_id: int) -> None:
@@ -101,7 +102,7 @@ def create_bet(
     db: Session, prediction_id: int, user: User, payload: PredictionBetCreate
 ) -> PredictionBet:
     prediction = get_prediction(db, prediction_id)
-    if prediction.status != "ongoing" or is_past(prediction.end_time):
+    if not _is_open(prediction):
         raise HTTPException(status.HTTP_409_CONFLICT, "마감된 명제입니다.")
     point_service.spend(
         db, user.id, payload.amount, "bet", f"예측 베팅 #{prediction_id}"
@@ -114,9 +115,7 @@ def create_bet(
         result="pending",
     )
     db.add(bet)
-    db.commit()
-    db.refresh(bet)
-    return bet
+    return save(db, bet)
 
 
 def get_odds(db: Session, prediction_id: int) -> dict:
@@ -261,7 +260,7 @@ def cancel_bet(db: Session, bet_id: int, user: User) -> None:
         raise HTTPException(status.HTTP_409_CONFLICT, "이미 취소된 베팅입니다.")
 
     prediction = get_prediction(db, bet.prediction_id)
-    if prediction.status != "ongoing" or is_past(prediction.end_time):
+    if not _is_open(prediction):
         raise HTTPException(status.HTTP_409_CONFLICT, "마감 후에는 취소할 수 없습니다.")
 
     bet.is_cancelled = True

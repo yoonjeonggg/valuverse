@@ -3,7 +3,7 @@ from sqlalchemy import update
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import set_committed_value
 
-from app.core.db_utils import get_or_404
+from app.core.db_utils import get_or_404, save
 from app.models.point import PointTransaction
 from app.models.user import User
 from app.schemas.point import PointTransactionCreate
@@ -84,9 +84,7 @@ def create_transaction(
     # 행위자(관리자) 기록 -- 누가 조정했는지 이력에서 추적할 수 있게 남긴다.
     memo = f"[관리자 #{requester.id}] {payload.memo}"
     tx = apply_delta(db, target, payload.amount, payload.type, memo)
-    db.commit()
-    db.refresh(tx)
-    return tx
+    return save(db, tx)
 
 
 def list_transactions(

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { announcePoints, api, getToken } from "../lib/api";
+import { announcePoints, api, getToken, apiPost } from "../lib/api";
 import type { Coupon, Mission } from "../lib/types";
 import { Card, ErrorText, Icon, PageHeader, useCall } from "../lib/ui";
 
@@ -93,12 +93,8 @@ export default function PointsPage() {
   }, [balance]);
 
   const checkInCall = useCall(() =>
-    api<{ streak: number; reward: number; balance: number; next_check_in_reward: number }>(
+    apiPost<{ streak: number; reward: number; balance: number; next_check_in_reward: number }>(
       "/points/check-in",
-      {
-        method: "POST",
-        auth: true,
-      },
     ),
   );
   const submitCheckIn = async () => {
@@ -113,15 +109,12 @@ export default function PointsPage() {
   };
 
   const adCall = useCall(() =>
-    api<{
+    apiPost<{
       views_today: number;
       daily_limit: number;
       balance: number;
       next_available_at: string;
-    }>("/points/ad-reward", {
-      method: "POST",
-      auth: true,
-    }),
+    }>("/points/ad-reward"),
   );
   const submitAd = async () => {
     const r = await adCall.run();
@@ -138,10 +131,7 @@ export default function PointsPage() {
 
   // 응답만으로 화면 상태를 갱신한다 (목록 전체를 다시 불러오지 않는다).
   const claimCall = useCall((key: string) =>
-    api<{ key: string; balance: number }>(`/points/missions/${key}/claim`, {
-      method: "POST",
-      auth: true,
-    }),
+    apiPost<{ key: string; balance: number }>(`/points/missions/${key}/claim`),
   );
   const submitClaim = async (key: string) => {
     setPending(`mission:${key}`);
@@ -154,7 +144,7 @@ export default function PointsPage() {
   };
 
   const redeemCall = useCall((key: string) =>
-    api<Coupon>(`/points/coupons/${key}/redeem`, { method: "POST", auth: true }),
+    apiPost<Coupon>(`/points/coupons/${key}/redeem`),
   );
   const submitRedeem = async (key: string) => {
     setPending(`redeem:${key}`);
@@ -167,7 +157,7 @@ export default function PointsPage() {
   };
 
   const useCouponCall = useCall((id: number) =>
-    api<Coupon>(`/points/coupons/${id}/use`, { method: "POST", auth: true }),
+    apiPost<Coupon>(`/points/coupons/${id}/use`),
   );
   const submitUseCoupon = async (id: number) => {
     setPending(`use:${id}`);

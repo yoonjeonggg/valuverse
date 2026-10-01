@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { api, getToken, errorMessage } from "../../lib/api";
+import { api, getToken, errorMessage, apiDelete, apiPost } from "../../lib/api";
 import { ChatWidget } from "../../lib/chat-widget";
 import { toIso } from "../../lib/format";
 import { useMe } from "../../lib/me";
@@ -38,15 +38,11 @@ export default function SkillItemDetailPage() {
   const [bookingAmount, setBookingAmount] = useState("");
   const [scheduledAt, setScheduledAt] = useState("");
   const createBooking = useCall(() =>
-    api<Booking>("/skill-bookings", {
-      method: "POST",
-      auth: true,
-      body: {
-        skill_item_id: itemId,
-        buyer_id: Number(buyerId),
-        amount: Number(bookingAmount),
-        scheduled_at: toIso(scheduledAt),
-      },
+    apiPost<Booking>("/skill-bookings", {
+      skill_item_id: itemId,
+      buyer_id: Number(buyerId),
+      amount: Number(bookingAmount),
+      scheduled_at: toIso(scheduledAt),
     }),
   );
 
@@ -58,15 +54,14 @@ export default function SkillItemDetailPage() {
     async (action: "accept" | "complete" | "no-show" | "cancel") => {
       const id = myBooking?.id;
       if (action === "cancel") {
-        await api(`/skill-bookings/${id}`, { method: "DELETE", auth: true });
+        await apiDelete(`/skill-bookings/${id}`);
         return { ...myBooking!, status: "cancelled" };
       }
-      return api<Booking>(`/skill-bookings/${id}/${action}`, {
-        method: "POST",
-        auth: true,
+      return apiPost<Booking>(
+        `/skill-bookings/${id}/${action}`,
         // 노쇼는 상대방만 신고할 수 있다: 구매자는 판매자를, 판매자는 구매자를.
-        body: action === "no-show" ? { party: isBuyer ? "seller" : "buyer" } : undefined,
-      });
+        action === "no-show" ? { party: isBuyer ? "seller" : "buyer" } : undefined,
+      );
     },
   );
   const runBookingAction = async (action: "accept" | "complete" | "no-show" | "cancel") => {
@@ -80,16 +75,12 @@ export default function SkillItemDetailPage() {
   const [reviewRating, setReviewRating] = useState("5");
   const [reviewContent, setReviewContent] = useState("");
   const createReview = useCall(() =>
-    api<Review>("/reviews", {
-      method: "POST",
-      auth: true,
-      body: {
-        target_user_id:
-          meId === item?.seller_id ? myBooking?.buyer_id : item?.seller_id,
-        skill_item_id: itemId,
-        rating: Number(reviewRating),
-        content: reviewContent || undefined,
-      },
+    apiPost<Review>("/reviews", {
+      target_user_id:
+        meId === item?.seller_id ? myBooking?.buyer_id : item?.seller_id,
+      skill_item_id: itemId,
+      rating: Number(reviewRating),
+      content: reviewContent || undefined,
     }),
   );
 

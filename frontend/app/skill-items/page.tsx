@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { api } from "../lib/api";
+import { api, apiPost } from "../lib/api";
 import { SkillCard } from "../lib/cards";
 import type { SkillItem } from "../lib/types";
 import { Card, ErrorText, Field, PageHeader, useCall } from "../lib/ui";
@@ -34,18 +34,14 @@ export default function SkillItemsPage() {
   const [availableSchedule, setAvailableSchedule] = useState("");
 
   const create = useCall(() =>
-    api("/skill-items", {
-      method: "POST",
-      auth: true,
-      body: {
-        title,
-        description: description || undefined,
-        category: category || undefined,
-        start_price: Number(startPrice),
-        duration_minutes: durationMinutes ? Number(durationMinutes) : undefined,
-        provide_type: provideType || undefined,
-        available_schedule: availableSchedule || undefined,
-      },
+    apiPost("/skill-items", {
+      title,
+      description: description || undefined,
+      category: category || undefined,
+      start_price: Number(startPrice),
+      duration_minutes: durationMinutes ? Number(durationMinutes) : undefined,
+      provide_type: provideType || undefined,
+      available_schedule: availableSchedule || undefined,
     }),
   );
   const submitCreate = async () => {
@@ -58,11 +54,7 @@ export default function SkillItemsPage() {
   };
 
   const skillTag = useCall(() =>
-    api<{ suggested_category: string; suggested_level: string }>("/ai/skill-tag-suggestion", {
-      method: "POST",
-      auth: true,
-      body: { intro_text: description },
-    }),
+    apiPost<{ suggested_category: string; suggested_level: string }>("/ai/skill-tag-suggestion", { intro_text: description }),
   );
 
   return (

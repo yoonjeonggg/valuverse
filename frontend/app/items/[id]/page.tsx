@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { api, API_BASE_URL, getToken, errorMessage } from "../../lib/api";
+import { api, API_BASE_URL, getToken, errorMessage, apiPost } from "../../lib/api";
 import { ChatWidget } from "../../lib/chat-widget";
 import { useMe } from "../../lib/me";
 import type { Bid, Item } from "../../lib/types";
@@ -23,23 +23,15 @@ export default function ItemDetailPage() {
 
   const [bidAmount, setBidAmount] = useState("");
   const bidCall = useCall(() =>
-    api<Bid>(`/items/${itemId}/bids`, {
-      method: "POST",
-      auth: true,
-      body: { amount: Number(bidAmount) },
-    }),
+    apiPost<Bid>(`/items/${itemId}/bids`, { amount: Number(bidAmount) }),
   );
   const buyNowCall = useCall(() =>
-    api(`/items/${itemId}/buy-now`, { method: "POST", auth: true }),
+    apiPost(`/items/${itemId}/buy-now`),
   );
 
   const [blindAmount, setBlindAmount] = useState("");
   const blindBidCall = useCall(() =>
-    api(`/items/${itemId}/blind-bids`, {
-      method: "POST",
-      auth: true,
-      body: { amount: Number(blindAmount) },
-    }),
+    apiPost(`/items/${itemId}/blind-bids`, { amount: Number(blindAmount) }),
   );
   const [rank, setRank] = useState<RankInfo | null>(null);
   const [results, setResults] = useState<ResultRow[] | null>(null);

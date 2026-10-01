@@ -116,3 +116,13 @@ export async function api<T = unknown>(
 
   return parsed as T;
 }
+
+// 로그인이 필요한 변경 요청 단축형 (토큰을 붙여 보낸다).
+export const apiPost = <T = unknown>(path: string, body?: unknown) =>
+  api<T>(path, { method: "POST", auth: true, body });
+
+export const apiPatch = <T = unknown>(path: string, body: unknown) =>
+  api<T>(path, { method: "PATCH", auth: true, body });
+
+export const apiDelete = <T = unknown>(path: string) =>
+  api<T>(path, { method: "DELETE", auth: true });

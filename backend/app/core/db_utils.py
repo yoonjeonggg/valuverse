@@ -32,3 +32,10 @@ def apply_patch(obj, payload: BaseModel) -> None:
     """PATCH 요청에서 클라이언트가 보낸 필드만 모델에 반영한다."""
     for field, value in payload.model_dump(exclude_unset=True).items():
         setattr(obj, field, value)
+
+
+def save(db: Session, obj):
+    """커밋하고 DB 기본값/트리거로 채워진 값까지 다시 읽어 돌려준다."""
+    db.commit()
+    db.refresh(obj)
+    return obj

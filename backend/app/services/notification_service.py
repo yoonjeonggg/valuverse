@@ -7,7 +7,7 @@
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.core.db_utils import get_or_404
+from app.core.db_utils import get_or_404, save
 from app.models.notification import Notification
 
 
@@ -53,9 +53,7 @@ def mark_read(db: Session, notification_id: int, user_id: int) -> Notification:
         Notification.user_id == user_id,
     )
     notif.is_read = True
-    db.commit()
-    db.refresh(notif)
-    return notif
+    return save(db, notif)
 
 
 def mark_all_read(db: Session, user_id: int) -> int:

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { api } from "../lib/api";
+import { api, apiDelete, apiPatch } from "../lib/api";
 import { useMe } from "../lib/me";
 import type { Bid, Booking, Item } from "../lib/types";
 import { Card, ErrorText, Field, PageHeader, useCall } from "../lib/ui";
@@ -201,16 +201,12 @@ export default function MePage() {
   const [currentPassword, setCurrentPassword] = useState("");
 
   const update = useCall(() =>
-    api("/users/me", {
-      method: "PATCH",
-      auth: true,
-      body: {
-        nickname: nickname || undefined,
-        profile_image: profileImage || undefined,
-        password: password || undefined,
-        // 비밀번호를 바꿀 때만 현재 비밀번호를 함께 보낸다 (서버가 확인)
-        current_password: password ? currentPassword : undefined,
-      },
+    apiPatch("/users/me", {
+      nickname: nickname || undefined,
+      profile_image: profileImage || undefined,
+      password: password || undefined,
+      // 비밀번호를 바꿀 때만 현재 비밀번호를 함께 보낸다 (서버가 확인)
+      current_password: password ? currentPassword : undefined,
     }),
   );
   const submitUpdate = async () => {
@@ -223,7 +219,7 @@ export default function MePage() {
     }
   };
 
-  const remove = useCall(() => api("/users/me", { method: "DELETE", auth: true }));
+  const remove = useCall(() => apiDelete("/users/me"));
 
   return (
     <div>

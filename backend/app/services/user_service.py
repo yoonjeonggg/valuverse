@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
 
-from app.core.db_utils import commit_or_conflict, get_or_404
+from app.core.db_utils import commit_or_conflict, get_or_404, save
 from app.models.user import User
 from app.schemas.user import SignupRequest, UserUpdateRequest
 from app.core.security import hash_password, verify_password
@@ -58,9 +58,7 @@ def update_user(db: Session, user: User, payload: UserUpdateRequest) -> User:
                 status.HTTP_400_BAD_REQUEST, "현재 비밀번호가 일치하지 않습니다."
             )
         user.password_hash = hash_password(payload.password)
-    db.commit()
-    db.refresh(user)
-    return user
+    return save(db, user)
 
 
 def deactivate_user(db: Session, user: User) -> None:

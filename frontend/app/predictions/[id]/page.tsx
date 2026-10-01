@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { api, getToken, errorMessage } from "../../lib/api";
+import { api, getToken, errorMessage, apiDelete, apiPost } from "../../lib/api";
 import { PREDICTION_STATUS_LABEL, type Prediction } from "../../lib/types";
 import { Card, Countdown, ErrorText, Icon, useCall } from "../../lib/ui";
 
@@ -42,14 +42,10 @@ export default function PredictionDetailPage() {
   const [position, setPosition] = useState<"yes" | "no">("yes");
   const [amount, setAmount] = useState("");
   const betCall = useCall(() =>
-    api<Bet>(`/predictions/${predictionId}/bets`, {
-      method: "POST",
-      auth: true,
-      body: { position, amount: Number(amount) },
-    }),
+    apiPost<Bet>(`/predictions/${predictionId}/bets`, { position, amount: Number(amount) }),
   );
   const cancelCall = useCall((betId: number) =>
-    api(`/prediction-bets/${betId}`, { method: "DELETE", auth: true }),
+    apiDelete(`/prediction-bets/${betId}`),
   );
 
   const loadOdds = () =>

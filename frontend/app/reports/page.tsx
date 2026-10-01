@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { api } from "../lib/api";
+import { apiPost } from "../lib/api";
 import { Card, ErrorText, Field, PageHeader, SelectField, useCall } from "../lib/ui";
 
 const TARGET_TYPES: [string, string][] = [
@@ -17,11 +17,7 @@ export default function ReportsPage() {
   const [reason, setReason] = useState("");
 
   const create = useCall(() =>
-    api("/reports", {
-      method: "POST",
-      auth: true,
-      body: { target_type: targetType, target_id: Number(targetId), reason },
-    }),
+    apiPost("/reports", { target_type: targetType, target_id: Number(targetId), reason }),
   );
 
   const submit = async () => {

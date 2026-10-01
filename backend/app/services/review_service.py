@@ -2,7 +2,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.core.db_utils import apply_patch, get_or_404
+from app.core.db_utils import apply_patch, get_or_404, save
 from app.core.timeutils import now, aware
 from app.models.auction import Item
 from app.models.review import Review
@@ -89,9 +89,7 @@ def create_review(db: Session, author: User, payload: ReviewCreate) -> Review:
     db.add(review)
     db.flush()
     recalc_rating(db, payload.target_user_id)
-    db.commit()
-    db.refresh(review)
-    return review
+    return save(db, review)
 
 
 def list_reviews(
@@ -131,9 +129,7 @@ def update_review(
     apply_patch(review, payload)
     db.flush()
     recalc_rating(db, review.target_user_id)
-    db.commit()
-    db.refresh(review)
-    return review
+    return save(db, review)
 
 
 def delete_review(db: Session, review_id: int, user: User) -> None:

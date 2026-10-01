@@ -5,7 +5,7 @@ from sqlalchemy import case, or_
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.core.db_utils import apply_patch, get_or_404
+from app.core.db_utils import apply_patch, get_or_404, save
 from app.core.timeutils import now, aware, is_past, iso
 from app.models.auction import Item, Bid, BlindBid
 from app.models.user import User
@@ -106,9 +106,7 @@ def create_item(db: Session, seller_id: int, payload: ItemCreate) -> Item:
         status="ongoing",
     )
     db.add(item)
-    db.commit()
-    db.refresh(item)
-    return item
+    return save(db, item)
 
 
 def list_items(
@@ -155,9 +153,7 @@ def list_items(
 
 def buy_spotlight(db: Session, item_id: int, user: User) -> Item:
     """포인트로 상단 노출권을 구매한다 (FR-PRD-08)."""
-    item = get_item(db, item_id)
-    if item.seller_id != user.id:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "본인 상품만 노출할 수 있습니다.")
+    item = _get_own_item(db, item_id, user.id, "노출")
     if item.status != "ongoing":
         raise HTTPException(status.HTTP_409_CONFLICT, "진행중인 경매만 노출할 수 있습니다.")
     point_service.spend(
@@ -169,9 +165,7 @@ def buy_spotlight(db: Session, item_id: int, user: User) -> Item:
     if current and current > base:
         base = current  # 남은 시간에 이어붙인다
     item.spotlight_until = base + timedelta(hours=settings.spotlight_hours)
-    db.commit()
-    db.refresh(item)
-    return item
+    return save(db, item)
 
 
 def get_item(db: Session, item_id: int) -> Item:
@@ -179,6 +173,19 @@ def get_item(db: Session, item_id: int) -> Item:
         db, Item, item_id, "상품을 찾을 수 없습니다.", Item.is_deleted.is_(False)
     )
     return _finalize_if_ended(db, item)
+
+
+def _get_own_item(db: Session, item_id: int, user_id: int, action: str) -> Item:
+    item = get_item(db, item_id)
+    if item.seller_id != user_id:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, f"본인 상품만 {action}할 수 있습니다.")
+    return item
+
+
+def _ensure_open(item: Item) -> None:
+    """마감 시간이 지났거나 이미 마감 처리된 경매면 409."""
+    if item.status != "ongoing" or is_past(item.end_time):
+        raise HTTPException(status.HTTP_409_CONFLICT, "마감된 경매입니다.")
 
 
 def _has_bids(db: Session, item_id: int) -> bool:
@@ -191,23 +198,17 @@ def _has_bids(db: Session, item_id: int) -> bool:
 
 
 def update_item(db: Session, item_id: int, user_id: int, payload: ItemUpdate) -> Item:
-    item = get_item(db, item_id)
-    if item.seller_id != user_id:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "본인 상품만 수정할 수 있습니다.")
+    item = _get_own_item(db, item_id, user_id, "수정")
     if _has_bids(db, item_id):
         raise HTTPException(
             status.HTTP_409_CONFLICT, "입찰이 시작된 상품은 수정할 수 없습니다."
         )
     apply_patch(item, payload)
-    db.commit()
-    db.refresh(item)
-    return item
+    return save(db, item)
 
 
 def delete_item(db: Session, item_id: int, user_id: int) -> None:
-    item = get_item(db, item_id)
-    if item.seller_id != user_id:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "본인 상품만 삭제할 수 있습니다.")
+    item = _get_own_item(db, item_id, user_id, "삭제")
     if _has_bids(db, item_id):
         # 입찰이 있으면 소프트 삭제
         item.is_deleted = True
@@ -220,9 +221,7 @@ def delete_item(db: Session, item_id: int, user_id: int) -> None:
 
 def close_item(db: Session, item_id: int, user_id: int) -> Item:
     """판매자가 경매를 조기 마감하고 낙찰자를 확정한다."""
-    item = get_item(db, item_id)
-    if item.seller_id != user_id:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "본인 상품만 마감할 수 있습니다.")
+    item = _get_own_item(db, item_id, user_id, "마감")
     if item.status != "ongoing":
         raise HTTPException(status.HTTP_409_CONFLICT, "이미 마감된 경매입니다.")
     return _finalize(db, item)
@@ -240,8 +239,7 @@ def buy_now(db: Session, item_id: int, buyer_id: int) -> Item:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "즉시구매가 없는 상품입니다.")
     if item.seller_id == buyer_id:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "본인 상품은 구매할 수 없습니다.")
-    if item.status != "ongoing" or is_past(item.end_time):
-        raise HTTPException(status.HTTP_409_CONFLICT, "마감된 경매입니다.")
+    _ensure_open(item)
     if item.current_price >= item.buy_now_price:
         raise HTTPException(
             status.HTTP_409_CONFLICT, "현재가가 즉시구매가 이상입니다."
@@ -285,8 +283,7 @@ def create_bid(db: Session, item_id: int, bidder_id: int, payload: BidCreate) ->
         )
     if item.seller_id == bidder_id:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "본인 상품에는 입찰할 수 없습니다.")
-    if item.status != "ongoing" or is_past(item.end_time):
-        raise HTTPException(status.HTTP_409_CONFLICT, "마감된 경매입니다.")
+    _ensure_open(item)
     if payload.amount <= item.current_price:
         raise HTTPException(
             status.HTTP_400_BAD_REQUEST,
@@ -397,8 +394,7 @@ def create_blind_bid(
         raise HTTPException(
             status.HTTP_409_CONFLICT, "블라인드 경매가 아닙니다."
         )
-    if item.status != "ongoing" or is_past(item.end_time):
-        raise HTTPException(status.HTTP_409_CONFLICT, "마감된 경매입니다.")
+    _ensure_open(item)
     if item.seller_id == bidder_id:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "본인 상품에는 입찰할 수 없습니다.")
 
@@ -419,9 +415,7 @@ def create_blind_bid(
 
     bid = BlindBid(item_id=item_id, bidder_id=bidder_id, amount=payload.amount)
     db.add(bid)
-    db.commit()
-    db.refresh(bid)
-    return bid
+    return save(db, bid)
 
 
 def _ranked_blind_bids(db: Session, item_id: int) -> list[BlindBid]:
