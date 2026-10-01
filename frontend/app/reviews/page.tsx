@@ -33,7 +33,7 @@ export default function ReviewsPage() {
 
   return (
     <div>
-      <PageHeader eyebrow="Trust" title="내가 받은 리뷰">
+      <PageHeader title="내가 받은 리뷰">
         <p>
           완료된 거래(낙찰 / 스킬 완료)의 상대방이 남긴 후기입니다. 리뷰 작성은
           해당 상품·스킬 상세 화면에서 할 수 있습니다.

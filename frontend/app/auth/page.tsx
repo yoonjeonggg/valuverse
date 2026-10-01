@@ -45,7 +45,7 @@ export default function AuthPage() {
   if (signedIn) {
     return (
       <div>
-        <PageHeader eyebrow="Account" title="로그인 상태" />
+        <PageHeader title="로그인 상태" />
         <Card title="로그인 되어 있습니다">
           <div className="actions">
             <button onClick={logout}>로그아웃</button>
@@ -57,7 +57,7 @@ export default function AuthPage() {
 
   return (
     <div>
-      <PageHeader eyebrow="Account" title="회원가입 / 로그인">
+      <PageHeader title="회원가입 / 로그인">
         <p>로그인하면 이후 인증이 필요한 요청에 자동으로 로그인 상태가 유지됩니다.</p>
       </PageHeader>
 

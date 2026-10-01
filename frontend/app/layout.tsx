@@ -54,39 +54,9 @@ export default function RootLayout({
 
         <footer className="site-footer">
           <div className="site-footer__inner">
-            <div className="site-footer__brand">
-              <Link href="/" className="wordmark">
-                Valu<b>verse</b>
-              </Link>
-              <p>
-                차별화된 경매 메커니즘과 포인트 이코노미를 결합한 거래
-                플랫폼.
-              </p>
-            </div>
-            <nav className="site-footer__col">
-              <b>거래</b>
-              <ul>
-                <li>
-                  <Link href="/items">일반·블라인드 경매</Link>
-                </li>
-                <li>
-                  <Link href="/skill-items">스킬 경매 / 에스크로</Link>
-                </li>
-              </ul>
-            </nav>
-            <nav className="site-footer__col">
-              <b>리텐션</b>
-              <ul>
-                <li>
-                  <Link href="/predictions">예측시장</Link>
-                </li>
-                <li>
-                  <Link href="/points">포인트 · 쿠폰</Link>
-                </li>
-              </ul>
-            </nav>
-          </div>
-          <div className="site-footer__bottom">
+            <Link href="/" className="wordmark">
+              Valu<b>verse</b>
+            </Link>
             <span>&copy; 2026 Valuverse</span>
           </div>
         </footer>

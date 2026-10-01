@@ -137,7 +137,7 @@ export default function AdminPage() {
 
   return (
     <div>
-      <PageHeader eyebrow="Admin" title="관리자 대시보드">
+      <PageHeader title="관리자 대시보드">
         <p>신고 처리와 예측시장 명제 등록·정산을 관리합니다. 관리자 계정으로만 접근할 수 있습니다.</p>
       </PageHeader>
 

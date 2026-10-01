@@ -30,7 +30,7 @@ export default function ReportsPage() {
 
   return (
     <div>
-      <PageHeader eyebrow="Moderation" title="신고하기">
+      <PageHeader title="신고하기">
         <p>부적절한 상품, 스킬, 회원, 리뷰를 신고합니다. 본인·중복 신고는 접수되지 않습니다.</p>
       </PageHeader>
 

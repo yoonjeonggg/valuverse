@@ -173,7 +173,7 @@ export default function PointsPage() {
 
   return (
     <div>
-      <PageHeader eyebrow="Economy" title="포인트">
+      <PageHeader title="포인트">
         <p>
           포인트는 출석·미션·광고로만 적립되고, 예측 베팅·상단 노출권·수수료
           할인쿠폰에 소모됩니다. 현금 충전 경로는 없습니다.
@@ -219,7 +219,6 @@ export default function PointsPage() {
 
       <div className="pointgrid">
         <Card
-          eyebrow="Daily"
           title="출석 체크"
           right={
             summary?.checked_in_today ? (
@@ -274,7 +273,7 @@ export default function PointsPage() {
           <ErrorText error={checkInCall.error} notice />
         </Card>
 
-        <Card eyebrow="Reward" title="광고 보상">
+        <Card title="광고 보상">
           <p className="hint">
             광고 1회 시청마다 <b>+{summary?.ad_reward ?? 5}P</b>, 하루 최대{" "}
             {summary?.ad_daily_limit ?? 5}회까지 받을 수 있습니다.
@@ -310,7 +309,6 @@ export default function PointsPage() {
       </div>
 
       <Card
-        eyebrow="Mission"
         title="미션"
         right={missions && <span className="statuschip">{missionsDone}/{missions.length} 완료</span>}
       >
@@ -356,7 +354,7 @@ export default function PointsPage() {
         <ErrorText error={claimCall.error} notice />
       </Card>
 
-      <Card eyebrow="Spend" title="수수료 할인 쿠폰 교환">
+      <Card title="수수료 할인 쿠폰 교환">
         {!catalog ? (
           <div className="empty">불러오는 중…</div>
         ) : (
@@ -396,7 +394,7 @@ export default function PointsPage() {
         <ErrorText error={redeemCall.error} notice />
       </Card>
 
-      <Card eyebrow="Wallet" title="내 쿠폰">
+      <Card title="내 쿠폰">
         {!coupons || coupons.length === 0 ? (
           <div className="empty">보유한 쿠폰이 없습니다.</div>
         ) : (

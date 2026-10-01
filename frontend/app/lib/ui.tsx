@@ -87,15 +87,13 @@ export function ErrorText({
   return <p className={notice ? "notice notice--error" : "hint hint--error"}>{error}</p>;
 }
 
-/* ---------- consumer-facing card (Section 의 API 콘솔 스타일 대신) ---------- */
+/* ---------- 섹션 카드 ---------- */
 export function Card({
   title,
-  eyebrow,
   right,
   children,
 }: {
   title?: string;
-  eyebrow?: string;
   right?: React.ReactNode;
   children: React.ReactNode;
 }) {
@@ -103,10 +101,7 @@ export function Card({
     <section className="card">
       {(title || right) && (
         <div className="card__head">
-          <div>
-            {eyebrow && <div className="card__eyebrow">{eyebrow}</div>}
-            {title && <h3>{title}</h3>}
-          </div>
+          <div>{title && <h3>{title}</h3>}</div>
           {right}
         </div>
       )}
@@ -154,17 +149,14 @@ export function Countdown({ endTime }: { endTime: string | null | undefined }) {
 
 /* ---------- page header ---------- */
 export function PageHeader({
-  eyebrow,
   title,
   children,
 }: {
-  eyebrow?: string;
   title: string;
   children?: React.ReactNode;
 }) {
   return (
     <header className="page-head">
-      {eyebrow && <div className="eyebrow">{eyebrow}</div>}
       <h1>{title}</h1>
       {children}
     </header>

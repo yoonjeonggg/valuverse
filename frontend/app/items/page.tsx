@@ -66,7 +66,7 @@ export default function ItemsPage() {
 
   return (
     <div>
-      <PageHeader eyebrow="Auction" title="일반 · 블라인드 경매">
+      <PageHeader title="일반 · 블라인드 경매">
         <p>
           공개 실시간 입찰과 밀봉 입찰을 한 화면에서 다룹니다. 등록 시 경매
           방식과 블라인드 낙찰 규칙을 정합니다.

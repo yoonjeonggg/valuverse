@@ -20,7 +20,6 @@ export default function Home() {
   const [items, setItems] = useState<Item[] | null>(null);
   const [skillItems, setSkillItems] = useState<SkillItem[] | null>(null);
   const [missions, setMissions] = useState<Mission[] | null>(null);
-  const [loggedIn, setLoggedIn] = useState(false);
 
   useEffect(() => {
     api<Item[]>("/items", { query: { status: "ongoing", limit: 6 } })
@@ -30,8 +29,6 @@ export default function Home() {
       .then(setSkillItems)
       .catch(() => setSkillItems([]));
     const token = getToken();
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setLoggedIn(!!token);
     if (token) {
       api<Mission[]>("/points/missions", { auth: true })
         .then(setMissions)
@@ -44,7 +41,6 @@ export default function Home() {
   return (
     <div>
       <section className="hero">
-        <div className="eyebrow">AI 경매 플랫폼</div>
         <h1>
           최고가만이 답은 아니다.
           <br />
@@ -64,66 +60,16 @@ export default function Home() {
         </div>
       </section>
 
-      <div className="mechs">
-        <article className="mech">
-          <div className="ic">
-            <Icon name="gavel" size={22} />
-          </div>
-          <h3>일반 경매</h3>
-          <p>
-            실시간으로 현재가가 오르고, 마감 직전 입찰은 자동으로 시간을
-            연장합니다. 스나이핑이 통하지 않습니다.
-          </p>
-          <Link href="/items">
-            바로가기 <Icon name="arrow" size={14} />
+      {claimable > 0 && (
+        <div className="missionbanner">
+          <span className="msg">
+            출석·미션 보상 <b>{claimable}개</b>를 받을 수 있어요.
+          </span>
+          <Link className="btn btn-sm" href="/points">
+            포인트 센터 <Icon name="arrow" size={14} />
           </Link>
-        </article>
-        <article className="mech">
-          <div className="ic">
-            <Icon name="shield" size={22} />
-          </div>
-          <h3>블라인드 경매</h3>
-          <p>
-            남의 입찰가는 보이지 않고 내 순위만 보입니다. 마감 시 일괄 공개,
-            1st-price 또는 Vickrey 방식으로 낙찰됩니다.
-          </p>
-          <Link href="/items">
-            바로가기 <Icon name="arrow" size={14} />
-          </Link>
-        </article>
-        <article className="mech">
-          <div className="ic">
-            <Icon name="clock" size={22} />
-          </div>
-          <h3>스킬 경매</h3>
-          <p>
-            과외 2시간, 로고 디자인 같은 무형 자산을 거래합니다. 낙찰금은
-            에스크로에 보관됐다가 서비스 완료 후 정산됩니다.
-          </p>
-          <Link href="/skill-items">
-            바로가기 <Icon name="arrow" size={14} />
-          </Link>
-        </article>
-      </div>
-
-      <div className="missionbanner">
-        <span className="msg">
-          {loggedIn ? (
-            claimable > 0 ? (
-              <>
-                오늘의 출석·미션 중 <b>{claimable}개</b> 보상을 받을 수 있어요.
-              </>
-            ) : (
-              "오늘의 출석 체크와 미션을 확인해 보세요."
-            )
-          ) : (
-            "로그인하면 출석·미션·광고 시청으로 포인트를 모을 수 있어요."
-          )}
-        </span>
-        <Link className="btn btn-sm" href="/points">
-          포인트 센터 가기 <Icon name="arrow" size={14} />
-        </Link>
-      </div>
+        </div>
+      )}
 
       <div className="section-label">
         <h2>지금 열려 있는 경매</h2>

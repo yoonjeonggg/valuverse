@@ -223,7 +223,7 @@ export default function MePage() {
 
   return (
     <div>
-      <PageHeader eyebrow="Account" title="내 계정">
+      <PageHeader title="내 계정">
         <p>활동 요약과 입찰/낙찰/예약/포인트 내역을 확인하고, 프로필을 관리합니다.</p>
       </PageHeader>
 

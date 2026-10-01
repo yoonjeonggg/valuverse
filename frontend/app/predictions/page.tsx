@@ -18,7 +18,7 @@ export default function PredictionsPage() {
 
   return (
     <div>
-      <PageHeader eyebrow="Prediction Market" title="예측시장">
+      <PageHeader title="예측시장">
         <p>Yes / No 명제에 포인트를 베팅하고, 파리뮤추얼 방식으로 정산받습니다.</p>
       </PageHeader>
 

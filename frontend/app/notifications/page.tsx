@@ -46,7 +46,7 @@ export default function NotificationsPage() {
 
   return (
     <div>
-      <PageHeader eyebrow="Activity" title="알림">
+      <PageHeader title="알림">
         <p>상위 입찰, 낙찰, 스킬 정산, 예측 정산, 신고 처리 등 이벤트가 발생하면 자동으로 쌓입니다.</p>
       </PageHeader>
 

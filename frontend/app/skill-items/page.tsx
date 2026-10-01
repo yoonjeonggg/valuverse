@@ -59,7 +59,7 @@ export default function SkillItemsPage() {
 
   return (
     <div>
-      <PageHeader eyebrow="Skill Auction" title="스킬 경매">
+      <PageHeader title="스킬 경매">
         <p>
           무형의 재능을 거래합니다. 예약 생성이 곧 낙찰이며, 낙찰금은
           에스크로에 보관됐다가 완료·노쇼에 따라 정산·환불됩니다.
