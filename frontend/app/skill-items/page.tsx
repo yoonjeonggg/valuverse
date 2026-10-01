@@ -98,7 +98,7 @@ export default function SkillItemsPage() {
       <Card title="스킬 상품 등록">
         <Field label="제목" value={title} onChange={(e) => setTitle(e.target.value)} />
         <Field label="소개글" value={description} onChange={(e) => setDescription(e.target.value)} />
-        <div className="actions">
+        <div className="actions actions--field">
           <button className="btn-sm" onClick={() => skillTag.run()} disabled={!description || skillTag.loading}>
             AI 카테고리/난이도 제안
           </button>

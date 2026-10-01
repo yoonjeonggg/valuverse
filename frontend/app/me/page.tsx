@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { api, apiDelete, apiPatch } from "../lib/api";
+import { api, apiDelete, apiPatch, setToken } from "../lib/api";
 import { useMe } from "../lib/me";
 import type { Bid, Booking, Item } from "../lib/types";
 import { Card, ErrorText, Field, PageHeader, useCall } from "../lib/ui";
@@ -219,7 +219,18 @@ export default function MePage() {
     }
   };
 
+  // 탈퇴는 되돌릴 수 없으므로 한 번 더 확인받고, 끝나면 토큰을 지우고 홈으로 보낸다.
+  const [confirmRemove, setConfirmRemove] = useState(false);
   const remove = useCall(() => apiDelete("/users/me"));
+  const submitRemove = async () => {
+    const res = await remove.run();
+    if (res !== undefined) {
+      setToken(null);
+      // 헤더(잔액/알림)가 마운트 시점의 토큰으로 그려지므로 클라이언트 이동 대신 새로 불러온다.
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+      window.location.href = "/";
+    }
+  };
 
   return (
     <div>
@@ -235,12 +246,15 @@ export default function MePage() {
           value={nickname}
           onChange={(e) => setNickname(e.target.value)}
           placeholder="변경할 닉네임"
+          autoComplete="nickname"
         />
         <Field
           label="프로필 이미지 URL"
           value={profileImage}
           onChange={(e) => setProfileImage(e.target.value)}
           placeholder="https://…"
+          type="url"
+          autoComplete="off"
         />
         <Field
           label="비밀번호"
@@ -248,6 +262,7 @@ export default function MePage() {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           placeholder="변경할 비밀번호"
+          autoComplete="new-password"
         />
         {password && (
           <Field
@@ -270,9 +285,19 @@ export default function MePage() {
       <Card title="회원 탈퇴">
         <p className="hint">탈퇴 시 계정이 비활성화됩니다.</p>
         <div className="actions">
-          <button onClick={() => remove.run()} disabled={remove.loading}>
-            탈퇴
-          </button>
+          {confirmRemove ? (
+            <>
+              <span className="hint">정말 탈퇴할까요?</span>
+              <button className="btn btn-danger" onClick={submitRemove} disabled={remove.loading}>
+                탈퇴 확정
+              </button>
+              <button onClick={() => setConfirmRemove(false)} disabled={remove.loading}>
+                취소
+              </button>
+            </>
+          ) : (
+            <button onClick={() => setConfirmRemove(true)}>탈퇴</button>
+          )}
         </div>
         <ErrorText error={remove.error} />
       </Card>

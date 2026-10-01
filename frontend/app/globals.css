@@ -12,39 +12,38 @@
      - 값을 둘 다 한 선언에 적어야 하므로, 다크 변형을 깜빡 빠뜨리는 실수가 구조적으로 불가능하다. */
   color-scheme: light dark;
 
-  /* brand: 신호로서의 빨강. 배경이 아니라 액센트/아이덴티티로만 쓴다.
-     탁하게 가라앉지 않도록 채도를 높게 유지 (파스텔로 보이지 않게). 다크 모드는
-     밝기만 올리고(채도 유지) hover/active 는 라이트 모드와 같은 방향(더 진하게)
-     으로 눌러서, 톤을 올릴수록 옅어지는 파스텔화를 피한다. */
-  --red: light-dark(#e00b2d, #ff2c4f);
-  --red-hover: light-dark(#b80924, #e01f40);
-  --red-active: light-dark(#93071d, #b81733);
-  --red-tint: light-dark(#fbe9ec, rgba(255, 44, 79, 0.16));
-  --red-tint-2: light-dark(#f6d7dd, rgba(255, 44, 79, 0.26));
+  /* 웹에서 흔히 쓰는 표준 팔레트(Tailwind red / gray / green / amber)를 그대로 쓴다.
+     중립색은 웜톤 없이 순수 회색, 빨강은 액센트/아이덴티티로만 쓴다.
+     다크 모드는 한 단계 밝은 red-500 을 쓰고 hover/active 는 더 진하게 누른다. */
+  --red: light-dark(#dc2626, #ef4444);
+  --red-hover: light-dark(#b91c1c, #dc2626);
+  --red-active: light-dark(#991b1b, #b91c1c);
+  --red-tint: light-dark(#fef2f2, rgba(239, 68, 68, 0.15));
+  --red-tint-2: light-dark(#fee2e2, rgba(239, 68, 68, 0.25));
 
-  --ink: light-dark(#1c1a1b, #f2efec);
-  --ink-2: light-dark(#46413f, #cfc9c3);
-  --muted: light-dark(#7d7671, #9b948d);
-  --faint: light-dark(#a8a19b, #6e6863);
+  --ink: light-dark(#111827, #f9fafb);
+  --ink-2: light-dark(#374151, #d1d5db);
+  --muted: light-dark(#6b7280, #9ca3af);
+  --faint: light-dark(#9ca3af, #6b7280);
 
-  --line: light-dark(#e7e2dc, #373432);
-  --line-strong: light-dark(#d8d2ca, #4a4542);
+  --line: light-dark(#e5e7eb, #374151);
+  --line-strong: light-dark(#d1d5db, #4b5563);
 
-  --paper: light-dark(#fbfaf8, #17181a);
-  --surface: light-dark(#ffffff, #1f2023);
-  --surface-2: light-dark(#f4f1ec, #26282b);
-  --surface-ink: light-dark(#211f20, #f2efec);
+  --paper: light-dark(#ffffff, #111827);
+  --surface: light-dark(#ffffff, #1f2937);
+  --surface-2: light-dark(#f3f4f6, #273244);
+  --surface-ink: light-dark(#111827, #f9fafb);
 
-  --ok: light-dark(#1f7a4d, #4fbf85);
-  --ok-tint: light-dark(#e6f2ea, rgba(79, 191, 133, 0.14));
-  --ok-border: light-dark(#cde6d8, rgba(79, 191, 133, 0.35));
-  --warn: light-dark(#9a6b00, #e0ab3d);
-  --warn-tint: light-dark(#f8efd8, rgba(224, 171, 61, 0.14));
-  --warn-border: light-dark(#ecdfb8, rgba(224, 171, 61, 0.35));
+  --ok: light-dark(#16a34a, #22c55e);
+  --ok-tint: light-dark(#f0fdf4, rgba(34, 197, 94, 0.15));
+  --ok-border: light-dark(#bbf7d0, rgba(34, 197, 94, 0.35));
+  --warn: light-dark(#d97706, #f59e0b);
+  --warn-tint: light-dark(#fffbeb, rgba(245, 158, 11, 0.15));
+  --warn-border: light-dark(#fde68a, rgba(245, 158, 11, 0.35));
 
   /* 흰 글자를 얹는 중립색 배경 (예: 예측시장 오즈 게이지의 "No" 구간).
      --ink-2 는 다크 모드에서 밝은 색으로 뒤집히므로 별도 토큰으로 분리. */
-  --neutral-strong: light-dark(#46413f, #55504c);
+  --neutral-strong: light-dark(#374151, #4b5563);
 
   --fs-xs: 0.75rem;
   --fs-sm: 0.8125rem;
@@ -71,8 +70,8 @@
 
   /* box-shadow 는 레이어가 콤마로 이어져 light-dark() 인자 경계와 충돌하므로
      예외적으로 media query + data-theme 두 규칙에 그대로 적는다 (아래 참고). */
-  --shadow: 0 1px 2px rgba(28, 20, 18, 0.05), 0 4px 14px rgba(28, 20, 18, 0.05);
-  --shadow-sm: 0 1px 2px rgba(28, 20, 18, 0.06);
+  --shadow: 0 1px 2px rgba(17, 24, 39, 0.05), 0 4px 14px rgba(17, 24, 39, 0.05);
+  --shadow-sm: 0 1px 2px rgba(17, 24, 39, 0.06);
 
   --font: "Wanted Sans Variable", "Wanted Sans", -apple-system,
     BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard", "Malgun Gothic",
@@ -112,6 +111,7 @@
 
 html {
   -webkit-text-size-adjust: 100%;
+  scrollbar-gutter: stable;
 }
 
 body {
@@ -122,6 +122,9 @@ body {
   line-height: 1.62;
   color: var(--ink);
   background: var(--paper);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
   font-feature-settings: "ss01", "case";
@@ -261,9 +264,14 @@ button:active,
   transform: translateY(1px);
 }
 button:disabled,
-.btn:disabled {
-  opacity: 0.5;
+.btn:disabled,
+.btn-primary:disabled,
+.btn-primary:disabled:hover {
+  background: var(--surface-2);
+  border-color: var(--line);
+  color: var(--faint);
   cursor: not-allowed;
+  transform: none;
 }
 
 .btn-primary {
@@ -274,6 +282,15 @@ button:disabled,
 .btn-primary:hover {
   background: var(--red-hover);
   border-color: var(--red-hover);
+}
+.btn-danger {
+  --btn-bg: var(--surface);
+  --btn-fg: var(--red);
+  --btn-bd: var(--red);
+}
+.btn-danger:hover {
+  background: var(--red-tint);
+  border-color: var(--red);
 }
 .btn-ghost {
   --btn-bg: transparent;
@@ -401,6 +418,8 @@ button:disabled,
 }
 
 .shell {
+  flex: 1;
+  width: 100%;
   max-width: var(--wrap);
   margin: 0 auto;
   padding: var(--sp-7) var(--sp-5) var(--sp-9);
@@ -439,17 +458,23 @@ button:disabled,
    ============================================================ */
 .field {
   display: grid;
-  grid-template-columns: 190px 1fr;
+  grid-template-columns: 150px 1fr;
   align-items: center;
   gap: var(--sp-3);
+  margin-bottom: var(--sp-3);
 }
 .field > span {
   font-size: var(--fs-sm);
   color: var(--ink-2);
   font-weight: 500;
 }
-.field input {
-  max-width: 360px;
+.field input,
+.field select {
+  max-width: 400px;
+}
+/* 입력칸 바로 아래 보조 버튼(AI 제안 등)을 입력칸 열에 맞춘다 */
+.actions--field {
+  padding: 0 0 var(--sp-3) calc(150px + var(--sp-3));
 }
 
 .actions {
@@ -1352,6 +1377,10 @@ button:disabled,
   align-items: flex-end;
   gap: var(--sp-3);
 }
+/* 떠 있는 챗봇 버튼이 푸터/페이지 맨 아래 내용을 가리지 않게 여백을 확보한다 */
+body:has(.chat-widget) .site-footer__inner {
+  padding-right: calc(52px + 2 * var(--sp-5));
+}
 .chat-toggle {
   width: 52px;
   height: 52px;
@@ -1448,18 +1477,51 @@ button:disabled,
   .shell {
     padding: var(--sp-5) var(--sp-4) var(--sp-8);
   }
+  /* 모바일 헤더: 1줄 = 로고 + 버튼, 2줄 = 가로 스크롤 메뉴 (세 줄로 늘어나 화면을 가리지 않게) */
   .site-header__bar {
     height: auto;
-    flex-wrap: wrap;
-    padding: var(--sp-3) var(--sp-4);
-    gap: var(--sp-3);
+    display: grid;
+    grid-template-columns: 1fr auto;
+    padding: var(--sp-2) var(--sp-4) 0;
+    gap: var(--sp-1) var(--sp-3);
+  }
+  .header-right {
+    grid-row: 1;
+    grid-column: 2;
+    gap: var(--sp-2);
+  }
+  .card {
+    padding: var(--sp-4);
+  }
+  .statrow {
+    gap: var(--sp-4) var(--sp-5);
+  }
+  .nav {
+    grid-row: 2;
+    grid-column: 1 / -1;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    margin: 0 calc(-1 * var(--sp-4));
+    padding: 0 var(--sp-2);
+  }
+  .nav::-webkit-scrollbar {
+    display: none;
+  }
+  .nav a {
+    white-space: nowrap;
+    padding: 8px 10px 10px;
   }
   .field {
     grid-template-columns: 1fr;
     gap: var(--sp-1);
   }
-  .field input {
+  .field input,
+  .field select {
     max-width: none;
+  }
+  .actions--field {
+    padding-left: 0;
   }
   .chat-widget {
     right: var(--sp-4);

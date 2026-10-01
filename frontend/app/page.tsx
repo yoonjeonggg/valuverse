@@ -20,6 +20,7 @@ export default function Home() {
   const [items, setItems] = useState<Item[] | null>(null);
   const [skillItems, setSkillItems] = useState<SkillItem[] | null>(null);
   const [missions, setMissions] = useState<Mission[] | null>(null);
+  const [loggedIn, setLoggedIn] = useState(false);
 
   useEffect(() => {
     api<Item[]>("/items", { query: { status: "ongoing", limit: 6 } })
@@ -29,6 +30,8 @@ export default function Home() {
       .then(setSkillItems)
       .catch(() => setSkillItems([]));
     const token = getToken();
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setLoggedIn(!!token);
     if (token) {
       api<Mission[]>("/points/missions", { auth: true })
         .then(setMissions)
@@ -54,9 +57,11 @@ export default function Home() {
           <Link className="btn btn-primary" href="/items">
             경매 둘러보기
           </Link>
-          <Link className="btn" href="/auth">
-            회원가입
-          </Link>
+          {!loggedIn && (
+            <Link className="btn" href="/auth">
+              회원가입
+            </Link>
+          )}
         </div>
       </section>
 

@@ -139,9 +139,9 @@ export default function ItemDetailPage() {
       {item.description && <p>{item.description}</p>}
 
       {!isBlind && (
-        <Card title="현재가">
+        <Card title={isClosed ? "경매 결과" : "입찰"}>
           <div className="price-now">
-            <span className="label">현재가</span>
+            <span className="label">{isClosed ? "최종가" : "현재가"}</span>
             {item.current_price.toLocaleString()}원
           </div>
           {isClosed ? (
@@ -176,6 +176,7 @@ export default function ItemDetailPage() {
                   </button>
                 )}
               </div>
+              {isOwner && <p className="hint">본인 상품에는 입찰할 수 없습니다.</p>}
               <ErrorText error={bidCall.error} />
               <ErrorText error={buyNowCall.error} />
             </>

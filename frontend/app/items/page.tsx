@@ -98,7 +98,7 @@ export default function ItemsPage() {
       <Card title="상품 등록">
         <Field label="제목" value={title} onChange={(e) => setTitle(e.target.value)} />
         <Field label="설명" value={description} onChange={(e) => setDescription(e.target.value)} />
-        <div className="actions">
+        <div className="actions actions--field">
           <button
             className="btn-sm"
             onClick={() => descSuggestion.run()}
