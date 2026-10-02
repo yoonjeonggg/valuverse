@@ -48,13 +48,26 @@ export class ApiError extends Error {
   }
 }
 
+export type Query = Record<string, string | number | boolean | number[] | undefined | null>;
+
 type ApiOptions = {
   method?: string;
   body?: unknown;
   auth?: boolean;
   // 배열 값은 ?ids=1&ids=2 처럼 같은 키를 반복한다 (FastAPI list 쿼리 형식).
-  query?: Record<string, string | number | boolean | number[] | undefined | null>;
+  query?: Query;
 };
+
+export function buildUrl(base: string, path: string, query?: Query): string {
+  const url = new URL(base + path);
+  if (query) {
+    for (const [k, v] of Object.entries(query)) {
+      if (Array.isArray(v)) v.forEach((x) => url.searchParams.append(k, String(x)));
+      else if (v !== undefined && v !== null && v !== "") url.searchParams.set(k, String(v));
+    }
+  }
+  return url.toString();
+}
 
 export async function api<T = unknown>(
   path: string,
@@ -62,13 +75,7 @@ export async function api<T = unknown>(
 ): Promise<T> {
   const { method = "GET", body, auth = false, query } = opts;
 
-  const url = new URL(API_BASE_URL + path);
-  if (query) {
-    for (const [k, v] of Object.entries(query)) {
-      if (Array.isArray(v)) v.forEach((x) => url.searchParams.append(k, String(x)));
-      else if (v !== undefined && v !== null && v !== "") url.searchParams.set(k, String(v));
-    }
-  }
+  const url = buildUrl(API_BASE_URL, path, query);
 
   const headers: Record<string, string> = {};
   if (body !== undefined) headers["Content-Type"] = "application/json";
@@ -77,7 +84,7 @@ export async function api<T = unknown>(
     if (token) headers["Authorization"] = `Bearer ${token}`;
   }
 
-  const res = await fetch(url.toString(), {
+  const res = await fetch(url, {
     method,
     headers,
     body: body === undefined ? undefined : JSON.stringify(body),

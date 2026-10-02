@@ -85,6 +85,9 @@ services:
       args:
         # 브라우저는 로드밸런서(lb)로 접속한다.
         NEXT_PUBLIC_API_BASE_URL: http://localhost:${BACKEND_PORT:-8000}
+    environment:
+      # 서버 렌더링 시 컨테이너 안에서 백엔드를 부를 주소 (브라우저용 localhost 는 닿지 않는다).
+      INTERNAL_API_BASE_URL: http://lb
     depends_on:
       - lb
     ports:

@@ -2,7 +2,7 @@
 
 Next.js(App Router) 기반. 랜딩 페이지 + 기능별 API 콘솔 화면.
 
-- 폰트: Wanted Sans (jsDelivr CDN)
+- 폰트: Wanted Sans, 자체 호스팅 (`public/fonts/wanted-sans-v1.0.3/`, `app/fonts/wanted-sans.css`)
 - 테마: 레드 액센트 + 페이퍼 배경, 디자인 토큰은 `app/globals.css` 상단 `:root`
 - 아이콘: 인라인 SVG (`app/lib/ui.tsx`의 `Icon`)
 - 기능 화면은 각 엔드포인트를 호출해 응답(JSON)을 인스펙터에 그대로 보여줍니다.
@@ -22,9 +22,20 @@ npm run dev
 
 | 키 | 설명 | 기본값 |
 |---|---|---|
-| `NEXT_PUBLIC_API_BASE_URL` | 백엔드 API 주소 | `http://localhost:8000` |
+| `NEXT_PUBLIC_API_BASE_URL` | 백엔드 API 주소 (브라우저용, 빌드 시 고정) | `http://localhost:8000` |
+| `INTERNAL_API_BASE_URL` | 서버 렌더링 시 백엔드 주소 (컨테이너 내부망 등). 생략 시 위 값 사용 | — |
 
 `.env.local` 은 git 에 커밋되지 않습니다. `.env.local.example` 을 복사해 사용하세요.
+
+## 성능
+
+- 공개 화면(홈, 경매/스킬/예측 목록과 상세)은 `page.tsx`(서버 컴포넌트)가 첫 데이터를 받아 HTML 에 담고,
+  화면 로직은 `*-view.tsx`(클라이언트 컴포넌트)에 있다. JS 로드 후에야 API 를 부르던 대기가 없어지고,
+  데이터가 늦게 들어오며 레이아웃이 밀리던 현상(CLS)도 사라진다.
+- 서버 조회가 실패하거나 1.5초를 넘기면 예전처럼 브라우저에서 다시 불러온다 (`lib/server-api.ts`).
+- 목록은 카드에 필요한 필드만 HTML 에 싣는다 (`lib/cards.tsx` 의 `toAuctionCardItem` 등).
+- 로그인이 필요한 화면(내 계정, 포인트 등)은 토큰이 localStorage 에 있어 서버에서 알 수 없으므로 브라우저에서 불러온다.
+- 서버/브라우저 렌더 결과가 같아야 하므로 날짜는 `formatDateTime`(Asia/Seoul 고정)으로 표시한다.
 
 ## 구조
 

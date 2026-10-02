@@ -126,7 +126,13 @@ export function HeaderAuth() {
     return () => window.removeEventListener(POINTS_CHANGED, onChange);
   }, []);
 
-  if (!ready) return <span style={{ width: 88 }} />;
+  // 토큰 확인 전에는 로그인 버튼과 같은 크기의 빈 자리를 잡아 헤더가 밀리지 않게 한다.
+  if (!ready)
+    return (
+      <span className="btn btn-sm" style={{ visibility: "hidden" }} aria-hidden>
+        로그인
+      </span>
+    );
 
   if (!signedIn)
     return (

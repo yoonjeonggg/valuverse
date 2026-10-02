@@ -126,7 +126,7 @@ export function Countdown({ endTime }: { endTime: string | null | undefined }) {
   if (!endTime || ms === null) return null;
   if (ms <= 0)
     return (
-      <span className="countdown urgent">
+      <span className="countdown urgent" suppressHydrationWarning>
         <Icon name="clock" size={14} /> 마감
       </span>
     );
@@ -141,7 +141,8 @@ export function Countdown({ endTime }: { endTime: string | null | undefined }) {
   const urgent = ms <= 5 * 60 * 1000;
 
   return (
-    <span className={"countdown" + (urgent ? " urgent" : "")}>
+    // 서버 렌더 시각과 hydration 시각이 달라 초 단위가 어긋나는 건 정상 -> 다음 tick 에 맞춰진다.
+    <span className={"countdown" + (urgent ? " urgent" : "")} suppressHydrationWarning>
       <Icon name="clock" size={14} /> {label}
     </span>
   );
