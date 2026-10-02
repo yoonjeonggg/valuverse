@@ -33,7 +33,14 @@ if settings.auto_create_tables:
 async def lifespan(_: FastAPI):
     # 동기 서비스 코드에서 브로드캐스트할 수 있도록 메인 루프를 붙잡아 둔다.
     ws_manager.bind_loop(asyncio.get_running_loop())
-    yield
+    if settings.ws_broadcast_backend == "redis":
+        from redis.asyncio import Redis
+
+        await ws_manager.start_pubsub(Redis.from_url(settings.redis_url))
+    try:
+        yield
+    finally:
+        await ws_manager.stop_pubsub()
 
 
 app = FastAPI(

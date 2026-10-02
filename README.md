@@ -51,14 +51,38 @@ npm run dev                                        # http://localhost:3000
 
 ## Docker
 
-전체 스택(PostgreSQL + Redis + 백엔드 + 프론트엔드)을 한 번에 띄운다.
+전체 스택(PostgreSQL + Redis + nginx 로드밸런서 + 백엔드 × N + 프론트엔드)을 한 번에 띄운다.
 
 ```bash
 docker compose up --build          # http://localhost:3000 , API http://localhost:8000
 docker compose down -v             # 정리 (DB 볼륨 포함)
 ```
 
-- 백엔드 컨테이너는 기동 시 `alembic upgrade head` 로 스키마를 맞춘 뒤 실행된다.
+### 로드밸런싱
+
+API 는 nginx 로드밸런서(`lb`) 뒤에서 백엔드 여러 대(기본 3대)로 동작한다.
+
+```
+브라우저 ──> lb (nginx, :8000) ──least_conn──> backend × N ──> PostgreSQL
+                                                   └── Redis pub/sub (WS 브로드캐스트 공유)
+```
+
+```bash
+BACKEND_REPLICAS=5 docker compose up -d          # 처음부터 5대로
+docker compose up -d --scale backend=5 backend   # 실행 중에 늘리기/줄이기 (nginx 재시작 불필요)
+```
+
+- 분산 방식은 `least_conn`(연결 수가 가장 적은 인스턴스). 실시간 입찰 WS 는 연결이 오래 유지되어
+  라운드로빈보다 고르게 퍼진다.
+- 한 인스턴스에 연결이 안 되면 다른 인스턴스로 재시도하고, 연속 3회 실패한 인스턴스는 10초간 제외한다.
+  POST 같은 비멱등 요청은 재시도하지 않는다(입찰/결제가 두 번 처리되지 않도록).
+- 스케일 변경이나 컨테이너 재시작으로 IP 가 바뀌어도 nginx 가 Docker DNS 를 10초마다 다시 조회해 반영한다.
+- WS 클라이언트는 아무 인스턴스에나 붙는다. 입찰 이벤트는 Redis 채널로 발행되어 모든 인스턴스가
+  자기에게 붙은 클라이언트에 전달한다 (`WS_BROADCAST_BACKEND=redis`). sticky session 은 필요 없다.
+- DB 마이그레이션은 `migrate` 서비스가 한 번만 실행하고, 끝난 뒤에 백엔드들이 뜬다.
+- 백엔드는 호스트 포트를 열지 않는다. 요청 ID(`X-Request-ID`)는 nginx access 로그와 백엔드 로그에 같은 값으로 남는다.
+
+- `migrate` 서비스가 `alembic upgrade head` 로 스키마를 맞춘 뒤 백엔드가 실행된다.
 - 호스트 포트 충돌 시 `DB_PORT` / `BACKEND_PORT` / `FRONTEND_PORT` 로 재지정한다
   (예: `DB_PORT=55432 docker compose up`).
 - `SECRET_KEY` 는 환경변수로 주입한다 (미지정 시 개발용 기본값).

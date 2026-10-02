@@ -21,8 +21,10 @@ class Settings(BaseSettings):
     # 운영/마이그레이션 사용 시 False 로 두고 `alembic upgrade head` 를 쓴다.
     auto_create_tables: bool = True
 
-    # Redis (실시간 순위/캐시용, 현재 미사용 - 예약)
+    # Redis - 백엔드를 여러 대 띄울 때 WS 브로드캐스트를 인스턴스 간에 전달하는 데 쓴다.
     redis_url: str = "redis://localhost:6379/0"
+    # memory: 단일 인스턴스(기본) / redis: 로드밸런싱 환경 (Redis pub/sub 로 전 인스턴스에 팬아웃)
+    ws_broadcast_backend: str = "memory"
 
     # 경매 - 마감 임박 입찰 시 자동 연장 (스나이핑 방지, FR-AUC-03)
     auction_extend_window_seconds: int = 180
