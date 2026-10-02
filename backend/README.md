@@ -56,6 +56,10 @@ alembic revision --autogenerate -m "설명"   # 모델 변경 후 새 리비전 
 | `AUCTION_EXTEND_WINDOW_SECONDS` | 마감 임박 판정 구간(초) | `180` |
 | `AUCTION_EXTEND_BY_SECONDS` | 자동 연장 시간(초) | `180` |
 | `AUCTION_MAX_EXTENSIONS` | 자동 연장 최대 횟수 | `10` |
+| `LOG_LEVEL` | 로그 레벨 (`DEBUG`/`INFO`/`WARNING`/`ERROR`) | `INFO` |
+| `LOG_FORMAT` | `text` 또는 `json` (로그 수집기용 한 줄 JSON) | `text` |
+| `LOG_FILE` | 지정 시 파일에도 기록, 10MB 초과 시 교체·5개 보관 (예: `logs/app.log`) | (콘솔만) |
+| `LOG_SQL` | 실행 SQL 전체 로그 (개발용) | `false` |
 
 키 생성:
 
@@ -63,11 +67,25 @@ alembic revision --autogenerate -m "설명"   # 모델 변경 후 새 리비전 
 python -c "import secrets; print(secrets.token_urlsafe(48))"
 ```
 
+## 로깅
+
+- 요청마다 `메서드 경로 -> 상태코드 (소요ms)` 한 줄을 남기고, 인증된 요청은 `user_id` 도 함께 기록한다.
+  500 응답이나 1초 이상 걸린 요청은 `WARNING`, `/health` 는 `DEBUG`.
+- 모든 로그에 요청 ID 가 붙는다. 요청 헤더 `X-Request-ID` 가 있으면 그 값을, 없으면 새로 만들어
+  응답 헤더로 돌려준다. 500 응답 본문에도 `request_id` 가 포함되므로 사용자 문의 시 로그를 바로 찾을 수 있다.
+- 처리되지 않은 예외는 스택트레이스와 함께 `ERROR` 로 남긴다.
+- 주요 이벤트: 회원가입/로그인(실패 시 이메일·비밀번호는 남기지 않음), 포인트 변동, 관리자 포인트 조정,
+  경매 마감, 예측 정산, 에스크로 정산/환불, 누적 신고로 인한 계정 비활성화.
+
+```
+2026-10-02 14:03:11,512 INFO    [3f9c1a2b7d4e5f60] app.request: POST /items/3/bids -> 201 (12.4ms)
+```
+
 ## 프로젝트 구조
 
 ```
 app/
-  core/        설정(config), 보안(security), 의존성(deps), 시간 유틸
+  core/        설정(config), 보안(security), 의존성(deps), 로깅(logging_setup), 시간 유틸
   models/      SQLAlchemy 모델
   schemas/     Pydantic 요청/응답 스키마
   services/    비즈니스 로직

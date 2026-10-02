@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
@@ -11,6 +13,8 @@ from app.models.user import User
 from app.schemas.report import ReportCreate, ReportUpdate
 from app.services import notification_service
 from app.services.review_service import recalc_rating
+
+logger = logging.getLogger(__name__)
 
 _TARGET_MODELS = {
     "user": User,
@@ -133,6 +137,9 @@ def _apply_sanction(db: Session, report: Report) -> None:
         ) + 1  # 이번 건 포함
         if resolved_count >= settings.report_auto_deactivate_threshold:
             target.is_active = False
+            logger.warning(
+                "누적 신고로 계정 비활성화 user_id=%s resolved=%s", target.id, resolved_count
+            )
             notification_service.notify(
                 db, target.id, "sanction",
                 "누적 신고로 계정이 비활성화되었습니다.", "user", target.id,

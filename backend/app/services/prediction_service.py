@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import HTTPException, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -13,6 +15,8 @@ from app.schemas.prediction import (
     PredictionUpdate,
 )
 from app.services import notification_service, point_service
+
+logger = logging.getLogger(__name__)
 
 
 def _pending_bets_filter(prediction_id: int) -> tuple:
@@ -212,6 +216,10 @@ def settle_prediction(
     prediction.status = "settled"
     prediction.result = payload.result
     db.commit()
+    logger.info(
+        "예측 정산 prediction_id=%s result=%s pool=%s winners=%s payout=%s refunded=%s",
+        prediction_id, payload.result, total_pool, len(winners), total_payout, refunded,
+    )
 
     return {
         "prediction_id": prediction_id,

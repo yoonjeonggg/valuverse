@@ -1,3 +1,4 @@
+import logging
 from datetime import timedelta
 
 from fastapi import HTTPException, status
@@ -17,6 +18,8 @@ from app.schemas.auction import (
 )
 from app.services import notification_service, point_service
 from app.services.ws_manager import manager as ws_manager
+
+logger = logging.getLogger(__name__)
 
 
 def _broadcast_closed(item: Item, **extra) -> None:
@@ -79,6 +82,10 @@ def _finalize(db: Session, item: Item) -> Item:
         )
     db.commit()
     db.refresh(item)
+    logger.info(
+        "경매 마감 item_id=%s winner_id=%s final_price=%s",
+        item.id, item.winner_id, item.final_price,
+    )
     _broadcast_closed(item)
     return item
 

@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
@@ -26,6 +26,7 @@ DbSession = Annotated[Session, Depends(get_db)]
 
 
 def get_current_user(
+    request: Request,
     token: Annotated[str, Depends(oauth2_scheme)],
     db: DbSession,
 ) -> User:
@@ -43,6 +44,8 @@ def get_current_user(
             detail="비활성화된 계정입니다.",
         )
 
+    # 요청 로그에 누가 호출했는지 남기기 위해 기록 (logging_setup 미들웨어가 읽는다).
+    request.state.user_id = user.id
     return user
 
 

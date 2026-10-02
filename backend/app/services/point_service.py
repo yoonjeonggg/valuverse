@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import HTTPException, status
 from sqlalchemy import update
 from sqlalchemy.orm import Session
@@ -7,6 +9,8 @@ from app.core.db_utils import get_or_404, save
 from app.models.point import PointTransaction
 from app.models.user import User
 from app.schemas.point import PointTransactionCreate
+
+logger = logging.getLogger(__name__)
 
 
 def apply_delta(
@@ -42,6 +46,11 @@ def apply_delta(
         balance_after=balance,
     )
     db.add(tx)
+    # 커밋 전 기록이므로 이후 롤백되면 반영되지 않았을 수 있다.
+    logger.info(
+        "포인트 변동 user_id=%s amount=%+d type=%s balance=%s",
+        user.id, amount, tx_type, balance,
+    )
     return tx
 
 
@@ -84,6 +93,11 @@ def create_transaction(
     # 행위자(관리자) 기록 -- 누가 조정했는지 이력에서 추적할 수 있게 남긴다.
     memo = f"[관리자 #{requester.id}] {payload.memo}"
     tx = apply_delta(db, target, payload.amount, payload.type, memo)
+    if target_id != requester.id:
+        logger.warning(
+            "관리자 포인트 조정 admin_id=%s target_id=%s amount=%+d",
+            requester.id, target_id, payload.amount,
+        )
     return save(db, tx)
 
 

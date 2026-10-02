@@ -8,6 +8,7 @@ from fastapi.responses import JSONResponse
 
 import app.models  # 모든 모델을 메타데이터에 등록 (import 부수효과)
 from app.core.config import settings
+from app.core.logging_setup import request_logging_middleware, setup_logging
 from app.database import Base, engine
 from app.routers.ai import router as ai_router
 from app.routers.auction import bid_router, item_router
@@ -20,6 +21,8 @@ from app.routers.review import router as review_router
 from app.routers.skill import booking_router, escrow_router, skill_item_router
 from app.routers.user import auth_router, user_router
 from app.services.ws_manager import manager as ws_manager
+
+setup_logging()
 
 if settings.auto_create_tables:
     # 빠른 실행용. 마이그레이션(alembic)을 쓸 때는 AUTO_CREATE_TABLES=false 로 둔다.
@@ -45,7 +48,10 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["X-Request-ID"],
 )
+# CORS 보다 나중에 등록 -> 바깥쪽에서 실행되어 모든 요청(프리플라이트 포함)을 기록한다.
+app.middleware("http")(request_logging_middleware)
 
 
 @app.exception_handler(RequestValidationError)

@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import APIRouter, HTTPException, status
 
 from app.core.deps import CurrentUser, DbSession
@@ -12,6 +14,8 @@ from app.schemas.user import (
 )
 from app.services import dashboard_service, user_service
 
+logger = logging.getLogger(__name__)
+
 auth_router = APIRouter(prefix="/auth", tags=["Auth"])
 user_router = APIRouter(prefix="/users", tags=["User"])
 
@@ -25,11 +29,14 @@ def signup(payload: SignupRequest, db: DbSession):
 def login(payload: LoginRequest, db: DbSession):
     user = user_service.authenticate_user(db, payload.email, payload.password)
     if not user:
+        # 이메일/비밀번호는 남기지 않는다. 요청 로그에 IP 가 함께 남는다.
+        logger.warning("로그인 실패")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="이메일 또는 비밀번호가 올바르지 않습니다.",
         )
     token = create_access_token(subject=user.email)
+    logger.info("로그인 성공 user_id=%s", user.id)
     return TokenResponse(access_token=token)
 
 

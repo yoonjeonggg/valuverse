@@ -45,6 +45,14 @@ class Settings(BaseSettings):
     # 신고 - 처리 완료된 신고가 이 수 이상 쌓이면 대상 계정을 자동 비활성화
     report_auto_deactivate_threshold: int = 3
 
+    # 로깅
+    log_level: str = "INFO"               # DEBUG|INFO|WARNING|ERROR
+    log_format: str = "text"              # text|json (json 은 로그 수집기용 한 줄 JSON)
+    log_file: str = ""                    # 지정하면 콘솔과 함께 파일에도 남긴다 (예: logs/app.log)
+    log_file_max_bytes: int = 10 * 1024 * 1024  # 이 크기를 넘으면 파일을 교체(rotate)
+    log_file_backup_count: int = 5        # 보관할 이전 로그 파일 수
+    log_sql: bool = False                 # 실행되는 SQL 을 모두 로그로 남김 (개발용)
+
     # CORS - 프론트엔드 오리진. 쉼표로 구분. 운영에서는 .env 로 재정의할 것
     cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
 

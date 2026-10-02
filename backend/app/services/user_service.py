@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
@@ -5,6 +7,8 @@ from app.core.db_utils import commit_or_conflict, get_or_404, save
 from app.core.security import hash_password, verify_password
 from app.models.user import User
 from app.schemas.user import SignupRequest, UserUpdateRequest
+
+logger = logging.getLogger(__name__)
 
 
 def get_user_by_email(db: Session, email: str) -> User | None:
@@ -32,6 +36,7 @@ def create_user(db: Session, payload: SignupRequest) -> User:
     # 같은 이메일로 동시에 가입하면 위 확인을 둘 다 통과할 수 있다 -> UNIQUE 위반을 409로.
     commit_or_conflict(db, "이미 가입된 이메일입니다.")
     db.refresh(user)
+    logger.info("회원가입 user_id=%s", user.id)
     return user
 
 

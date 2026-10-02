@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import HTTPException, status
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
@@ -16,6 +18,8 @@ from app.schemas.skill import (
 )
 from app.services import notification_service, point_service
 
+logger = logging.getLogger(__name__)
+
 
 def _release_escrow(db: Session, escrow: Escrow, settle: bool) -> None:
     """보관중인 에스크로를 판매자에게 정산(settle=True)하거나 구매자에게 환불한다."""
@@ -30,6 +34,10 @@ def _release_escrow(db: Session, escrow: Escrow, settle: bool) -> None:
         f"스킬 거래 {verb} (에스크로 #{escrow.id})",
     )
     escrow.status = "settled" if settle else "refunded"
+    logger.info(
+        "에스크로 %s escrow_id=%s recipient_id=%s amount=%s",
+        verb, escrow.id, recipient.id, escrow.amount,
+    )
 
 
 def _booking_escrow(db: Session, booking_id: int) -> Escrow | None:
