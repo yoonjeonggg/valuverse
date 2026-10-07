@@ -37,16 +37,16 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }}
         />
         <header className="site-header">
+          <div className="site-util">
+            <HeaderNotifications />
+            <HeaderAuth />
+            <ThemeToggle />
+          </div>
           <div className="site-header__bar">
             <Link href="/" className="wordmark">
               Valu<b>verse</b>
             </Link>
             <SiteNav />
-            <div className="header-right">
-              <ThemeToggle />
-              <HeaderNotifications />
-              <HeaderAuth />
-            </div>
           </div>
         </header>
 
@@ -57,7 +57,17 @@ export default function RootLayout({
             <Link href="/" className="wordmark">
               Valu<b>verse</b>
             </Link>
-            <span>&copy; 2026 Valuverse</span>
+            <nav className="site-footer__links" aria-label="바로가기">
+              <Link href="/items">일반 · 블라인드 경매</Link>
+              <Link href="/skill-items">스킬 경매</Link>
+              <Link href="/predictions">예측시장</Link>
+              <Link href="/points">포인트 센터</Link>
+              <Link href="/reports">신고하기</Link>
+            </nav>
+            <div className="site-footer__note">
+              <span>마감 직전에 입찰이 들어오면 마감 시간이 자동으로 연장됩니다.</span>
+              <span>&copy; 2026 Valuverse</span>
+            </div>
           </div>
         </footer>
       </body>

@@ -124,148 +124,169 @@ export function ItemView({ initialItem }: { initialItem: Item | null }) {
 
   return (
     <div>
-      <div className="detail-head">
-        <div>
-          <span className="cat">
-            {isBlind ? "블라인드 경매" : "일반 경매"} · {item.category || "미분류"}
-          </span>
-          <h1>{item.title}</h1>
-          <p className="seller">
-            판매자 #{item.seller_id}
-            {isOwner && " (나)"}
-          </p>
-        </div>
-        <Countdown endTime={isClosed ? null : item.end_time} />
-      </div>
-
-      {item.description && <p>{item.description}</p>}
-
-      {!isBlind && (
-        <Card title={isClosed ? "경매 결과" : "입찰"}>
-          <div className="price-now">
-            <span className="label">{isClosed ? "최종가" : "현재가"}</span>
-            {item.current_price.toLocaleString()}원
-          </div>
-          {isClosed ? (
-            <p className="hint">
-              {item.winner_id
-                ? `낙찰 완료 — 낙찰가 ${item.final_price?.toLocaleString()}원 (낙찰자 #${item.winner_id})`
-                : "유찰되었습니다."}
-            </p>
-          ) : (
-            <>
-              <div className="row bidform">
-                <input
-                  type="number"
-                  placeholder={`${item.current_price + 1}원 이상`}
-                  value={bidAmount}
-                  onChange={(e) => setBidAmount(e.target.value)}
-                />
-                <button
-                  className="btn btn-primary"
-                  onClick={submitBid}
-                  disabled={bidCall.loading || isOwner || !bidAmount}
-                >
-                  입찰
-                </button>
-                {item.buy_now_price && (
-                  <button
-                    className="btn"
-                    onClick={() => buyNowCall.run()}
-                    disabled={buyNowCall.loading || isOwner}
-                  >
-                    즉시구매 ({item.buy_now_price.toLocaleString()}원)
-                  </button>
-                )}
-              </div>
-              {isOwner && <p className="hint">본인 상품에는 입찰할 수 없습니다.</p>}
-              <ErrorText error={bidCall.error} />
-              <ErrorText error={buyNowCall.error} />
-            </>
-          )}
-        </Card>
-      )}
-
-      {!isBlind && (
-        <Card title="입찰 이력">
-          {bids.length === 0 ? (
-            <div className="empty">아직 입찰이 없습니다.</div>
-          ) : (
-            <ul className="bidlist">
-              {bids.map((b) => (
-                <li key={b.id} className={meId === b.bidder_id ? "mine" : undefined}>
-                  <span>
-                    입찰자 #{b.bidder_id}
-                    {meId === b.bidder_id && " (나)"}
-                  </span>
-                  <span className="amt">{b.amount.toLocaleString()}원</span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Card>
-      )}
-
-      {isBlind && !isClosed && (
-        <Card title="비공개 입찰">
-          <p className="hint">
-            다른 참가자의 입찰가는 공개되지 않습니다. 마감 후 일괄 공개됩니다.
-          </p>
-          <div className="row bidform">
-            <input
-              type="number"
-              placeholder="입찰가"
-              value={blindAmount}
-              onChange={(e) => setBlindAmount(e.target.value)}
-            />
-            <button
-              className="btn btn-primary"
-              onClick={submitBlindBid}
-              disabled={blindBidCall.loading || isOwner || !blindAmount}
-            >
-              입찰
-            </button>
-          </div>
-          <ErrorText error={blindBidCall.error} />
-          {rank && (
-            <div className="rankcard">
-              <div className="num">{rank.rank}위</div>
-              <div className="of">전체 {rank.total_bids}명 중</div>
-            </div>
-          )}
-        </Card>
-      )}
-
-      {isBlind && isClosed && (
-        <Card title="공개 결과">
-          {item.blind_price_rule === "second" && (
-            <p className="hint">
-              Vickrey(2nd-price) 방식 — 최고 입찰자가 2위 금액으로 낙찰됩니다.
-            </p>
-          )}
-          {!results ? (
-            <div className="empty">불러오는 중…</div>
-          ) : (
-            <ul className="bidlist">
-              {results.map((r) => (
-                <li key={r.id} className={meId === r.bidder_id ? "mine" : undefined}>
-                  <span>
-                    {r.rank}위 · 입찰자 #{r.bidder_id}
-                    {meId === r.bidder_id && " (나)"}
-                  </span>
-                  <span className="amt">{r.amount.toLocaleString()}원</span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Card>
-      )}
-
       <p>
         <Link href="/items" className="back-link">
           <Icon name="back" size={14} /> 목록으로
         </Link>
       </p>
+
+      <div className="detail">
+        <div>
+          <div className="detail__media">
+            {item.image_url ? (
+              // 판매자가 넣은 임의 외부 주소라 next/image 의 도메인 허용 목록을 쓸 수 없다.
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={item.image_url} alt={item.title} />
+            ) : (
+              <Icon name="box" />
+            )}
+          </div>
+
+          {item.description && (
+            <section className="detail__desc">
+              <h3>상품 설명</h3>
+              <p>{item.description}</p>
+            </section>
+          )}
+
+          {!isBlind && (
+            <Card title="입찰 이력">
+              {bids.length === 0 ? (
+                <div className="empty">아직 입찰이 없습니다.</div>
+              ) : (
+                <ul className="bidlist">
+                  {bids.map((b) => (
+                    <li key={b.id} className={meId === b.bidder_id ? "mine" : undefined}>
+                      <span>
+                        입찰자 #{b.bidder_id}
+                        {meId === b.bidder_id && " (나)"}
+                      </span>
+                      <span className="amt">{b.amount.toLocaleString()}원</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Card>
+          )}
+        </div>
+
+        <div className="detail__side">
+          <div className="detail-head">
+            <div>
+              <span className="cat">
+                {isBlind ? "블라인드 경매" : "일반 경매"} · {item.category || "미분류"}
+              </span>
+              <h1>{item.title}</h1>
+              <p className="seller">
+                판매자 #{item.seller_id}
+                {isOwner && " (나)"}
+              </p>
+            </div>
+            <Countdown endTime={isClosed ? null : item.end_time} />
+          </div>
+
+          {!isBlind && (
+            <Card title={isClosed ? "경매 결과" : "입찰"}>
+              <div className="price-now">
+                <span className="label">{isClosed ? "최종가" : "현재가"}</span>
+                {item.current_price.toLocaleString()}원
+              </div>
+              {isClosed ? (
+                <p className="hint">
+                  {item.winner_id
+                    ? `낙찰 완료 — 낙찰가 ${item.final_price?.toLocaleString()}원 (낙찰자 #${item.winner_id})`
+                    : "유찰되었습니다."}
+                </p>
+              ) : (
+                <>
+                  <div className="row bidform">
+                    <input
+                      type="number"
+                      placeholder={`${item.current_price + 1}원 이상`}
+                      value={bidAmount}
+                      onChange={(e) => setBidAmount(e.target.value)}
+                    />
+                    <button
+                      className="btn btn-primary"
+                      onClick={submitBid}
+                      disabled={bidCall.loading || isOwner || !bidAmount}
+                    >
+                      입찰
+                    </button>
+                    {item.buy_now_price && (
+                      <button
+                        className="btn"
+                        onClick={() => buyNowCall.run()}
+                        disabled={buyNowCall.loading || isOwner}
+                      >
+                        즉시구매 ({item.buy_now_price.toLocaleString()}원)
+                      </button>
+                    )}
+                  </div>
+                  {isOwner && <p className="hint">본인 상품에는 입찰할 수 없습니다.</p>}
+                  <ErrorText error={bidCall.error} />
+                  <ErrorText error={buyNowCall.error} />
+                </>
+              )}
+            </Card>
+          )}
+
+          {isBlind && !isClosed && (
+            <Card title="비공개 입찰">
+              <p className="hint">
+                다른 참가자의 입찰가는 공개되지 않습니다. 마감 후 일괄 공개됩니다.
+              </p>
+              <div className="row bidform">
+                <input
+                  type="number"
+                  placeholder="입찰가"
+                  value={blindAmount}
+                  onChange={(e) => setBlindAmount(e.target.value)}
+                />
+                <button
+                  className="btn btn-primary"
+                  onClick={submitBlindBid}
+                  disabled={blindBidCall.loading || isOwner || !blindAmount}
+                >
+                  입찰
+                </button>
+              </div>
+              <ErrorText error={blindBidCall.error} />
+              {rank && (
+                <div className="rankcard">
+                  <div className="num">{rank.rank}위</div>
+                  <div className="of">전체 {rank.total_bids}명 중</div>
+                </div>
+              )}
+            </Card>
+          )}
+
+          {isBlind && isClosed && (
+            <Card title="공개 결과">
+              {item.blind_price_rule === "second" && (
+                <p className="hint">
+                  Vickrey(2nd-price) 방식 — 최고 입찰자가 2위 금액으로 낙찰됩니다.
+                </p>
+              )}
+              {!results ? (
+                <div className="empty">불러오는 중…</div>
+              ) : (
+                <ul className="bidlist">
+                  {results.map((r) => (
+                    <li key={r.id} className={meId === r.bidder_id ? "mine" : undefined}>
+                      <span>
+                        {r.rank}위 · 입찰자 #{r.bidder_id}
+                        {meId === r.bidder_id && " (나)"}
+                      </span>
+                      <span className="amt">{r.amount.toLocaleString()}원</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Card>
+          )}
+        </div>
+      </div>
 
       <ChatWidget itemId={item.id} itemType="item" />
     </div>

@@ -99,9 +99,8 @@ export function HeaderNotifications() {
   if (!signedIn) return null;
 
   return (
-    <Link href="/notifications" className="bell-btn" aria-label="알림">
-      <Icon name="bell" size={19} />
-      {unread > 0 && <span className="bell-badge">{unread > 9 ? "9+" : unread}</span>}
+    <Link href="/notifications" className="util-link">
+      알림{unread > 0 && <b>{unread > 99 ? "99+" : unread}</b>}
     </Link>
   );
 }
@@ -126,28 +125,30 @@ export function HeaderAuth() {
     return () => window.removeEventListener(POINTS_CHANGED, onChange);
   }, []);
 
-  // 토큰 확인 전에는 로그인 버튼과 같은 크기의 빈 자리를 잡아 헤더가 밀리지 않게 한다.
+  // 토큰 확인 전에는 로그인 링크와 같은 크기의 빈 자리를 잡아 헤더가 밀리지 않게 한다.
   if (!ready)
     return (
-      <span className="btn btn-sm" style={{ visibility: "hidden" }} aria-hidden>
-        로그인
+      <span className="util-link" style={{ visibility: "hidden" }} aria-hidden>
+        로그인 · 회원가입
       </span>
     );
 
   if (!signedIn)
     return (
-      <Link className="btn btn-sm" href="/auth">
-        로그인
+      <Link className="util-link" href="/auth">
+        로그인 · 회원가입
       </Link>
     );
 
   return (
     <>
       {points !== null && (
-        <span className="pointpill">{points.toLocaleString()} P</span>
+        <Link className="util-link" href="/points">
+          보유 <span className="pointpill">{points.toLocaleString()}P</span>
+        </Link>
       )}
-      <Link className="btn btn-sm" href="/me">
-        내 계정
+      <Link className="util-link" href="/me">
+        마이페이지
       </Link>
     </>
   );

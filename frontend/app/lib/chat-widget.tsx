@@ -117,7 +117,8 @@ export function ChatWidget({
         onClick={() => setOpen((v) => !v)}
         aria-label={open ? "AI 입찰 상담 닫기" : "AI 입찰 상담 열기"}
       >
-        <Icon name={open ? "close" : "chat"} size={20} />
+        <Icon name={open ? "close" : "chat"} size={18} />
+        {open ? "닫기" : "입찰 상담"}
       </button>
     </div>
   );
