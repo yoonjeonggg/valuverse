@@ -49,7 +49,10 @@ def unread_count(db: Session, user_id: int) -> int:
 
 def mark_read(db: Session, notification_id: int, user_id: int) -> Notification:
     notif = get_or_404(
-        db, Notification, notification_id, "알림을 찾을 수 없습니다.",
+        db,
+        Notification,
+        notification_id,
+        "알림을 찾을 수 없습니다.",
         Notification.user_id == user_id,
     )
     notif.is_read = True

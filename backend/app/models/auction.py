@@ -31,9 +31,7 @@ class Item(Base):
         String(10), nullable=False, default="general", server_default="general", index=True
     )
     # 블라인드 낙찰 규칙: first(1st-price) | second(Vickrey 2nd-price)
-    blind_price_rule = Column(
-        String(10), nullable=False, default="first", server_default="first"
-    )
+    blind_price_rule = Column(String(10), nullable=False, default="first", server_default="first")
     end_time = Column(DateTime(timezone=True), nullable=False)
     # ongoing | closed
     status = Column(String(20), nullable=False, default="ongoing", index=True)

@@ -15,9 +15,7 @@ from app.models.skill import SkillItem
 _MIN_SAMPLES = 3
 
 
-def suggest_price(
-    db: Session, category: str, auction_type: str | None = None
-) -> dict:
+def suggest_price(db: Session, category: str, auction_type: str | None = None) -> dict:
     q = db.query(Item.final_price).filter(
         Item.category == category,
         Item.status == "closed",
@@ -54,15 +52,33 @@ def suggest_price(
 # 카테고리 -> 위험 문구 목록 (부분 문자열 매칭, 소문자 비교)
 ABUSE_KEYWORDS: dict[str, list[str]] = {
     "external_contact": [
-        "직거래", "계좌이체", "현금거래", "카톡", "카카오톡", "텔레그램",
-        "라인아이디", "개인연락", "외부거래", "번호주세요",
+        "직거래",
+        "계좌이체",
+        "현금거래",
+        "카톡",
+        "카카오톡",
+        "텔레그램",
+        "라인아이디",
+        "개인연락",
+        "외부거래",
+        "번호주세요",
     ],
     "scam_signal": [
-        "선입금", "입금먼저", "환불불가", "노쇼시연락", "급처", "급매",
-        "보증금요구", "수수료없이",
+        "선입금",
+        "입금먼저",
+        "환불불가",
+        "노쇼시연락",
+        "급처",
+        "급매",
+        "보증금요구",
+        "수수료없이",
     ],
     "prohibited": [
-        "가품", "짝퉁", "레플리카", "미개봉아님", "as불가",
+        "가품",
+        "짝퉁",
+        "레플리카",
+        "미개봉아님",
+        "as불가",
     ],
 }
 
@@ -86,7 +102,10 @@ def check_abuse(text: str) -> dict:
 
 # 설명에 이 키워드 중 하나도 없으면 보완을 제안한다.
 _DESCRIPTION_CHECKLIST: list[tuple[list[str], str]] = [
-    (["상태", "미개봉", "중고", "새제품", "사용감"], "제품/서비스 상태를 구체적으로 설명해 주세요."),
+    (
+        ["상태", "미개봉", "중고", "새제품", "사용감"],
+        "제품/서비스 상태를 구체적으로 설명해 주세요.",
+    ),
     (["환불", "교환", "취소", "as"], "환불/교환/취소 정책을 명시하면 분쟁을 줄일 수 있습니다."),
     (["사진", "이미지", "촬영"], "실제 사진 첨부 여부를 안내하면 신뢰도가 올라갑니다."),
     (["직거래", "택배", "배송"], "거래/배송 방식을 안내해 주세요."),
@@ -230,7 +249,11 @@ def _item_context_summary(item, item_type: str) -> str | None:
     if item is None:
         return None
     if item_type == "skill_item":
-        status = "모집중" if item.status == "recruiting" else ("낙찰완료" if item.status == "awarded" else "마감")
+        status = (
+            "모집중"
+            if item.status == "recruiting"
+            else ("낙찰완료" if item.status == "awarded" else "마감")
+        )
         return f"'{item.title}' 스킬 기준으로 안내드릴게요. 현재 상태: {status}."
     status = "진행중" if item.status == "ongoing" else "마감"
     if item.auction_type == "blind":
@@ -245,11 +268,7 @@ def answer_chat(
     item = None
     if item_id is not None:
         model = SkillItem if item_type == "skill_item" else Item
-        item = (
-            db.query(model)
-            .filter(model.id == item_id, model.is_deleted.is_(False))
-            .first()
-        )
+        item = db.query(model).filter(model.id == item_id, model.is_deleted.is_(False)).first()
 
     low = message.lower()
     matched = [

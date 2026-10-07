@@ -1,9 +1,9 @@
 import logging
 
-from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.db_utils import commit_or_conflict, get_or_404, save
+from app.core.errors import BadRequest, Conflict
 from app.core.security import hash_password, verify_password
 from app.models.user import User
 from app.schemas.user import SignupRequest, UserUpdateRequest
@@ -21,10 +21,7 @@ def get_user(db: Session, user_id: int) -> User:
 
 def create_user(db: Session, payload: SignupRequest) -> User:
     if get_user_by_email(db, payload.email):
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="이미 가입된 이메일입니다.",
-        )
+        raise Conflict("이미 가입된 이메일입니다.")
 
     user = User(
         email=payload.email,
@@ -59,9 +56,7 @@ def update_user(db: Session, user: User, payload: UserUpdateRequest) -> User:
         if not payload.current_password or not verify_password(
             payload.current_password, user.password_hash
         ):
-            raise HTTPException(
-                status.HTTP_400_BAD_REQUEST, "현재 비밀번호가 일치하지 않습니다."
-            )
+            raise BadRequest("현재 비밀번호가 일치하지 않습니다.")
         user.password_hash = hash_password(payload.password)
     return save(db, user)
 

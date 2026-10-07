@@ -30,9 +30,7 @@ class MissionClaim(Base):
     """미션 보상 수령 기록 (FR-PRD-06). 사용자당 미션별 1건."""
 
     __tablename__ = "mission_claims"
-    __table_args__ = (
-        UniqueConstraint("user_id", "mission_key", name="uq_mission_claim"),
-    )
+    __table_args__ = (UniqueConstraint("user_id", "mission_key", name="uq_mission_claim"),)
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)

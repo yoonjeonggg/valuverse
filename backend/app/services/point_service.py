@@ -1,11 +1,11 @@
 import logging
 
-from fastapi import HTTPException, status
 from sqlalchemy import update
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import set_committed_value
 
 from app.core.db_utils import get_or_404, save
+from app.core.errors import BadRequest, Forbidden
 from app.models.point import PointTransaction
 from app.models.user import User
 from app.schemas.point import PointTransactionCreate
@@ -49,7 +49,10 @@ def apply_delta(
     # 커밋 전 기록이므로 이후 롤백되면 반영되지 않았을 수 있다.
     logger.info(
         "포인트 변동 user_id=%s amount=%+d type=%s balance=%s",
-        user.id, amount, tx_type, balance,
+        user.id,
+        amount,
+        tx_type,
+        balance,
     )
     return tx
 
@@ -67,7 +70,7 @@ def spend(db: Session, user_id: int, amount: int, tx_type: str, memo: str) -> Us
     """
     user = lock_user(db, user_id)
     if user.points < amount:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "보유 포인트가 부족합니다.")
+        raise BadRequest("보유 포인트가 부족합니다.")
     apply_delta(db, user, -amount, tx_type, memo)
     return user
 
@@ -79,16 +82,12 @@ def create_transaction(
 
     # 남의 포인트를 조작하려면 관리자여야 한다.
     if target_id != requester.id and not requester.is_admin:
-        raise HTTPException(
-            status.HTTP_403_FORBIDDEN, "다른 사용자의 포인트를 변경할 수 없습니다."
-        )
+        raise Forbidden("다른 사용자의 포인트를 변경할 수 없습니다.")
 
-    target = get_or_404(
-        db, User, target_id, "대상 사용자를 찾을 수 없습니다.", for_update=True
-    )
+    target = get_or_404(db, User, target_id, "대상 사용자를 찾을 수 없습니다.", for_update=True)
 
     if target.points + payload.amount < 0:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "보유 포인트가 부족합니다.")
+        raise BadRequest("보유 포인트가 부족합니다.")
 
     # 행위자(관리자) 기록 -- 누가 조정했는지 이력에서 추적할 수 있게 남긴다.
     memo = f"[관리자 #{requester.id}] {payload.memo}"
@@ -96,7 +95,9 @@ def create_transaction(
     if target_id != requester.id:
         logger.warning(
             "관리자 포인트 조정 admin_id=%s target_id=%s amount=%+d",
-            requester.id, target_id, payload.amount,
+            requester.id,
+            target_id,
+            payload.amount,
         )
     return save(db, tx)
 

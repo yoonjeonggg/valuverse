@@ -6,6 +6,9 @@ export const API_BASE_URL =
 
 const TOKEN_KEY = "valuverse_token";
 
+// 로그인/로그아웃/토큰 만료로 토큰이 바뀌면 알린다 (헤더 등이 새로고침 없이 따라간다).
+export const AUTH_CHANGED = "valuverse:auth-changed";
+
 export function getToken(): string | null {
   if (typeof window === "undefined") return null;
   try {
@@ -21,8 +24,9 @@ export function setToken(token: string | null) {
     if (token) window.localStorage.setItem(TOKEN_KEY, token);
     else window.localStorage.removeItem(TOKEN_KEY);
   } catch {
-    /* ignore */
+    /* 저장소를 쓸 수 없는 환경(사파리 사생활 보호 등) - 이번 탭에서만 로그인이 유지되지 않는다 */
   }
+  window.dispatchEvent(new Event(AUTH_CHANGED));
 }
 
 // 포인트 잔액이 바뀐 화면이 알리면, 헤더의 잔액 표시가 새로고침 없이 따라간다.
@@ -101,6 +105,8 @@ export async function api<T = unknown>(
   }
 
   if (!res.ok) {
+    // 토큰이 만료/무효면 지워서 화면 전체가 로그아웃 상태로 바뀌게 한다.
+    if (res.status === 401 && auth && getToken()) setToken(null);
     let detail: string | undefined;
     if (parsed && typeof parsed === "object" && "detail" in parsed) {
       const d = (parsed as { detail: unknown }).detail;

@@ -1,10 +1,10 @@
 import logging
 
-from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.db_utils import get_or_404, save
+from app.core.errors import BadRequest, Conflict, NotFound
 from app.models.auction import Item
 from app.models.report import Report
 from app.models.review import Review
@@ -33,9 +33,9 @@ def _get_target(db: Session, target_type: str, target_id: int):
 def create_report(db: Session, reporter: User, payload: ReportCreate) -> Report:
     target = _get_target(db, payload.target_type, payload.target_id)
     if target is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "신고 대상을 찾을 수 없습니다.")
+        raise NotFound("신고 대상을 찾을 수 없습니다.")
     if payload.target_type == "user" and payload.target_id == reporter.id:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "본인을 신고할 수 없습니다.")
+        raise BadRequest("본인을 신고할 수 없습니다.")
 
     dup = (
         db.query(Report.id)
@@ -48,9 +48,7 @@ def create_report(db: Session, reporter: User, payload: ReportCreate) -> Report:
         .first()
     )
     if dup:
-        raise HTTPException(
-            status.HTTP_409_CONFLICT, "이미 접수된 신고가 처리 중입니다."
-        )
+        raise Conflict("이미 접수된 신고가 처리 중입니다.")
 
     report = Report(
         reporter_id=reporter.id,
@@ -62,11 +60,14 @@ def create_report(db: Session, reporter: User, payload: ReportCreate) -> Report:
     db.add(report)
 
     # 관리자에게 새 신고 알림
-    for admin_id, in db.query(User.id).filter(User.is_admin.is_(True)):
+    for (admin_id,) in db.query(User.id).filter(User.is_admin.is_(True)):
         notification_service.notify(
-            db, admin_id, "report_new",
+            db,
+            admin_id,
+            "report_new",
             f"새 신고가 접수되었습니다: {payload.target_type} #{payload.target_id}",
-            "report", None,
+            "report",
+            None,
         )
 
     return save(db, report)
@@ -103,13 +104,21 @@ def update_report(db: Session, report_id: int, payload: ReportUpdate) -> Report:
     if payload.status == "resolved" and not was_resolved:
         _apply_sanction(db, report)
         notification_service.notify(
-            db, report.reporter_id, "report_resolved",
-            f"신고(#{report.id})가 처리되었습니다.", "report", report.id,
+            db,
+            report.reporter_id,
+            "report_resolved",
+            f"신고(#{report.id})가 처리되었습니다.",
+            "report",
+            report.id,
         )
     elif payload.status == "rejected":
         notification_service.notify(
-            db, report.reporter_id, "report_rejected",
-            f"신고(#{report.id})가 반려되었습니다.", "report", report.id,
+            db,
+            report.reporter_id,
+            "report_rejected",
+            f"신고(#{report.id})가 반려되었습니다.",
+            "report",
+            report.id,
         )
 
     return save(db, report)
@@ -123,8 +132,12 @@ def _apply_sanction(db: Session, report: Report) -> None:
 
     if report.target_type == "user":
         notification_service.notify(
-            db, target.id, "sanction",
-            "회원님에 대한 신고가 인용되었습니다.", "user", target.id,
+            db,
+            target.id,
+            "sanction",
+            "회원님에 대한 신고가 인용되었습니다.",
+            "user",
+            target.id,
         )
         resolved_count = (
             db.query(Report.id)
@@ -141,21 +154,33 @@ def _apply_sanction(db: Session, report: Report) -> None:
                 "누적 신고로 계정 비활성화 user_id=%s resolved=%s", target.id, resolved_count
             )
             notification_service.notify(
-                db, target.id, "sanction",
-                "누적 신고로 계정이 비활성화되었습니다.", "user", target.id,
+                db,
+                target.id,
+                "sanction",
+                "누적 신고로 계정이 비활성화되었습니다.",
+                "user",
+                target.id,
             )
     elif report.target_type in ("item", "skill_item"):
         target.is_deleted = True
         target.status = "closed"
         notification_service.notify(
-            db, target.seller_id, "sanction",
-            "신고 인용으로 등록물이 삭제되었습니다.", report.target_type, target.id,
+            db,
+            target.seller_id,
+            "sanction",
+            "신고 인용으로 등록물이 삭제되었습니다.",
+            report.target_type,
+            target.id,
         )
     elif report.target_type == "review":
         target.is_deleted = True
         db.flush()
         recalc_rating(db, target.target_user_id)
         notification_service.notify(
-            db, target.author_id, "sanction",
-            "신고 인용으로 작성한 리뷰가 삭제되었습니다.", "review", target.id,
+            db,
+            target.author_id,
+            "sanction",
+            "신고 인용으로 작성한 리뷰가 삭제되었습니다.",
+            "review",
+            target.id,
         )

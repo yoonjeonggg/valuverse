@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { api, getToken, errorMessage, apiDelete, apiPatch, apiPost } from "../lib/api";
+import { api, apiDelete, apiPatch, apiPost, errorMessage, getToken } from "../lib/api";
 import { toIso } from "../lib/format";
 import { PREDICTION_STATUS_LABEL, type Prediction } from "../lib/types";
-import { Card, ErrorText, Field, PageHeader, useCall } from "../lib/ui";
+import { fetchMe } from "../lib/me";
+import { Card, ErrorText, Field, Loadable, PageHeader, useCall, useLoad } from "../lib/ui";
 
 type Report = {
   id: number;
@@ -39,21 +40,21 @@ export default function AdminPage() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
 
-  const [reports, setReports] = useState<Report[] | null>(null);
   const [reportStatusFilter, setReportStatusFilter] = useState("pending");
-
-  const [predictions, setPredictions] = useState<Prediction[] | null>(null);
+  const reports = useLoad(
+    () =>
+      api<Report[]>("/reports", {
+        auth: true,
+        query: { status: reportStatusFilter || undefined },
+      }),
+    [reportStatusFilter],
+    { enabled: isAdmin },
+  );
+  const predictions = useLoad(() => api<Prediction[]>("/predictions"), [], { enabled: isAdmin });
   const [settleResults, setSettleResults] = useState<Record<number, SettleResult>>({});
 
-  const loadReports = (statusFilter: string) =>
-    api<Report[]>("/reports", { auth: true, query: { status: statusFilter || undefined } })
-      .then(setReports)
-      .catch(() => setReports([]));
-  const loadPredictions = () =>
-    api<Prediction[]>("/predictions")
-      .then(setPredictions)
-      .catch(() => setPredictions([]));
-
+  // 관리자 여부는 내 정보(is_admin)로 판단한다. 목록 조회 성공 여부로 추론하면
+  // 조회 실패를 삼키는 순간 일반 사용자에게도 관리자 화면이 열린다.
   useEffect(() => {
     if (!getToken()) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -61,10 +62,10 @@ export default function AdminPage() {
       setAuthError("로그인이 필요합니다.");
       return;
     }
-    loadReports("pending")
-      .then(() => {
-        setIsAdmin(true);
-        return loadPredictions();
+    fetchMe()
+      .then((me) => {
+        if (me.is_admin) setIsAdmin(true);
+        else setAuthError("관리자 권한이 필요합니다.");
       })
       .catch((e) => setAuthError(errorMessage(e)))
       .finally(() => setAuthChecked(true));
@@ -75,12 +76,7 @@ export default function AdminPage() {
   );
   const submitReportUpdate = async (id: number, status: string) => {
     const res = await updateReportCall.run(id, status);
-    if (res) loadReports(reportStatusFilter);
-  };
-
-  const changeReportFilter = (statusFilter: string) => {
-    setReportStatusFilter(statusFilter);
-    loadReports(statusFilter).catch(() => {});
+    if (res) reports.reload();
   };
 
   const [title, setTitle] = useState("");
@@ -102,7 +98,7 @@ export default function AdminPage() {
     if (res) {
       setTitle("");
       setDescription("");
-      loadPredictions();
+      predictions.reload();
     }
   };
 
@@ -111,7 +107,7 @@ export default function AdminPage() {
   );
   const submitClose = async (id: number) => {
     const res = await closePredictionCall.run(id);
-    if (res) loadPredictions();
+    if (res) predictions.reload();
   };
 
   const [settleChoice, setSettleChoice] = useState<Record<number, "yes" | "no">>({});
@@ -123,22 +119,22 @@ export default function AdminPage() {
     const res = await settleCall.run(id, result);
     if (res) {
       setSettleResults((prev) => ({ ...prev, [id]: res }));
-      loadPredictions();
+      predictions.reload();
     }
   };
 
-  const deletePredictionCall = useCall((id: number) =>
-    apiDelete(`/predictions/${id}`),
-  );
+  const deletePredictionCall = useCall((id: number) => apiDelete(`/predictions/${id}`));
   const submitDelete = async (id: number) => {
     const res = await deletePredictionCall.run(id);
-    if (res !== undefined) loadPredictions();
+    if (res !== undefined) predictions.reload();
   };
 
   return (
     <div>
       <PageHeader title="관리자 대시보드">
-        <p>신고 처리와 예측시장 명제 등록·정산을 관리합니다. 관리자 계정으로만 접근할 수 있습니다.</p>
+        <p>
+          신고 처리와 예측시장 명제 등록·정산을 관리합니다. 관리자 계정으로만 접근할 수 있습니다.
+        </p>
       </PageHeader>
 
       {!authChecked ? (
@@ -152,7 +148,7 @@ export default function AdminPage() {
             right={
               <select
                 value={reportStatusFilter}
-                onChange={(e) => changeReportFilter(e.target.value)}
+                onChange={(e) => setReportStatusFilter(e.target.value)}
               >
                 <option value="pending">대기</option>
                 <option value="in_progress">처리중</option>
@@ -162,51 +158,58 @@ export default function AdminPage() {
               </select>
             }
           >
-            {!reports || reports.length === 0 ? (
-              <div className="empty">해당 상태의 신고가 없습니다.</div>
-            ) : (
-              reports.map((r) => (
-                <div className="adminrow" key={r.id}>
-                  <div className="top">
-                    <span className="title">
-                      {r.target_type} #{r.target_id}
-                    </span>
-                    <span className="badge badge--red">{REPORT_STATUS_LABEL[r.status] ?? r.status}</span>
-                  </div>
-                  <p className="reason">{r.reason}</p>
-                  <p className="meta">
-                    신고자 #{r.reporter_id} · {new Date(r.created_at).toLocaleString()}
-                  </p>
-                  {r.status === "pending" || r.status === "in_progress" ? (
-                    <div className="actions">
-                      {r.status === "pending" && (
+            <Loadable
+              data={reports.data}
+              error={reports.error}
+              onRetry={reports.reload}
+              empty="해당 상태의 신고가 없습니다."
+            >
+              {(list) =>
+                list.map((r) => (
+                  <div className="adminrow" key={r.id}>
+                    <div className="top">
+                      <span className="title">
+                        {r.target_type} #{r.target_id}
+                      </span>
+                      <span className="badge badge--red">
+                        {REPORT_STATUS_LABEL[r.status] ?? r.status}
+                      </span>
+                    </div>
+                    <p className="reason">{r.reason}</p>
+                    <p className="meta">
+                      신고자 #{r.reporter_id} · {new Date(r.created_at).toLocaleString()}
+                    </p>
+                    {r.status === "pending" || r.status === "in_progress" ? (
+                      <div className="actions">
+                        {r.status === "pending" && (
+                          <button
+                            className="btn-sm"
+                            onClick={() => submitReportUpdate(r.id, "in_progress")}
+                            disabled={updateReportCall.loading}
+                          >
+                            처리중으로
+                          </button>
+                        )}
                         <button
-                          className="btn-sm"
-                          onClick={() => submitReportUpdate(r.id, "in_progress")}
+                          className="btn-sm btn-primary"
+                          onClick={() => submitReportUpdate(r.id, "resolved")}
                           disabled={updateReportCall.loading}
                         >
-                          처리중으로
+                          처리완료 (제재)
                         </button>
-                      )}
-                      <button
-                        className="btn-sm btn-primary"
-                        onClick={() => submitReportUpdate(r.id, "resolved")}
-                        disabled={updateReportCall.loading}
-                      >
-                        처리완료 (제재)
-                      </button>
-                      <button
-                        className="btn-sm"
-                        onClick={() => submitReportUpdate(r.id, "rejected")}
-                        disabled={updateReportCall.loading}
-                      >
-                        반려
-                      </button>
-                    </div>
-                  ) : null}
-                </div>
-              ))
-            )}
+                        <button
+                          className="btn-sm"
+                          onClick={() => submitReportUpdate(r.id, "rejected")}
+                          disabled={updateReportCall.loading}
+                        >
+                          반려
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
+                ))
+              }
+            </Loadable>
             <ErrorText error={updateReportCall.error} />
           </Card>
 
@@ -248,75 +251,80 @@ export default function AdminPage() {
           </Card>
 
           <Card title="예측시장 명제 관리">
-            {!predictions || predictions.length === 0 ? (
-              <div className="empty">등록된 명제가 없습니다.</div>
-            ) : (
-              predictions.map((p) => {
-                const settled = settleResults[p.id];
-                return (
-                  <div className="adminrow" key={p.id}>
-                    <div className="top">
-                      <span className="title">{p.title}</span>
-                      <span className="badge badge--red">
-                        {PREDICTION_STATUS_LABEL[p.status] ?? p.status}
-                        {p.result && ` · 결과 ${p.result.toUpperCase()}`}
-                      </span>
-                    </div>
-                    <p className="meta">마감 {new Date(p.end_time).toLocaleString()}</p>
-                    <div className="actions">
-                      {p.status === "ongoing" && (
-                        <button
-                          className="btn-sm"
-                          onClick={() => submitClose(p.id)}
-                          disabled={closePredictionCall.loading}
-                        >
-                          마감 처리
-                        </button>
-                      )}
-                      {p.status === "closed" && (
-                        <>
-                          <select
-                            value={settleChoice[p.id] ?? "yes"}
-                            onChange={(e) =>
-                              setSettleChoice((prev) => ({
-                                ...prev,
-                                [p.id]: e.target.value as "yes" | "no",
-                              }))
-                            }
-                          >
-                            <option value="yes">YES 승리</option>
-                            <option value="no">NO 승리</option>
-                          </select>
+            <Loadable
+              data={predictions.data}
+              error={predictions.error}
+              onRetry={predictions.reload}
+              empty="등록된 명제가 없습니다."
+            >
+              {(list) =>
+                list.map((p) => {
+                  const settled = settleResults[p.id];
+                  return (
+                    <div className="adminrow" key={p.id}>
+                      <div className="top">
+                        <span className="title">{p.title}</span>
+                        <span className="badge badge--red">
+                          {PREDICTION_STATUS_LABEL[p.status] ?? p.status}
+                          {p.result && ` · 결과 ${p.result.toUpperCase()}`}
+                        </span>
+                      </div>
+                      <p className="meta">마감 {new Date(p.end_time).toLocaleString()}</p>
+                      <div className="actions">
+                        {p.status === "ongoing" && (
                           <button
-                            className="btn-sm btn-primary"
-                            onClick={() => submitSettle(p.id)}
-                            disabled={settleCall.loading}
+                            className="btn-sm"
+                            onClick={() => submitClose(p.id)}
+                            disabled={closePredictionCall.loading}
                           >
-                            정산
+                            마감 처리
                           </button>
-                        </>
-                      )}
-                      {p.status === "ongoing" && (
-                        <button
-                          className="btn-sm"
-                          onClick={() => submitDelete(p.id)}
-                          disabled={deletePredictionCall.loading}
-                        >
-                          삭제
-                        </button>
+                        )}
+                        {p.status === "closed" && (
+                          <>
+                            <select
+                              value={settleChoice[p.id] ?? "yes"}
+                              onChange={(e) =>
+                                setSettleChoice((prev) => ({
+                                  ...prev,
+                                  [p.id]: e.target.value as "yes" | "no",
+                                }))
+                              }
+                            >
+                              <option value="yes">YES 승리</option>
+                              <option value="no">NO 승리</option>
+                            </select>
+                            <button
+                              className="btn-sm btn-primary"
+                              onClick={() => submitSettle(p.id)}
+                              disabled={settleCall.loading}
+                            >
+                              정산
+                            </button>
+                          </>
+                        )}
+                        {p.status === "ongoing" && (
+                          <button
+                            className="btn-sm"
+                            onClick={() => submitDelete(p.id)}
+                            disabled={deletePredictionCall.loading}
+                          >
+                            삭제
+                          </button>
+                        )}
+                      </div>
+                      {settled && (
+                        <p className="hint">
+                          정산 완료 — 승자 {settled.winners}명, 패자 {settled.losers}명, 총 지급{" "}
+                          {settled.total_payout.toLocaleString()}P
+                          {settled.refunded && " (승자 없음 - 전액 환불)"}
+                        </p>
                       )}
                     </div>
-                    {settled && (
-                      <p className="hint">
-                        정산 완료 — 승자 {settled.winners}명, 패자 {settled.losers}명, 총 지급{" "}
-                        {settled.total_payout.toLocaleString()}P
-                        {settled.refunded && " (승자 없음 - 전액 환불)"}
-                      </p>
-                    )}
-                  </div>
-                );
-              })
-            )}
+                  );
+                })
+              }
+            </Loadable>
             <ErrorText error={settleCall.error} />
             <ErrorText error={deletePredictionCall.error} />
           </Card>

@@ -16,7 +16,7 @@ def _alembic(args, db_path):
         "PYTHONUTF8": "1",
         "PYTHONIOENCODING": "utf-8",
     }
-    return subprocess.run(
+    return subprocess.run(  # noqa: S603 - 고정된 alembic 명령만 실행
         [sys.executable, "-m", "alembic", *args],
         cwd=BACKEND,
         env=env,
@@ -35,9 +35,7 @@ def test_upgrade_then_no_drift(tmp_path):
     check = _alembic(["check"], db)
     assert check.returncode == 0, (
         "모델과 마이그레이션이 어긋납니다. "
-        "`alembic revision --autogenerate` 로 리비전을 추가하세요.\n"
-        + check.stdout
-        + check.stderr
+        "`alembic revision --autogenerate` 로 리비전을 추가하세요.\n" + check.stdout + check.stderr
     )
 
 

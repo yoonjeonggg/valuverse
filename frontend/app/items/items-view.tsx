@@ -1,30 +1,29 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { api, apiPost } from "../lib/api";
 import { AuctionCard, type AuctionCardItem } from "../lib/cards";
 import { toIso } from "../lib/format";
 import type { Item } from "../lib/types";
-import { Card, ErrorText, Field, PageHeader, SelectField, useCall } from "../lib/ui";
+import {
+  Card,
+  ErrorText,
+  Field,
+  Loadable,
+  PageHeader,
+  SelectField,
+  useCall,
+  useLoad,
+} from "../lib/ui";
 
 export function ItemsView({ initialFeed }: { initialFeed: AuctionCardItem[] | null }) {
-  const [feed, setFeed] = useState<AuctionCardItem[] | null>(initialFeed);
   const [statusFilter, setStatusFilter] = useState("ongoing");
-  // 서버에서 받은 첫 목록(진행중)이 있으면 마운트 직후의 같은 요청을 건너뛴다.
-  const skipInitialLoad = useRef(initialFeed !== null);
-
-  const loadFeed = (status: string) =>
-    api<Item[]>("/items", { query: { status } })
-      .then(setFeed)
-      .catch(() => setFeed([]));
-
-  useEffect(() => {
-    if (skipInitialLoad.current) {
-      skipInitialLoad.current = false;
-      return;
-    }
-    loadFeed(statusFilter);
-  }, [statusFilter]);
+  // 서버에서 받은 첫 목록(진행중)이 있으면 마운트 직후의 같은 요청은 건너뛴다.
+  const feed = useLoad<AuctionCardItem[]>(
+    () => api<Item[]>("/items", { query: { status: statusFilter } }),
+    [statusFilter],
+    { initial: initialFeed },
+  );
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -66,7 +65,7 @@ export function ItemsView({ initialFeed }: { initialFeed: AuctionCardItem[] | nu
       setImageUrl("");
       setBuyNowPrice("");
       setEndTime("");
-      loadFeed(statusFilter);
+      feed.reload();
     }
   };
 
@@ -88,17 +87,20 @@ export function ItemsView({ initialFeed }: { initialFeed: AuctionCardItem[] | nu
           </select>
         }
       >
-        {feed === null ? (
-          <div className="empty">불러오는 중…</div>
-        ) : feed.length === 0 ? (
-          <div className="empty">해당 상태의 상품이 없습니다.</div>
-        ) : (
-          <div className="item-grid">
-            {feed.map((it) => (
-              <AuctionCard key={it.id} item={it} />
-            ))}
-          </div>
-        )}
+        <Loadable
+          data={feed.data}
+          error={feed.error}
+          onRetry={feed.reload}
+          empty="해당 상태의 상품이 없습니다."
+        >
+          {(list) => (
+            <div className="item-grid">
+              {list.map((it) => (
+                <AuctionCard key={it.id} item={it} />
+              ))}
+            </div>
+          )}
+        </Loadable>
       </Card>
 
       <Card title="상품 등록">

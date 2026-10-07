@@ -70,6 +70,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     ]
     return JSONResponse(status_code=422, content={"detail": errors})
 
+
 app.include_router(auth_router)
 app.include_router(user_router)
 app.include_router(item_router)

@@ -54,9 +54,7 @@ def test_price_suggestion_requires_category(client):
 
 
 def test_price_suggestion_unknown_category_no_data(client):
-    body = client.get(
-        "/ai/price-suggestion", params={"category": "nonexistent"}
-    ).json()
+    body = client.get("/ai/price-suggestion", params={"category": "nonexistent"}).json()
     assert body["sample_size"] == 0
     assert body["enough_data"] is False
 
@@ -129,9 +127,7 @@ def test_description_suggestion_fewer_tips_when_existing_description_is_complete
 
 
 def test_description_suggestion_requires_auth(client):
-    assert (
-        client.post("/ai/description-suggestion", json={"title": "제목"}).status_code == 401
-    )
+    assert client.post("/ai/description-suggestion", json={"title": "제목"}).status_code == 401
 
 
 # ---------- 스킬 소개글 카테고리/난이도 태깅 ----------
@@ -148,7 +144,7 @@ def test_skill_tag_suggestion_detects_category_and_level(client, make_user):
     assert body["suggested_level"] == "고급"
 
 
-def test_skill_tag_suggestion_defaults_to_기타_when_no_keyword_matches(client, make_user):
+def test_skill_tag_suggestion_defaults_to_other_when_no_keyword_matches(client, make_user):
     h, _ = make_user()
     body = client.post(
         "/ai/skill-tag-suggestion",
@@ -210,7 +206,11 @@ def test_chat_supports_skill_item_context(client, make_user):
 
     body = client.post(
         "/ai/chat",
-        json={"message": "에스크로는 언제 풀리나요?", "item_id": skill["id"], "item_type": "skill_item"},
+        json={
+            "message": "에스크로는 언제 풀리나요?",
+            "item_id": skill["id"],
+            "item_type": "skill_item",
+        },
     ).json()
     assert "로고 디자인" in body["answer"]
     assert "에스크로/정산 안내" in body["references"]

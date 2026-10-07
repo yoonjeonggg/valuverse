@@ -33,9 +33,11 @@ _QUIET_PATHS = {"/health"}
 _SLOW_REQUEST_MS = 1000
 
 # LogRecord 기본 속성. 이 외의 속성은 `extra=` 로 넘어온 값으로 보고 JSON 에 포함한다.
-_RESERVED_ATTRS = set(
-    logging.LogRecord("", 0, "", 0, "", None, None).__dict__
-) | {"message", "asctime", "request_id"}
+_RESERVED_ATTRS = set(logging.LogRecord("", 0, "", 0, "", None, None).__dict__) | {
+    "message",
+    "asctime",
+    "request_id",
+}
 
 
 class RequestIdFilter(logging.Filter):
@@ -116,9 +118,7 @@ async def request_logging_middleware(request: Request, call_next):
         try:
             response = await call_next(request)
         except Exception:
-            logger.exception(
-                "처리되지 않은 예외: %s %s", request.method, request.url.path
-            )
+            logger.exception("처리되지 않은 예외: %s %s", request.method, request.url.path)
             response = JSONResponse(
                 status_code=500,
                 content={"detail": "서버 내부 오류가 발생했습니다.", "request_id": request_id},

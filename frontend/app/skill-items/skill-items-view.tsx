@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { api, apiPost } from "../lib/api";
 import { SkillCard, type SkillCardItem } from "../lib/cards";
 import type { SkillItem } from "../lib/types";
-import { Card, ErrorText, Field, PageHeader, useCall } from "../lib/ui";
+import { Card, ErrorText, Field, Loadable, PageHeader, useCall, useLoad } from "../lib/ui";
 
 const STATUS_LABEL: Record<string, string> = {
   recruiting: "모집중",
@@ -13,23 +13,13 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 export function SkillItemsView({ initialFeed }: { initialFeed: SkillCardItem[] | null }) {
-  const [feed, setFeed] = useState<SkillCardItem[] | null>(initialFeed);
   const [statusFilter, setStatusFilter] = useState("recruiting");
-  // 서버에서 받은 첫 목록(모집중)이 있으면 마운트 직후의 같은 요청을 건너뛴다.
-  const skipInitialLoad = useRef(initialFeed !== null);
-
-  const loadFeed = (status: string) =>
-    api<SkillItem[]>("/skill-items", { query: { status } })
-      .then(setFeed)
-      .catch(() => setFeed([]));
-
-  useEffect(() => {
-    if (skipInitialLoad.current) {
-      skipInitialLoad.current = false;
-      return;
-    }
-    loadFeed(statusFilter);
-  }, [statusFilter]);
+  // 서버에서 받은 첫 목록(모집중)이 있으면 마운트 직후의 같은 요청은 건너뛴다.
+  const feed = useLoad<SkillCardItem[]>(
+    () => api<SkillItem[]>("/skill-items", { query: { status: statusFilter } }),
+    [statusFilter],
+    { initial: initialFeed },
+  );
 
   const [category, setCategory] = useState("");
   const [title, setTitle] = useState("");
@@ -55,7 +45,7 @@ export function SkillItemsView({ initialFeed }: { initialFeed: SkillCardItem[] |
     if (res) {
       setTitle("");
       setDescription("");
-      loadFeed(statusFilter);
+      feed.reload();
     }
   };
 
@@ -82,23 +72,28 @@ export function SkillItemsView({ initialFeed }: { initialFeed: SkillCardItem[] |
           </select>
         }
       >
-        {feed === null ? (
-          <div className="empty">불러오는 중…</div>
-        ) : feed.length === 0 ? (
-          <div className="empty">해당 상태의 스킬 상품이 없습니다.</div>
-        ) : (
-          <div className="item-grid">
-            {feed.map((it) => (
-              <SkillCard
-                key={it.id}
-                item={it}
-                priceSuffix={
-                  it.status !== "recruiting" ? ` · ${STATUS_LABEL[it.status] ?? it.status}` : undefined
-                }
-              />
-            ))}
-          </div>
-        )}
+        <Loadable
+          data={feed.data}
+          error={feed.error}
+          onRetry={feed.reload}
+          empty="해당 상태의 스킬 상품이 없습니다."
+        >
+          {(list) => (
+            <div className="item-grid">
+              {list.map((it) => (
+                <SkillCard
+                  key={it.id}
+                  item={it}
+                  priceSuffix={
+                    it.status !== "recruiting"
+                      ? ` · ${STATUS_LABEL[it.status] ?? it.status}`
+                      : undefined
+                  }
+                />
+              ))}
+            </div>
+          )}
+        </Loadable>
       </Card>
 
       <Card title="스킬 상품 등록">

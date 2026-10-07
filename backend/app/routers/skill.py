@@ -21,9 +21,7 @@ escrow_router = APIRouter(prefix="/escrows", tags=["Escrow"])
 
 
 # ==================== SkillItem ====================
-@skill_item_router.post(
-    "", response_model=SkillItemResponse, status_code=status.HTTP_201_CREATED
-)
+@skill_item_router.post("", response_model=SkillItemResponse, status_code=status.HTTP_201_CREATED)
 def create_skill_item(payload: SkillItemCreate, db: DbSession, user: CurrentUser):
     return skill_service.create_skill_item(db, user.id, payload)
 
@@ -60,9 +58,7 @@ def delete_skill_item(item_id: int, db: DbSession, user: CurrentUser):
 
 
 # ==================== SkillBooking ====================
-@booking_router.post(
-    "", response_model=SkillBookingResponse, status_code=status.HTTP_201_CREATED
-)
+@booking_router.post("", response_model=SkillBookingResponse, status_code=status.HTTP_201_CREATED)
 def create_booking(payload: SkillBookingCreate, db: DbSession, user: CurrentUser):
     return skill_service.create_booking(db, user, payload)
 
@@ -114,9 +110,7 @@ def cancel_booking(booking_id: int, db: DbSession, user: CurrentUser):
 
 
 # ==================== Escrow ====================
-@escrow_router.post(
-    "", response_model=EscrowResponse, status_code=status.HTTP_201_CREATED
-)
+@escrow_router.post("", response_model=EscrowResponse, status_code=status.HTTP_201_CREATED)
 def create_escrow(payload: EscrowCreate, db: DbSession, user: CurrentUser):
     return skill_service.create_escrow(db, user, payload)
 

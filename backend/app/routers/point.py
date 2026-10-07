@@ -49,9 +49,7 @@ def list_my_point_transactions(
 
 @router.get("/users/me/points/balance", response_model=PointBalanceResponse)
 def get_my_point_balance(db: DbSession, user: CurrentUser):
-    return PointBalanceResponse(
-        user_id=user.id, balance=point_service.get_balance(db, user.id)
-    )
+    return PointBalanceResponse(user_id=user.id, balance=point_service.get_balance(db, user.id))
 
 
 @router.get("/users/me/points/summary", response_model=PointsSummaryResponse)

@@ -44,9 +44,7 @@ def _book(client, seller_h, buyer_h, skill_id, buyer_id, amount=3000):
 
 
 # ---------- 예약 요청 -> 구매자 수락 = 낙찰 + 에스크로 보관 ----------
-def test_booking_deducts_buyer_points_into_escrow(
-    client, make_user, set_points, get_points
-):
+def test_booking_deducts_buyer_points_into_escrow(client, make_user, set_points, get_points):
     seller_h, _seller = make_user()
     buyer_h, buyer = make_user()
     set_points(buyer["id"], 5000)
@@ -55,14 +53,14 @@ def test_booking_deducts_buyer_points_into_escrow(
     req = _request(client, seller_h, skill["id"], buyer["id"], amount=3000)
     assert req.status_code == 201, req.text
     assert req.json()["status"] == "pending"
-    assert get_points(buyer_h) == 5000          # 수락 전에는 차감되지 않는다
+    assert get_points(buyer_h) == 5000  # 수락 전에는 차감되지 않는다
 
     r = client.post(f"/skill-bookings/{req.json()['id']}/accept", headers=buyer_h)
     assert r.status_code == 200, r.text
     assert r.json()["status"] == "in_progress"
 
-    assert get_points(buyer_h) == 2000          # 3000 보관
-    assert get_points(seller_h) == 0            # 아직 정산 전
+    assert get_points(buyer_h) == 2000  # 3000 보관
+    assert get_points(seller_h) == 0  # 아직 정산 전
     assert client.get(f"/skill-items/{skill['id']}").json()["status"] == "awarded"
 
 
@@ -129,9 +127,9 @@ def test_complete_twice_conflicts(client, make_user, set_points):
     set_points(buyer["id"], 5000)
     skill = _create_skill(client, seller_h)
     booking = _book(client, seller_h, buyer_h, skill["id"], buyer["id"]).json()
-    assert client.post(
-        f"/skill-bookings/{booking['id']}/complete", headers=buyer_h
-    ).status_code == 200
+    assert (
+        client.post(f"/skill-bookings/{booking['id']}/complete", headers=buyer_h).status_code == 200
+    )
     r = client.post(f"/skill-bookings/{booking['id']}/complete", headers=buyer_h)
     assert r.status_code == 409
 
@@ -151,7 +149,7 @@ def test_seller_no_show_refunds_buyer(client, make_user, set_points, get_points)
     )
     assert r.status_code == 200, r.text
     assert r.json()["status"] == "no_show"
-    assert get_points(buyer_h) == 5000   # 전액 환불
+    assert get_points(buyer_h) == 5000  # 전액 환불
     assert get_points(seller_h) == 0
 
 
@@ -169,7 +167,7 @@ def test_buyer_no_show_settles_to_seller(client, make_user, set_points, get_poin
     )
     assert r.status_code == 200, r.text
     assert get_points(seller_h) == 3000
-    assert get_points(buyer_h) == 2000   # 노쇼한 구매자는 포인트를 잃는다
+    assert get_points(buyer_h) == 2000  # 노쇼한 구매자는 포인트를 잃는다
 
 
 # ---------- 취소 환불 ----------
@@ -264,9 +262,7 @@ def test_only_buyer_can_accept(client, make_user, set_points):
     set_points(buyer["id"], 5000)
     skill = _create_skill(client, seller_h)
     req = _request(client, seller_h, skill["id"], buyer["id"]).json()
-    assert client.post(
-        f"/skill-bookings/{req['id']}/accept", headers=seller_h
-    ).status_code == 403
+    assert client.post(f"/skill-bookings/{req['id']}/accept", headers=seller_h).status_code == 403
 
 
 def test_buyer_declines_request_reopens_item(client, make_user, set_points, get_points):
@@ -281,7 +277,7 @@ def test_buyer_declines_request_reopens_item(client, make_user, set_points, get_
     assert client.get(f"/skill-items/{skill['id']}").json()["status"] == "recruiting"
 
 
-@pytest.mark.parametrize("reporter,party", [("seller", "seller"), ("buyer", "buyer")])
+@pytest.mark.parametrize(("reporter", "party"), [("seller", "seller"), ("buyer", "buyer")])
 def test_no_show_only_reportable_against_counterparty(
     client, make_user, set_points, get_points, reporter, party
 ):

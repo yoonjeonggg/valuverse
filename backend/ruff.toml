@@ -1,0 +1,47 @@
+# 백엔드 코드 규칙. CI 에서 `ruff check` + `ruff format --check` 로 강제한다.
+#   ruff check --fix . && ruff format .
+
+target-version = "py313"
+line-length = 100
+extend-exclude = ["venv"]
+
+[lint]
+extend-select = [
+    "E", "W",  # pycodestyle
+    "I",       # import 정렬
+    "N",       # 네이밍
+    "B",       # 흔한 버그 패턴
+    "UP",      # 최신 문법
+    "SIM",     # 단순화
+    "C4",      # comprehension
+    "RET",     # return 일관성
+    "PIE",
+    "RUF",
+    "BLE",     # except Exception 남용 금지 (의도한 곳만 noqa 로 명시)
+    "TRY",     # 예외 처리
+    "LOG", "G",  # 로깅: f-string 대신 % 인자
+    "DTZ",     # timezone 없는 datetime 금지
+    "PT",      # pytest 스타일
+    "S",       # 보안
+]
+ignore = [
+    "E501",    # 줄 길이는 formatter 가 맞춘다 (긴 한글 문자열/주석은 허용)
+    "TRY003",  # raise Conflict("...") 처럼 메시지를 바로 넘기는 것이 이 프로젝트의 규칙
+    "RUF001", "RUF002", "RUF003",  # 한글 문서/주석의 전각 문자
+    "N818",    # 예외 이름은 HTTP 의미 그대로 (NotFound, Conflict ...) - app/core/errors.py
+]
+
+[lint.per-file-ignores]
+"tests/**" = [
+    "S101",    # assert
+    "S105", "S106", "S107",  # 테스트용 고정 비밀번호
+]
+# 자동 생성되는 마이그레이션
+"alembic/versions/**" = ["N999", "W291"]  # 첫 리비전의 "Revises: " 뒤 공백
+
+[lint.flake8-bugbear]
+# FastAPI 의존성 기본값 패턴
+extend-immutable-calls = ["fastapi.Depends", "fastapi.Query", "fastapi.Path", "fastapi.Body"]
+
+[format]
+quote-style = "double"

@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { api, apiDelete, apiPatch, setToken } from "../lib/api";
 import { useMe } from "../lib/me";
 import type { Bid, Booking, Item } from "../lib/types";
-import { Card, ErrorText, Field, PageHeader, useCall } from "../lib/ui";
+import { Card, ErrorText, Field, Loadable, PageHeader, useCall, useLoad } from "../lib/ui";
 
 type Dashboard = {
   unread_notifications: number;
@@ -35,41 +35,29 @@ type Tab = (typeof TABS)[number];
 
 function MyActivity() {
   const myInfo = useMe();
-  const [dash, setDash] = useState<Dashboard | null>(null);
   const [tab, setTab] = useState<Tab>("입찰중");
+  // 요약 수치는 보조 정보라 실패하면 영역만 숨긴다.
+  const dash = useLoad(() => api<Dashboard>("/users/me/dashboard", { auth: true }), []);
 
-  const [bids, setBids] = useState<Bid[] | null>(null);
-  const [items, setItems] = useState<Record<number, Item>>({});
-  const [bookings, setBookings] = useState<Booking[] | null>(null);
-  const [txs, setTxs] = useState<PointTx[] | null>(null);
-
-  useEffect(() => {
-    api<Dashboard>("/users/me/dashboard", { auth: true }).then(setDash).catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    if (tab === "입찰중" || tab === "낙찰완료") {
-      api<Bid[]>("/users/me/bids", { auth: true })
-        .then(async (list) => {
-          setBids(list);
-          // 입찰한 상품들을 상품마다 요청하지 않고 한 번에 가져온다.
-          const ids = Array.from(new Set(list.map((b) => b.item_id)));
-          const fetched = ids.length
-            ? await api<Item[]>("/items", { query: { ids, limit: 200 } })
-            : [];
-          setItems(Object.fromEntries(fetched.map((it) => [it.id, it])));
-        })
-        .catch(() => setBids([]));
-    } else if (tab === "예약(스킬)") {
-      api<Booking[]>("/skill-bookings", { auth: true }).then(setBookings).catch(() => {});
-    } else if (tab === "포인트내역") {
-      api<PointTx[]>("/users/me/point-transactions", { auth: true }).then(setTxs).catch(() => {});
-    }
-  }, [tab]);
-
-  const activeBids =
-    bids?.filter((b) => !b.is_cancelled && items[b.item_id]?.status === "ongoing") ?? [];
-  const wonItems = Object.values(items).filter((it) => myInfo && it.winner_id === myInfo.id);
+  // 탭에 들어갈 때마다 해당 목록만 불러온다.
+  const bidTab = tab === "입찰중" || tab === "낙찰완료";
+  const bidData = useLoad(
+    async () => {
+      const bids = await api<Bid[]>("/users/me/bids", { auth: true });
+      // 입찰한 상품들을 상품마다 요청하지 않고 한 번에 가져온다.
+      const ids = Array.from(new Set(bids.map((b) => b.item_id)));
+      const items = ids.length ? await api<Item[]>("/items", { query: { ids, limit: 200 } }) : [];
+      return { bids, items: Object.fromEntries(items.map((it) => [it.id, it])) };
+    },
+    [],
+    { enabled: bidTab },
+  );
+  const bookings = useLoad(() => api<Booking[]>("/skill-bookings", { auth: true }), [], {
+    enabled: tab === "예약(스킬)",
+  });
+  const txs = useLoad(() => api<PointTx[]>("/users/me/point-transactions", { auth: true }), [], {
+    enabled: tab === "포인트내역",
+  });
 
   return (
     <>
@@ -79,30 +67,30 @@ function MyActivity() {
           {new Date(myInfo.created_at).toLocaleDateString()}
         </p>
       )}
-      {dash && (
+      {dash.data && (
         <div className="statrow">
           <div className="stat">
             <div className="num">{myInfo?.points.toLocaleString() ?? "-"}</div>
             <div className="lbl">보유 포인트</div>
           </div>
           <div className="stat">
-            <div className="num">{dash.auction.active_bids}</div>
+            <div className="num">{dash.data.auction.active_bids}</div>
             <div className="lbl">입찰중 상품</div>
           </div>
           <div className="stat">
-            <div className="num">{dash.auction.won}</div>
+            <div className="num">{dash.data.auction.won}</div>
             <div className="lbl">낙찰 완료</div>
           </div>
           <div className="stat">
-            <div className="num">{dash.skill.bookings_in_progress}</div>
+            <div className="num">{dash.data.skill.bookings_in_progress}</div>
             <div className="lbl">스킬 예약 진행중</div>
           </div>
           <div className="stat">
-            <div className="num">{dash.attendance_streak}</div>
+            <div className="num">{dash.data.attendance_streak}</div>
             <div className="lbl">출석 스트릭</div>
           </div>
           <div className="stat">
-            <div className="num">{dash.unread_notifications}</div>
+            <div className="num">{dash.data.unread_notifications}</div>
             <div className="lbl">안읽은 알림</div>
           </div>
         </div>
@@ -111,84 +99,107 @@ function MyActivity() {
       <Card>
         <div className="tabs">
           {TABS.map((t) => (
-            <button
-              key={t}
-              className={tab === t ? "active" : undefined}
-              onClick={() => setTab(t)}
-            >
+            <button key={t} className={tab === t ? "active" : undefined} onClick={() => setTab(t)}>
               {t}
             </button>
           ))}
         </div>
 
-        {tab === "입찰중" &&
-          (activeBids.length === 0 ? (
-            <div className="empty">진행중인 경매에 입찰한 내역이 없습니다. (일반 경매 기준)</div>
-          ) : (
-            <ul className="bidlist">
-              {activeBids.map((b) => (
-                <li key={b.id}>
-                  <span>{items[b.item_id]?.title ?? `상품 #${b.item_id}`}</span>
-                  <span className="amt">{b.amount.toLocaleString()}원</span>
-                </li>
-              ))}
-            </ul>
-          ))}
-
-        {tab === "낙찰완료" &&
-          (wonItems.length === 0 ? (
-            <div className="empty">낙찰받은 상품이 없습니다. (일반 경매 기준)</div>
-          ) : (
-            <ul className="bidlist">
-              {wonItems.map((it) => (
-                <li key={it.id}>
-                  <span>{it.title}</span>
-                  <span className="amt">{(it.final_price ?? it.current_price).toLocaleString()}원</span>
-                </li>
-              ))}
-            </ul>
-          ))}
-
-        {tab === "예약(스킬)" &&
-          (!bookings || bookings.length === 0 ? (
-            <div className="empty">스킬 예약 내역이 없습니다.</div>
-          ) : (
-            <ul className="bidlist">
-              {bookings.map((b) => (
-                <li key={b.id}>
-                  <span>
-                    스킬 상품 #{b.skill_item_id} · {new Date(b.scheduled_at).toLocaleDateString()}
-                    {(b.status === "no_show" || b.status === "cancelled") && (
-                      <span className="badge badge--warn" style={{ marginLeft: 8 }}>
-                        {BOOKING_STATUS_LABEL[b.status]}
+        {bidTab && (
+          <Loadable data={bidData.data} error={bidData.error} onRetry={bidData.reload}>
+            {({ bids, items }) => {
+              if (tab === "입찰중") {
+                const activeBids = bids.filter(
+                  (b) => !b.is_cancelled && items[b.item_id]?.status === "ongoing",
+                );
+                return activeBids.length === 0 ? (
+                  <div className="empty">
+                    진행중인 경매에 입찰한 내역이 없습니다. (일반 경매 기준)
+                  </div>
+                ) : (
+                  <ul className="bidlist">
+                    {activeBids.map((b) => (
+                      <li key={b.id}>
+                        <span>{items[b.item_id]?.title ?? `상품 #${b.item_id}`}</span>
+                        <span className="amt">{b.amount.toLocaleString()}원</span>
+                      </li>
+                    ))}
+                  </ul>
+                );
+              }
+              const wonItems = Object.values(items).filter(
+                (it) => myInfo && it.winner_id === myInfo.id,
+              );
+              return wonItems.length === 0 ? (
+                <div className="empty">낙찰받은 상품이 없습니다. (일반 경매 기준)</div>
+              ) : (
+                <ul className="bidlist">
+                  {wonItems.map((it) => (
+                    <li key={it.id}>
+                      <span>{it.title}</span>
+                      <span className="amt">
+                        {(it.final_price ?? it.current_price).toLocaleString()}원
                       </span>
-                    )}
-                  </span>
-                  <span className="amt">{b.amount.toLocaleString()}원</span>
-                </li>
-              ))}
-            </ul>
-          ))}
+                    </li>
+                  ))}
+                </ul>
+              );
+            }}
+          </Loadable>
+        )}
 
-        {tab === "포인트내역" &&
-          (!txs || txs.length === 0 ? (
-            <div className="empty">포인트 내역이 없습니다.</div>
-          ) : (
-            <ul className="txlist">
-              {txs.map((t) => (
-                <li key={t.id}>
-                  <span className="memo">
-                    {t.memo || t.type}
-                    <span className="time">{new Date(t.created_at).toLocaleString()}</span>
-                  </span>
-                  <span className={"amt " + (t.amount >= 0 ? "pos" : "neg")}>
-                    {t.amount >= 0 ? "+" : ""}
-                    {t.amount.toLocaleString()}P
-                  </span>
-                </li>
-              ))}
-            </ul>
-          ))}
+        {tab === "예약(스킬)" && (
+          <Loadable
+            data={bookings.data}
+            error={bookings.error}
+            onRetry={bookings.reload}
+            empty="스킬 예약 내역이 없습니다."
+          >
+            {(list) => (
+              <ul className="bidlist">
+                {list.map((b) => (
+                  <li key={b.id}>
+                    <span>
+                      스킬 상품 #{b.skill_item_id} · {new Date(b.scheduled_at).toLocaleDateString()}
+                      {(b.status === "no_show" || b.status === "cancelled") && (
+                        <span className="badge badge--warn" style={{ marginLeft: 8 }}>
+                          {BOOKING_STATUS_LABEL[b.status]}
+                        </span>
+                      )}
+                    </span>
+                    <span className="amt">{b.amount.toLocaleString()}원</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Loadable>
+        )}
+
+        {tab === "포인트내역" && (
+          <Loadable
+            data={txs.data}
+            error={txs.error}
+            onRetry={txs.reload}
+            empty="포인트 내역이 없습니다."
+          >
+            {(list) => (
+              <ul className="txlist">
+                {list.map((t) => (
+                  <li key={t.id}>
+                    <span className="memo">
+                      {t.memo || t.type}
+                      <span className="time">{new Date(t.created_at).toLocaleString()}</span>
+                    </span>
+                    <span className={"amt " + (t.amount >= 0 ? "pos" : "neg")}>
+                      {t.amount >= 0 ? "+" : ""}
+                      {t.amount.toLocaleString()}P
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Loadable>
+        )}
       </Card>
     </>
   );

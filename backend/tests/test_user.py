@@ -24,9 +24,9 @@ def test_password_change_requires_current_password(client, make_user):
         headers=h,
     )
     assert r.status_code == 400
-    assert client.post(
-        "/auth/login", json={"email": email, "password": "pw12345!"}
-    ).status_code == 200
+    assert (
+        client.post("/auth/login", json={"email": email, "password": "pw12345!"}).status_code == 200
+    )
 
     r = client.patch(
         "/users/me",
@@ -34,9 +34,10 @@ def test_password_change_requires_current_password(client, make_user):
         headers=h,
     )
     assert r.status_code == 200, r.text
-    assert client.post(
-        "/auth/login", json={"email": email, "password": "newpass123!"}
-    ).status_code == 200
+    assert (
+        client.post("/auth/login", json={"email": email, "password": "newpass123!"}).status_code
+        == 200
+    )
 
 
 def test_nickname_change_does_not_need_password(client, make_user):

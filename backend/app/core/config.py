@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     )
 
     # 보안 - 운영 환경에서는 반드시 .env 로 재정의할 것
-    secret_key: str = "dev-secret-change-me"
+    secret_key: str = "dev-secret-change-me"  # noqa: S105 - 개발용 기본값, security.py 가 경고한다
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 60 * 24
 
@@ -33,27 +33,29 @@ class Settings(BaseSettings):
     bid_cancel_window_seconds: int = 300  # 입찰 후 취소 가능 시간
 
     # 포인트 이코노미 (FR-PRD-05~08)
-    point_checkin_base: int = 10          # 출석 기본 지급
-    point_checkin_streak_bonus: int = 2   # 연속 출석 1일당 추가 (상한 아래)
-    point_checkin_streak_cap: int = 7     # 보너스가 붙는 최대 연속일수
-    point_ad_reward: int = 5              # 광고 1회 시청 지급
-    point_ad_daily_limit: int = 5         # 하루 광고 보상 횟수 상한
-    point_ad_min_interval_seconds: int = 30  # 광고 보상 사이 최소 간격 (광고 길이보다 빠른 스크립트 연타 차단)
+    point_checkin_base: int = 10  # 출석 기본 지급
+    point_checkin_streak_bonus: int = 2  # 연속 출석 1일당 추가 (상한 아래)
+    point_checkin_streak_cap: int = 7  # 보너스가 붙는 최대 연속일수
+    point_ad_reward: int = 5  # 광고 1회 시청 지급
+    point_ad_daily_limit: int = 5  # 하루 광고 보상 횟수 상한
+    point_ad_min_interval_seconds: int = (
+        30  # 광고 보상 사이 최소 간격 (광고 길이보다 빠른 스크립트 연타 차단)
+    )
     point_admin_adjust_max: int = 1_000_000  # 관리자 수동 조정 1회 한도 (절댓값)
-    spotlight_cost: int = 100             # 상단 노출권 가격
-    spotlight_hours: int = 24             # 상단 노출 지속 시간
-    coupon_valid_days: int = 30           # 교환한 쿠폰 유효기간(일)
+    spotlight_cost: int = 100  # 상단 노출권 가격
+    spotlight_hours: int = 24  # 상단 노출 지속 시간
+    coupon_valid_days: int = 30  # 교환한 쿠폰 유효기간(일)
 
     # 신고 - 처리 완료된 신고가 이 수 이상 쌓이면 대상 계정을 자동 비활성화
     report_auto_deactivate_threshold: int = 3
 
     # 로깅
-    log_level: str = "INFO"               # DEBUG|INFO|WARNING|ERROR
-    log_format: str = "text"              # text|json (json 은 로그 수집기용 한 줄 JSON)
-    log_file: str = ""                    # 지정하면 콘솔과 함께 파일에도 남긴다 (예: logs/app.log)
+    log_level: str = "INFO"  # DEBUG|INFO|WARNING|ERROR
+    log_format: str = "text"  # text|json (json 은 로그 수집기용 한 줄 JSON)
+    log_file: str = ""  # 지정하면 콘솔과 함께 파일에도 남긴다 (예: logs/app.log)
     log_file_max_bytes: int = 10 * 1024 * 1024  # 이 크기를 넘으면 파일을 교체(rotate)
-    log_file_backup_count: int = 5        # 보관할 이전 로그 파일 수
-    log_sql: bool = False                 # 실행되는 SQL 을 모두 로그로 남김 (개발용)
+    log_file_backup_count: int = 5  # 보관할 이전 로그 파일 수
+    log_sql: bool = False  # 실행되는 SQL 을 모두 로그로 남김 (개발용)
 
     # CORS - 프론트엔드 오리진. 쉼표로 구분. 운영에서는 .env 로 재정의할 것
     cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000"

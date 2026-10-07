@@ -25,9 +25,7 @@ def _seed_attendance(user_id: int, days_ago: int, streak: int):
     from app.models.economy import Attendance
 
     d = (now().date() - timedelta(days=days_ago)).isoformat()
-    session.add(
-        Attendance(user_id=user_id, check_date=d, streak=streak, reward=0)
-    )
+    session.add(Attendance(user_id=user_id, check_date=d, streak=streak, reward=0))
     session.commit()
     session.close()
 
@@ -147,9 +145,7 @@ def test_cancelled_bid_does_not_achieve_first_bid_mission(client, make_user):
         },
         headers=seller_h,
     ).json()
-    bid = client.post(
-        f"/items/{item['id']}/bids", json={"amount": 200}, headers=bidder_h
-    ).json()
+    bid = client.post(f"/items/{item['id']}/bids", json={"amount": 200}, headers=bidder_h).json()
 
     session = TestingSessionLocal()
     from app.models.auction import Bid
@@ -158,9 +154,7 @@ def test_cancelled_bid_does_not_achieve_first_bid_mission(client, make_user):
     session.commit()
     session.close()
 
-    assert client.post(
-        "/points/missions/first_bid/claim", headers=bidder_h
-    ).status_code == 409
+    assert client.post("/points/missions/first_bid/claim", headers=bidder_h).status_code == 409
 
 
 def test_claim_mission_requires_achievement(client, make_user):
@@ -200,12 +194,8 @@ def test_claim_mission_twice_conflicts(client, make_user):
     ).json()
     client.post(f"/items/{item['id']}/bids", json={"amount": 200}, headers=bidder_h)
 
-    assert client.post(
-        "/points/missions/first_bid/claim", headers=bidder_h
-    ).status_code == 200
-    assert client.post(
-        "/points/missions/first_bid/claim", headers=bidder_h
-    ).status_code == 409
+    assert client.post("/points/missions/first_bid/claim", headers=bidder_h).status_code == 200
+    assert client.post("/points/missions/first_bid/claim", headers=bidder_h).status_code == 409
 
 
 def test_claim_unknown_mission_404(client, make_user):
@@ -230,9 +220,7 @@ def test_claim_mission_race_returns_conflict_not_500(client, make_user, monkeypa
 
     from app.services import economy_service
 
-    monkeypatch.setattr(
-        economy_service, "_already_claimed", lambda db, user_id, key: False
-    )
+    monkeypatch.setattr(economy_service, "_already_claimed", lambda db, user_id, key: False)
     r = client.post("/points/missions/first_item/claim", headers=h)
     assert r.status_code == 409, r.text
 
@@ -241,7 +229,7 @@ def test_claim_mission_race_returns_conflict_not_500(client, make_user, monkeypa
 def test_ad_reward_daily_limit(client, make_user, get_points, monkeypatch):
     monkeypatch.setattr(settings, "point_ad_min_interval_seconds", 0)
     h, _ = make_user()
-    for i in range(settings.point_ad_daily_limit):
+    for _ in range(settings.point_ad_daily_limit):
         r = client.post("/points/ad-reward", headers=h)
         assert r.status_code == 200, r.text
     r = client.post("/points/ad-reward", headers=h)
@@ -469,6 +457,4 @@ def test_point_transaction_history_is_paginated(client, make_user, monkeypatch):
     assert len(page) == 2
     rest = client.get("/users/me/point-transactions?skip=2&limit=2", headers=h).json()
     assert len(rest) == 1
-    assert client.get(
-        "/users/me/point-transactions?limit=1000", headers=h
-    ).status_code == 422
+    assert client.get("/users/me/point-transactions?limit=1000", headers=h).status_code == 422

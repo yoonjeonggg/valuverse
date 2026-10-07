@@ -34,9 +34,7 @@ def test_buyer_can_review_seller_after_win(client, make_user):
     seller_h, seller = make_user()
     buyer_h, _ = make_user()
     item = _won_item(client, seller_h, buyer_h)
-    r = _review(
-        client, buyer_h, target_user_id=seller["id"], item_id=item["id"], rating=5
-    )
+    r = _review(client, buyer_h, target_user_id=seller["id"], item_id=item["id"], rating=5)
     assert r.status_code == 201, r.text
 
 
@@ -44,9 +42,7 @@ def test_seller_can_review_buyer(client, make_user):
     seller_h, _ = make_user()
     buyer_h, buyer = make_user()
     item = _won_item(client, seller_h, buyer_h)
-    r = _review(
-        client, seller_h, target_user_id=buyer["id"], item_id=item["id"], rating=4
-    )
+    r = _review(client, seller_h, target_user_id=buyer["id"], item_id=item["id"], rating=4)
     assert r.status_code == 201, r.text
 
 
@@ -55,9 +51,7 @@ def test_review_rejected_before_auction_closed(client, make_user):
     buyer_h, _ = make_user()
     item = _item(client, seller_h)
     client.post(f"/items/{item['id']}/bids", json={"amount": 2000}, headers=buyer_h)
-    r = _review(
-        client, buyer_h, target_user_id=seller["id"], item_id=item["id"], rating=5
-    )
+    r = _review(client, buyer_h, target_user_id=seller["id"], item_id=item["id"], rating=5)
     assert r.status_code == 409
 
 
@@ -66,9 +60,7 @@ def test_outsider_cannot_review(client, make_user):
     buyer_h, _ = make_user()
     stranger_h, _ = make_user()
     item = _won_item(client, seller_h, buyer_h)
-    r = _review(
-        client, stranger_h, target_user_id=seller["id"], item_id=item["id"], rating=1
-    )
+    r = _review(client, stranger_h, target_user_id=seller["id"], item_id=item["id"], rating=1)
     assert r.status_code == 403
 
 
@@ -76,12 +68,18 @@ def test_duplicate_review_rejected(client, make_user):
     seller_h, seller = make_user()
     buyer_h, _ = make_user()
     item = _won_item(client, seller_h, buyer_h)
-    assert _review(
-        client, buyer_h, target_user_id=seller["id"], item_id=item["id"], rating=5
-    ).status_code == 201
-    assert _review(
-        client, buyer_h, target_user_id=seller["id"], item_id=item["id"], rating=3
-    ).status_code == 409
+    assert (
+        _review(
+            client, buyer_h, target_user_id=seller["id"], item_id=item["id"], rating=5
+        ).status_code
+        == 201
+    )
+    assert (
+        _review(
+            client, buyer_h, target_user_id=seller["id"], item_id=item["id"], rating=3
+        ).status_code
+        == 409
+    )
 
 
 # ---------- 스킬 거래 ----------
@@ -111,7 +109,5 @@ def test_review_after_completed_skill_booking(client, make_user, set_points):
 
     client.post(f"/skill-bookings/{booking['id']}/accept", headers=buyer_h)
     client.post(f"/skill-bookings/{booking['id']}/complete", headers=buyer_h)
-    ok = _review(
-        client, buyer_h, target_user_id=seller["id"], skill_item_id=skill["id"], rating=5
-    )
+    ok = _review(client, buyer_h, target_user_id=seller["id"], skill_item_id=skill["id"], rating=5)
     assert ok.status_code == 201, ok.text

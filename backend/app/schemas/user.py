@@ -44,4 +44,4 @@ class PublicProfileResponse(ORMModel):
 
 class TokenResponse(BaseModel):
     access_token: str
-    token_type: str = "bearer"
+    token_type: str = "bearer"  # noqa: S105 - OAuth2 토큰 종류이지 비밀번호가 아님

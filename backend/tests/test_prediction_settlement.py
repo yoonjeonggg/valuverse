@@ -98,9 +98,7 @@ def test_bet_race_rejects_using_fresh_balance(client, make_user, set_points):
 
 
 # ---------- 정산 ----------
-def test_settle_pays_winners_parimutuel(
-    client, make_user, set_points, get_points, move_deadline
-):
+def test_settle_pays_winners_parimutuel(client, make_user, set_points, get_points, move_deadline):
     admin_h, _ = make_user(admin=True)
     yes1_h, yes1 = make_user()
     yes2_h, yes2 = make_user()
@@ -109,15 +107,13 @@ def test_settle_pays_winners_parimutuel(
         set_points(u["id"], 10000)
 
     pred = _create_prediction(client, admin_h)
-    _bet(client, yes1_h, pred["id"], "yes", 2000)   # 잔액 8000
-    _bet(client, yes2_h, pred["id"], "yes", 2000)   # 잔액 8000
-    _bet(client, no1_h, pred["id"], "no", 4000)     # 잔액 6000
+    _bet(client, yes1_h, pred["id"], "yes", 2000)  # 잔액 8000
+    _bet(client, yes2_h, pred["id"], "yes", 2000)  # 잔액 8000
+    _bet(client, no1_h, pred["id"], "no", 4000)  # 잔액 6000
 
     move_deadline(pred["id"], -1)
 
-    r = client.post(
-        f"/predictions/{pred['id']}/settle", json={"result": "yes"}, headers=admin_h
-    )
+    r = client.post(f"/predictions/{pred['id']}/settle", json={"result": "yes"}, headers=admin_h)
     assert r.status_code == 200, r.text
     summary = r.json()
     assert summary["total_pool"] == 8000
@@ -148,9 +144,7 @@ def test_settle_refunds_all_when_no_winners(
 
     move_deadline(pred["id"], -1)
 
-    r = client.post(
-        f"/predictions/{pred['id']}/settle", json={"result": "yes"}, headers=admin_h
-    )
+    r = client.post(f"/predictions/{pred['id']}/settle", json={"result": "yes"}, headers=admin_h)
     assert r.status_code == 200, r.text
     assert r.json()["refunded"] is True
     assert get_points(no1_h) == 10000
@@ -160,9 +154,7 @@ def test_settle_refunds_all_when_no_winners(
 def test_settle_before_deadline_conflicts(client, make_user):
     admin_h, _ = make_user(admin=True)
     pred = _create_prediction(client, admin_h)
-    r = client.post(
-        f"/predictions/{pred['id']}/settle", json={"result": "yes"}, headers=admin_h
-    )
+    r = client.post(f"/predictions/{pred['id']}/settle", json={"result": "yes"}, headers=admin_h)
     assert r.status_code == 409
 
 
@@ -171,12 +163,13 @@ def test_settle_twice_conflicts(client, make_user, move_deadline):
     pred = _create_prediction(client, admin_h)
     move_deadline(pred["id"], -1)
 
-    assert client.post(
-        f"/predictions/{pred['id']}/settle", json={"result": "yes"}, headers=admin_h
-    ).status_code == 200
-    r = client.post(
-        f"/predictions/{pred['id']}/settle", json={"result": "no"}, headers=admin_h
+    assert (
+        client.post(
+            f"/predictions/{pred['id']}/settle", json={"result": "yes"}, headers=admin_h
+        ).status_code
+        == 200
     )
+    r = client.post(f"/predictions/{pred['id']}/settle", json={"result": "no"}, headers=admin_h)
     assert r.status_code == 409
 
 
@@ -184,15 +177,11 @@ def test_settle_requires_admin(client, make_user):
     admin_h, _ = make_user(admin=True)
     user_h, _ = make_user()
     pred = _create_prediction(client, admin_h)
-    r = client.post(
-        f"/predictions/{pred['id']}/settle", json={"result": "yes"}, headers=user_h
-    )
+    r = client.post(f"/predictions/{pred['id']}/settle", json={"result": "yes"}, headers=user_h)
     assert r.status_code == 403
 
 
-def test_settled_prediction_result_recorded(
-    client, make_user, set_points, move_deadline
-):
+def test_settled_prediction_result_recorded(client, make_user, set_points, move_deadline):
     admin_h, _ = make_user(admin=True)
     u_h, u = make_user()
     set_points(u["id"], 10000)
@@ -200,9 +189,7 @@ def test_settled_prediction_result_recorded(
     _bet(client, u_h, pred["id"], "yes", 1000)
 
     move_deadline(pred["id"], -1)
-    client.post(
-        f"/predictions/{pred['id']}/settle", json={"result": "yes"}, headers=admin_h
-    )
+    client.post(f"/predictions/{pred['id']}/settle", json={"result": "yes"}, headers=admin_h)
 
     got = client.get(f"/predictions/{pred['id']}").json()
     assert got["status"] == "settled"
@@ -213,9 +200,7 @@ def test_patch_cannot_mark_settled_without_payout(client, make_user):
     """PATCH 로 settled 를 찍으면 배당 없이 정산 완료로 막혀 베팅 포인트가 묶였다."""
     admin_h, _ = make_user(admin=True)
     pred = _create_prediction(client, admin_h)
-    r = client.patch(
-        f"/predictions/{pred['id']}", json={"status": "settled"}, headers=admin_h
-    )
+    r = client.patch(f"/predictions/{pred['id']}", json={"status": "settled"}, headers=admin_h)
     assert r.status_code == 422
 
 
@@ -240,6 +225,9 @@ def test_odds_aggregates_pools(client, make_user, set_points):
     _bet(client, a_h, pred["id"], "yes", 100)
     _bet(client, b_h, pred["id"], "no", 400)
     odds = client.get(f"/predictions/{pred['id']}/odds").json()
-    assert odds["yes_pool"] == 400 and odds["yes_backers"] == 2
-    assert odds["no_pool"] == 400 and odds["no_backers"] == 1
-    assert odds["yes_odds"] == 2.0 and odds["no_odds"] == 2.0
+    assert odds["yes_pool"] == 400
+    assert odds["yes_backers"] == 2
+    assert odds["no_pool"] == 400
+    assert odds["no_backers"] == 1
+    assert odds["yes_odds"] == 2.0
+    assert odds["no_odds"] == 2.0

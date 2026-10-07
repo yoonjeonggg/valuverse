@@ -14,19 +14,12 @@ from app.services.economy_service import get_active_attendance_streak
 
 
 def _count(db: Session, model, *conditions) -> int:
-    return (
-        db.query(func.count(model.id)).filter(*conditions).scalar() or 0
-    )
+    return db.query(func.count(model.id)).filter(*conditions).scalar() or 0
 
 
 def _counts_by_group(db: Session, model, group_col, *conditions) -> dict:
     """group_col 값별 개수. 매칭되는 행이 없으면 그 값은 결과에서 빠진다."""
-    rows = (
-        db.query(group_col, func.count(model.id))
-        .filter(*conditions)
-        .group_by(group_col)
-        .all()
-    )
+    rows = db.query(group_col, func.count(model.id)).filter(*conditions).group_by(group_col).all()
     return dict(rows)
 
 
@@ -111,21 +104,21 @@ def get_dashboard(db: Session, user: User) -> dict:
         },
         "skill": {
             "selling": _count(
-                db, SkillItem,
+                db,
+                SkillItem,
                 SkillItem.seller_id == uid,
                 SkillItem.is_deleted.is_(False),
             ),
             "bookings_in_progress": booking_counts.get("in_progress", 0),
             "bookings_completed": booking_counts.get("completed", 0),
         },
-        "prediction_bets": {
-            r: bet_counts.get(r, 0) for r in ("pending", "won", "lost")
-        },
+        "prediction_bets": {r: bet_counts.get(r, 0) for r in ("pending", "won", "lost")},
         "reviews_written": _count(
             db, Review, Review.author_id == uid, Review.is_deleted.is_(False)
         ),
         "reports_open": _count(
-            db, Report,
+            db,
+            Report,
             Report.reporter_id == uid,
             Report.status.in_(("pending", "in_progress")),
         ),

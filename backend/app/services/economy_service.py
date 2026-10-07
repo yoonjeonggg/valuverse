@@ -7,13 +7,13 @@
 from collections.abc import Callable
 from datetime import timedelta
 
-from fastapi import HTTPException, status
 from sqlalchemy import exists, func
 from sqlalchemy.orm import Session
 from sqlalchemy.sql.expression import Exists
 
 from app.core.config import settings
 from app.core.db_utils import commit_or_conflict, get_or_404, save
+from app.core.errors import Conflict, NotFound, TooManyRequests
 from app.core.timeutils import aware, is_past, now
 from app.models.auction import Bid, Item
 from app.models.economy import Attendance, Coupon, MissionClaim
@@ -53,9 +53,7 @@ def get_active_attendance_streak(db: Session, user_id: int) -> int:
 
 def _check_in_reward(streak: int) -> int:
     bonus_days = min(streak, settings.point_checkin_streak_cap)
-    return settings.point_checkin_base + settings.point_checkin_streak_bonus * (
-        bonus_days - 1
-    )
+    return settings.point_checkin_base + settings.point_checkin_streak_bonus * (bonus_days - 1)
 
 
 def get_check_in_status(db: Session, user: User) -> dict:
@@ -73,17 +71,13 @@ def check_in(db: Session, user: User) -> dict:
 
     latest = _latest_attendance(db, user.id)
     if latest and latest.check_date == today_str:
-        raise HTTPException(status.HTTP_409_CONFLICT, "오늘은 이미 출석했습니다.")
+        raise Conflict("오늘은 이미 출석했습니다.")
 
     streak = (latest.streak + 1) if latest and latest.check_date == _yesterday_str(today) else 1
 
     reward = _check_in_reward(streak)
 
-    db.add(
-        Attendance(
-            user_id=user.id, check_date=today_str, streak=streak, reward=reward
-        )
-    )
+    db.add(Attendance(user_id=user.id, check_date=today_str, streak=streak, reward=reward))
     point_service.apply_delta(db, user, reward, "attendance", f"출석 체크 ({streak}일 연속)")
     # 동시에 두 번 출석 요청이 오면 UNIQUE(user_id, check_date) 위반 -> 409로 변환.
     commit_or_conflict(db, "오늘은 이미 출석했습니다.")
@@ -114,19 +108,14 @@ MISSIONS: dict[str, tuple[int, str, Callable[[int], Exists]]] = {
     "first_review": (
         30,
         "리뷰 처음 작성하기",
-        lambda uid: exists().where(
-            Review.author_id == uid, Review.is_deleted.is_(False)
-        ),
+        lambda uid: exists().where(Review.author_id == uid, Review.is_deleted.is_(False)),
     ),
 }
 
 
 def list_missions(db: Session, user: User) -> list[dict]:
     claimed = {
-        key
-        for (key,) in db.query(MissionClaim.mission_key).filter(
-            MissionClaim.user_id == user.id
-        )
+        key for (key,) in db.query(MissionClaim.mission_key).filter(MissionClaim.user_id == user.id)
     }
     achieved = db.query(*(cond(user.id) for _, _, cond in MISSIONS.values())).one()
     return [
@@ -137,7 +126,7 @@ def list_missions(db: Session, user: User) -> list[dict]:
             "achieved": bool(done),
             "claimed": key in claimed,
         }
-        for (key, (reward, desc, _)), done in zip(MISSIONS.items(), achieved)
+        for (key, (reward, desc, _)), done in zip(MISSIONS.items(), achieved, strict=True)
     ]
 
 
@@ -149,12 +138,12 @@ def _already_claimed(db: Session, user_id: int, key: str) -> bool:
 
 def claim_mission(db: Session, user: User, key: str) -> dict:
     if key not in MISSIONS:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "존재하지 않는 미션입니다.")
+        raise NotFound("존재하지 않는 미션입니다.")
     reward, desc, cond = MISSIONS[key]
     if _already_claimed(db, user.id, key):
-        raise HTTPException(status.HTTP_409_CONFLICT, "이미 보상을 받은 미션입니다.")
+        raise Conflict("이미 보상을 받은 미션입니다.")
     if not db.query(cond(user.id)).scalar():
-        raise HTTPException(status.HTTP_409_CONFLICT, "아직 달성하지 못한 미션입니다.")
+        raise Conflict("아직 달성하지 못한 미션입니다.")
 
     db.add(MissionClaim(user_id=user.id, mission_key=key, reward=reward))
     point_service.apply_delta(db, user, reward, "mission", f"미션 보상: {desc}")
@@ -181,7 +170,7 @@ def list_coupon_catalog() -> list[dict]:
 
 def redeem_coupon(db: Session, user: User, key: str) -> Coupon:
     if key not in COUPON_CATALOG:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "존재하지 않는 쿠폰입니다.")
+        raise NotFound("존재하지 않는 쿠폰입니다.")
     cost, discount, desc = COUPON_CATALOG[key]
     point_service.spend(db, user.id, cost, "spend", f"쿠폰 교환: {desc}")
     coupon = Coupon(
@@ -207,13 +196,17 @@ def use_coupon(db: Session, coupon_id: int, user_id: int) -> Coupon:
     # 여부가 드러나지 않게 하고(열거 방지), 남의 행을 잠그지도 않는다.
     # 동시에 두 번 사용 요청이 오면 둘 다 is_used=False 를 보고 통과할 수 있으므로 잠그고 읽는다.
     coupon = get_or_404(
-        db, Coupon, coupon_id, "쿠폰을 찾을 수 없습니다.",
-        Coupon.user_id == user_id, for_update=True,
+        db,
+        Coupon,
+        coupon_id,
+        "쿠폰을 찾을 수 없습니다.",
+        Coupon.user_id == user_id,
+        for_update=True,
     )
     if coupon.is_used:
-        raise HTTPException(status.HTTP_409_CONFLICT, "이미 사용한 쿠폰입니다.")
+        raise Conflict("이미 사용한 쿠폰입니다.")
     if is_past(coupon.expires_at):
-        raise HTTPException(status.HTTP_409_CONFLICT, "유효기간이 지난 쿠폰입니다.")
+        raise Conflict("유효기간이 지난 쿠폰입니다.")
     coupon.is_used = True
     coupon.used_at = now()
     return save(db, coupon)
@@ -256,18 +249,14 @@ def ad_reward(db: Session, user: User) -> dict:
     user = point_service.lock_user(db, user.id)
     views_today = _ad_views_today(db, user.id)
     if views_today >= settings.point_ad_daily_limit:
-        raise HTTPException(
-            status.HTTP_409_CONFLICT, "오늘 광고 보상 한도를 모두 사용했습니다."
-        )
+        raise Conflict("오늘 광고 보상 한도를 모두 사용했습니다.")
     # 광고 시청 여부를 서버가 검증할 수 없으므로, 최소한 광고 길이보다 빠른 연속 호출
     # (스크립트 연타)은 막는다.
     available_at = _ad_next_available_at(db, user.id)
     if available_at is not None:
         wait = int((available_at - now()).total_seconds()) + 1
-        raise HTTPException(
-            status.HTTP_429_TOO_MANY_REQUESTS,
-            f"광고 보상은 {wait}초 후에 다시 받을 수 있습니다.",
-            headers={"Retry-After": str(wait)},
+        raise TooManyRequests(
+            f"광고 보상은 {wait}초 후에 다시 받을 수 있습니다.", headers={"Retry-After": str(wait)}
         )
 
     reward = settings.point_ad_reward
@@ -278,8 +267,7 @@ def ad_reward(db: Session, user: User) -> dict:
         "views_today": views_today + 1,
         "daily_limit": settings.point_ad_daily_limit,
         "balance": user.points,
-        "next_available_at": now()
-        + timedelta(seconds=settings.point_ad_min_interval_seconds),
+        "next_available_at": now() + timedelta(seconds=settings.point_ad_min_interval_seconds),
     }
 
 

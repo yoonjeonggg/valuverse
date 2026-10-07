@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { api, errorMessage, apiPost } from "../lib/api";
-import { Card, PageHeader, useCall } from "../lib/ui";
+import { useState } from "react";
+import { api, apiPost } from "../lib/api";
+import { Card, Loadable, PageHeader, useCall, useLoad } from "../lib/ui";
 
 type Notification = {
   id: number;
@@ -16,38 +16,33 @@ type Notification = {
 
 export default function NotificationsPage() {
   const [unreadOnly, setUnreadOnly] = useState(false);
-  const [list, setList] = useState<Notification[] | null>(null);
-  const [loadError, setLoadError] = useState<string | null>(null);
-
-  const load = (unread: boolean) =>
-    api<Notification[]>("/users/me/notifications", { auth: true, query: { unread } })
-      .then(setList)
-      .catch((e) => setLoadError(errorMessage(e)));
-
-  useEffect(() => {
-    load(unreadOnly);
-  }, [unreadOnly]);
-
-  const markReadCall = useCall((id: number) =>
-    apiPost(`/notifications/${id}/read`),
+  const list = useLoad(
+    () =>
+      api<Notification[]>("/users/me/notifications", {
+        auth: true,
+        query: { unread: unreadOnly },
+      }),
+    [unreadOnly],
   );
+
+  const markReadCall = useCall((id: number) => apiPost(`/notifications/${id}/read`));
   const markRead = async (id: number) => {
     const res = await markReadCall.run(id);
-    if (res) load(unreadOnly);
+    if (res) list.reload();
   };
 
-  const readAllCall = useCall(() =>
-    apiPost("/notifications/read-all"),
-  );
+  const readAllCall = useCall(() => apiPost("/notifications/read-all"));
   const markAllRead = async () => {
     const res = await readAllCall.run();
-    if (res) load(unreadOnly);
+    if (res) list.reload();
   };
 
   return (
     <div>
       <PageHeader title="알림">
-        <p>상위 입찰, 낙찰, 스킬 정산, 예측 정산, 신고 처리 등 이벤트가 발생하면 자동으로 쌓입니다.</p>
+        <p>
+          상위 입찰, 낙찰, 스킬 정산, 예측 정산, 신고 처리 등 이벤트가 발생하면 자동으로 쌓입니다.
+        </p>
       </PageHeader>
 
       <Card
@@ -70,33 +65,34 @@ export default function NotificationsPage() {
           </div>
         }
       >
-        {loadError ? (
-          <div className="empty">{loadError}</div>
-        ) : !list ? (
-          <div className="empty">불러오는 중…</div>
-        ) : list.length === 0 ? (
-          <div className="empty">알림이 없습니다.</div>
-        ) : (
-          <ul className="notiflist">
-            {list.map((n) => (
-              <li key={n.id} className={n.is_read ? undefined : "unread"}>
-                <span className="msg">{n.message}</span>
-                <span className="meta">
-                  {new Date(n.created_at).toLocaleString()}
-                  {!n.is_read && (
-                    <button
-                      className="btn-sm"
-                      onClick={() => markRead(n.id)}
-                      disabled={markReadCall.loading}
-                    >
-                      읽음
-                    </button>
-                  )}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
+        <Loadable
+          data={list.data}
+          error={list.error}
+          onRetry={list.reload}
+          empty="알림이 없습니다."
+        >
+          {(rows) => (
+            <ul className="notiflist">
+              {rows.map((n) => (
+                <li key={n.id} className={n.is_read ? undefined : "unread"}>
+                  <span className="msg">{n.message}</span>
+                  <span className="meta">
+                    {new Date(n.created_at).toLocaleString()}
+                    {!n.is_read && (
+                      <button
+                        className="btn-sm"
+                        onClick={() => markRead(n.id)}
+                        disabled={markReadCall.loading}
+                      >
+                        읽음
+                      </button>
+                    )}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Loadable>
       </Card>
     </div>
   );

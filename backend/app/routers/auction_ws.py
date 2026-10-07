@@ -1,5 +1,6 @@
 """실시간 입찰 WebSocket 엔드포인트: WS /items/{id}/bid (FR-AUC-02)."""
 
+import json
 import logging
 
 from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
@@ -30,6 +31,15 @@ def _snapshot(item) -> dict:
     }
 
 
+def _parse_message(raw: str) -> dict | None:
+    """클라이언트 메시지를 JSON 객체로 읽는다. 형식이 틀리면 None (연결은 유지)."""
+    try:
+        msg = json.loads(raw)
+    except ValueError:
+        return None
+    return msg if isinstance(msg, dict) else None
+
+
 def _user_from_token(db: Session, token: str | None) -> User | None:
     user = lookup_user_by_token(db, token)
     return user if user and user.is_active else None
@@ -43,15 +53,11 @@ async def auction_bid_ws(websocket: WebSocket, item_id: int, db: DbSession):
             item = await run_in_threadpool(auction_service.get_item, db, item_id)
             snapshot = _snapshot(item)
         except HTTPException:
-            await websocket.send_json(
-                {"type": "error", "detail": "상품을 찾을 수 없습니다."}
-            )
+            await websocket.send_json({"type": "error", "detail": "상품을 찾을 수 없습니다."})
             return
         except Exception:
             logger.exception("WS 스냅샷 조회 실패 (item_id=%s)", item_id)
-            await websocket.send_json(
-                {"type": "error", "detail": "상품을 찾을 수 없습니다."}
-            )
+            await websocket.send_json({"type": "error", "detail": "상품을 찾을 수 없습니다."})
             return
         finally:
             # 읽기 트랜잭션을 즉시 닫아 다른 요청과의 경합을 피한다.
@@ -60,14 +66,17 @@ async def auction_bid_ws(websocket: WebSocket, item_id: int, db: DbSession):
         await websocket.send_json(snapshot)
 
         while True:
-            msg = await websocket.receive_json()
+            msg = _parse_message(await websocket.receive_text())
+            if msg is None:
+                await websocket.send_json(
+                    {"type": "error", "detail": "메시지는 JSON 객체여야 합니다."}
+                )
+                continue
             token = msg.get("token") or websocket.query_params.get("token")
             user = _user_from_token(db, token)
             db.rollback()
             if not user:
-                await websocket.send_json(
-                    {"type": "error", "detail": "인증이 필요합니다."}
-                )
+                await websocket.send_json({"type": "error", "detail": "인증이 필요합니다."})
                 continue
             try:
                 amount = int(msg["amount"])

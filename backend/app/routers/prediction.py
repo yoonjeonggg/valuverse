@@ -18,9 +18,7 @@ bet_router = APIRouter(tags=["Prediction Bet"])
 
 
 # ==================== Prediction ====================
-@prediction_router.post(
-    "", response_model=PredictionResponse, status_code=status.HTTP_201_CREATED
-)
+@prediction_router.post("", response_model=PredictionResponse, status_code=status.HTTP_201_CREATED)
 def create_prediction(payload: PredictionCreate, db: DbSession, admin: CurrentAdmin):
     return prediction_service.create_prediction(db, admin, payload)
 
@@ -43,9 +41,7 @@ def get_odds(prediction_id: int, db: DbSession):
     return prediction_service.get_odds(db, prediction_id)
 
 
-@prediction_router.post(
-    "/{prediction_id}/settle", response_model=PredictionSettleResponse
-)
+@prediction_router.post("/{prediction_id}/settle", response_model=PredictionSettleResponse)
 def settle_prediction(
     prediction_id: int,
     payload: PredictionSettleRequest,
@@ -65,9 +61,7 @@ def update_prediction(
     return prediction_service.update_prediction(db, prediction_id, payload)
 
 
-@prediction_router.delete(
-    "/{prediction_id}", status_code=status.HTTP_204_NO_CONTENT
-)
+@prediction_router.delete("/{prediction_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_prediction(prediction_id: int, db: DbSession, admin: CurrentAdmin):
     prediction_service.delete_prediction(db, prediction_id)
 

@@ -104,9 +104,9 @@ def test_skill_booking_and_settlement_notifications(client, make_user, set_point
 def test_settlement_notifies_all_bettors(client, make_user, set_points, move_pred):
     admin_h, _ = make_user(admin=True)
     w_h, w = make_user()
-    l_h, l = make_user()
+    loser_h, loser = make_user()
     set_points(w["id"], 5000)
-    set_points(l["id"], 5000)
+    set_points(loser["id"], 5000)
     pred = client.post(
         "/predictions",
         json={"title": "명제", "end_time": (now() + timedelta(days=1)).isoformat()},
@@ -120,16 +120,14 @@ def test_settlement_notifies_all_bettors(client, make_user, set_points, move_pre
     client.post(
         f"/predictions/{pred['id']}/bets",
         json={"position": "no", "amount": 1000},
-        headers=l_h,
+        headers=loser_h,
     )
     move_pred(pred["id"], -1)
-    client.post(
-        f"/predictions/{pred['id']}/settle", json={"result": "yes"}, headers=admin_h
-    )
+    client.post(f"/predictions/{pred['id']}/settle", json={"result": "yes"}, headers=admin_h)
 
     assert [n["type"] for n in _notifs(client, w_h)] == ["bet_result"]
     assert "적중" in _notifs(client, w_h)[0]["message"]
-    assert [n["type"] for n in _notifs(client, l_h)] == ["bet_result"]
+    assert [n["type"] for n in _notifs(client, loser_h)] == ["bet_result"]
 
 
 # ---------- 읽음 처리 ----------
@@ -142,9 +140,7 @@ def test_mark_read_and_unread_count(client, make_user):
     client.post(f"/items/{item['id']}/bids", json={"amount": 3000}, headers=b2_h)
     client.post(f"/items/{item['id']}/bids", json={"amount": 4000}, headers=b1_h)
 
-    assert client.get(
-        "/users/me/notifications/unread-count", headers=b1_h
-    ).json()["unread"] == 1
+    assert client.get("/users/me/notifications/unread-count", headers=b1_h).json()["unread"] == 1
 
     nid = _notifs(client, b1_h)[0]["id"]
     r = client.post(f"/notifications/{nid}/read", headers=b1_h)
@@ -177,10 +173,6 @@ def test_read_all(client, make_user):
         amount += 500
         client.post(f"/items/{item['id']}/bids", json={"amount": amount}, headers=h)
 
-    assert client.get(
-        "/users/me/notifications/unread-count", headers=b1_h
-    ).json()["unread"] >= 1
+    assert client.get("/users/me/notifications/unread-count", headers=b1_h).json()["unread"] >= 1
     client.post("/notifications/read-all", headers=b1_h)
-    assert client.get(
-        "/users/me/notifications/unread-count", headers=b1_h
-    ).json()["unread"] == 0
+    assert client.get("/users/me/notifications/unread-count", headers=b1_h).json()["unread"] == 0

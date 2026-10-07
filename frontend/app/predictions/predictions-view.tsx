@@ -1,27 +1,20 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { api } from "../lib/api";
 import { formatDateTime } from "../lib/format";
 import { PREDICTION_STATUS_LABEL, type Prediction } from "../lib/types";
-import { Card, PageHeader } from "../lib/ui";
+import { Card, Loadable, PageHeader, useLoad } from "../lib/ui";
 
 export function PredictionsView({ initialFeed }: { initialFeed: Prediction[] | null }) {
   const [statusFilter, setStatusFilter] = useState("ongoing");
-  const [feed, setFeed] = useState<Prediction[] | null>(initialFeed);
-  // 서버에서 받은 첫 목록(진행중)이 있으면 마운트 직후의 같은 요청을 건너뛴다.
-  const skipInitialLoad = useRef(initialFeed !== null);
-
-  useEffect(() => {
-    if (skipInitialLoad.current) {
-      skipInitialLoad.current = false;
-      return;
-    }
-    api<Prediction[]>("/predictions", { query: { status: statusFilter } })
-      .then(setFeed)
-      .catch(() => setFeed([]));
-  }, [statusFilter]);
+  // 서버에서 받은 첫 목록(진행중)이 있으면 마운트 직후의 같은 요청은 건너뛴다.
+  const feed = useLoad(
+    () => api<Prediction[]>("/predictions", { query: { status: statusFilter } }),
+    [statusFilter],
+    { initial: initialFeed },
+  );
 
   return (
     <div>
@@ -39,21 +32,26 @@ export function PredictionsView({ initialFeed }: { initialFeed: Prediction[] | n
           </select>
         }
       >
-        {feed === null ? (
-          <div className="empty">불러오는 중…</div>
-        ) : feed.length === 0 ? (
-          <div className="empty">해당 상태의 명제가 없습니다.</div>
-        ) : (
-          <div className="item-grid">
-            {feed.map((p) => (
-              <Link key={p.id} href={`/predictions/${p.id}`} className="item-card">
-                <span className="cat">예측시장 · {PREDICTION_STATUS_LABEL[p.status] ?? p.status}</span>
-                <span className="ttl">{p.title}</span>
-                <span className="meta">마감 {formatDateTime(p.end_time)}</span>
-              </Link>
-            ))}
-          </div>
-        )}
+        <Loadable
+          data={feed.data}
+          error={feed.error}
+          onRetry={feed.reload}
+          empty="해당 상태의 명제가 없습니다."
+        >
+          {(list) => (
+            <div className="item-grid">
+              {list.map((p) => (
+                <Link key={p.id} href={`/predictions/${p.id}`} className="item-card">
+                  <span className="cat">
+                    예측시장 · {PREDICTION_STATUS_LABEL[p.status] ?? p.status}
+                  </span>
+                  <span className="ttl">{p.title}</span>
+                  <span className="meta">마감 {formatDateTime(p.end_time)}</span>
+                </Link>
+              ))}
+            </div>
+          )}
+        </Loadable>
       </Card>
     </div>
   );

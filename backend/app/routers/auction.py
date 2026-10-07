@@ -101,9 +101,7 @@ def list_my_bids(db: DbSession, user: CurrentUser):
     return auction_service.list_my_bids(db, user.id)
 
 
-@bid_router.delete(
-    "/bids/{bid_id}", status_code=status.HTTP_204_NO_CONTENT, tags=["Bid"]
-)
+@bid_router.delete("/bids/{bid_id}", status_code=status.HTTP_204_NO_CONTENT, tags=["Bid"])
 def cancel_bid(bid_id: int, db: DbSession, user: CurrentUser):
     auction_service.cancel_bid(db, bid_id, user.id)
 

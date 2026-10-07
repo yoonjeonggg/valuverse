@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { api, getToken } from "./api";
+import { useEffect, useState, useSyncExternalStore } from "react";
+import { AUTH_CHANGED, api, getToken } from "./api";
 import type { Me } from "./types";
 
 // 헤더(내비/잔액)와 페이지가 한 화면에서 동시에 /users/me 를 부르므로 진행 중인 요청을
@@ -28,4 +28,26 @@ export function useMe(): Me | null {
       .catch(() => setMe(null));
   }, []);
   return me;
+}
+
+function subscribeAuth(onChange: () => void) {
+  window.addEventListener(AUTH_CHANGED, onChange);
+  // 다른 탭에서 로그인/로그아웃한 경우
+  window.addEventListener("storage", onChange);
+  return () => {
+    window.removeEventListener(AUTH_CHANGED, onChange);
+    window.removeEventListener("storage", onChange);
+  };
+}
+
+/**
+ * 로그인 토큰 보유 여부. 서버 렌더링/hydration 중에는 알 수 없으므로 null.
+ * (localStorage 를 렌더 중에 바로 읽으면 서버 HTML 과 달라 hydration 오류가 난다.)
+ */
+export function useHasToken(): boolean | null {
+  return useSyncExternalStore(
+    subscribeAuth,
+    () => getToken() !== null,
+    () => null,
+  );
 }

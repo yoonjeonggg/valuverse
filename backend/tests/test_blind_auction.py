@@ -18,9 +18,7 @@ def _create(client, headers, **ov):
 
 
 def _blind_bid(client, headers, item_id, amount):
-    return client.post(
-        f"/items/{item_id}/blind-bids", json={"amount": amount}, headers=headers
-    )
+    return client.post(f"/items/{item_id}/blind-bids", json={"amount": amount}, headers=headers)
 
 
 # ---------- 타입 분리 ----------
@@ -76,8 +74,8 @@ def test_vickrey_winner_pays_second_price(client, make_user, move_item):
 
     move_item(item["id"], -1)
     got = client.get(f"/items/{item['id']}").json()
-    assert got["winner_id"] == b2["id"]      # 최고가 제시자가 낙찰
-    assert got["final_price"] == 7000        # 2위 금액으로 결제
+    assert got["winner_id"] == b2["id"]  # 최고가 제시자가 낙찰
+    assert got["final_price"] == 7000  # 2위 금액으로 결제
 
 
 def test_vickrey_single_bidder_pays_own_bid(client, make_user, move_item):

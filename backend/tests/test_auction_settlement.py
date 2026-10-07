@@ -64,9 +64,10 @@ def test_buy_now_rejected_when_current_price_reaches_buy_now(client, make_user):
     b1, _ = make_user()
     b2, _ = make_user()
     item = _create_item(client, seller_h, buy_now_price=3000)
-    assert client.post(
-        f"/items/{item['id']}/bids", json={"amount": 3000}, headers=b1
-    ).status_code == 201
+    assert (
+        client.post(f"/items/{item['id']}/bids", json={"amount": 3000}, headers=b1).status_code
+        == 201
+    )
     r = client.post(f"/items/{item['id']}/buy-now", headers=b2)
     assert r.status_code == 409
 
@@ -178,9 +179,7 @@ def test_extension_capped_at_max(client, make_user, move_deadline):
     for _ in range(12):
         move_deadline(item["id"], 60)
         amount += 100
-        client.post(
-            f"/items/{item['id']}/bids", json={"amount": amount}, headers=bidder_h
-        )
+        client.post(f"/items/{item['id']}/bids", json={"amount": amount}, headers=bidder_h)
 
     # 기본 상한 10회
     assert client.get(f"/items/{item['id']}").json()["extended_count"] == 10
@@ -215,7 +214,8 @@ def test_status_filter_is_applied_before_pagination(client, make_user, move_dead
     got = client.get("/items", params={"status": "ongoing", "limit": 2}).json()
     assert [i["id"] for i in got] == [live["id"]]
     closed = client.get("/items", params={"status": "closed", "limit": 10}).json()
-    assert len(closed) == 3 and all(i["status"] == "closed" for i in closed)
+    assert len(closed) == 3
+    assert all(i["status"] == "closed" for i in closed)
 
 
 def test_bid_cannot_be_cancelled_after_auction_closed(client, make_user):
@@ -223,9 +223,7 @@ def test_bid_cannot_be_cancelled_after_auction_closed(client, make_user):
     seller_h, _ = make_user()
     bidder_h, _ = make_user()
     item = _create_item(client, seller_h)
-    bid = client.post(
-        f"/items/{item['id']}/bids", json={"amount": 2000}, headers=bidder_h
-    ).json()
+    bid = client.post(f"/items/{item['id']}/bids", json={"amount": 2000}, headers=bidder_h).json()
     assert client.post(f"/items/{item['id']}/close", headers=seller_h).status_code == 200
 
     r = client.delete(f"/bids/{bid['id']}", headers=bidder_h)

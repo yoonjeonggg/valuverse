@@ -1,9 +1,10 @@
 from typing import Annotated
 
-from fastapi import Depends, HTTPException, Request, status
+from fastapi import Depends, Request
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
+from app.core.errors import Forbidden, Unauthorized
 from app.core.security import decode_access_token
 from app.database import get_db
 from app.models.user import User
@@ -32,17 +33,10 @@ def get_current_user(
 ) -> User:
     user = lookup_user_by_token(db, token)
     if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="인증 정보가 유효하지 않습니다.",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+        raise Unauthorized("인증 정보가 유효하지 않습니다.")
 
     if not user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="비활성화된 계정입니다.",
-        )
+        raise Forbidden("비활성화된 계정입니다.")
 
     # 요청 로그에 누가 호출했는지 남기기 위해 기록 (logging_setup 미들웨어가 읽는다).
     request.state.user_id = user.id
@@ -54,10 +48,7 @@ CurrentUser = Annotated[User, Depends(get_current_user)]
 
 def get_current_admin(current_user: CurrentUser) -> User:
     if not current_user.is_admin:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="관리자 권한이 필요합니다.",
-        )
+        raise Forbidden("관리자 권한이 필요합니다.")
     return current_user
 
 

@@ -1,8 +1,8 @@
-from fastapi import HTTPException, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core.db_utils import apply_patch, get_or_404, save
+from app.core.errors import BadRequest, Conflict, Forbidden, NotFound
 from app.core.timeutils import aware, now
 from app.models.auction import Item
 from app.models.review import Review
@@ -14,16 +14,12 @@ from app.schemas.review import ReviewCreate, ReviewUpdate
 EDIT_WINDOW_DAYS = 7
 
 
-def _assert_traded(
-    db: Session, author_id: int, target_id: int, payload: ReviewCreate
-) -> None:
+def _assert_traded(db: Session, author_id: int, target_id: int, payload: ReviewCreate) -> None:
     """작성자와 대상이 완료된 거래로 엮여 있는지 검증한다 (일반/스킬)."""
     if payload.item_id:
         item = db.get(Item, payload.item_id)
         if not item or item.status != "closed" or not item.winner_id:
-            raise HTTPException(
-                status.HTTP_409_CONFLICT, "낙찰이 완료된 거래에만 리뷰를 남길 수 있습니다."
-            )
+            raise Conflict("낙찰이 완료된 거래에만 리뷰를 남길 수 있습니다.")
         parties = {item.seller_id, item.winner_id}
         dup_col = Review.item_id == payload.item_id
     else:
@@ -36,16 +32,12 @@ def _assert_traded(
             .first()
         )
         if not booking:
-            raise HTTPException(
-                status.HTTP_409_CONFLICT, "완료된 스킬 거래에만 리뷰를 남길 수 있습니다."
-            )
+            raise Conflict("완료된 스킬 거래에만 리뷰를 남길 수 있습니다.")
         parties = {booking.seller_id, booking.buyer_id}
         dup_col = Review.skill_item_id == payload.skill_item_id
 
     if author_id not in parties or target_id not in parties:
-        raise HTTPException(
-            status.HTTP_403_FORBIDDEN, "해당 거래의 당사자만 리뷰를 남길 수 있습니다."
-        )
+        raise Forbidden("해당 거래의 당사자만 리뷰를 남길 수 있습니다.")
 
     dup = (
         db.query(Review.id)
@@ -53,7 +45,7 @@ def _assert_traded(
         .first()
     )
     if dup:
-        raise HTTPException(status.HTTP_409_CONFLICT, "이미 이 거래에 리뷰를 남겼습니다.")
+        raise Conflict("이미 이 거래에 리뷰를 남겼습니다.")
 
 
 def recalc_rating(db: Session, target_user_id: int) -> None:
@@ -72,9 +64,9 @@ def recalc_rating(db: Session, target_user_id: int) -> None:
 
 def create_review(db: Session, author: User, payload: ReviewCreate) -> Review:
     if payload.target_user_id == author.id:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "본인에게 리뷰를 남길 수 없습니다.")
+        raise BadRequest("본인에게 리뷰를 남길 수 없습니다.")
     if not db.query(User.id).filter(User.id == payload.target_user_id).first():
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "대상 사용자를 찾을 수 없습니다.")
+        raise NotFound("대상 사용자를 찾을 수 없습니다.")
 
     _assert_traded(db, author.id, payload.target_user_id, payload)
 
@@ -114,18 +106,13 @@ def _get(db: Session, review_id: int) -> Review:
     )
 
 
-def update_review(
-    db: Session, review_id: int, user: User, payload: ReviewUpdate
-) -> Review:
+def update_review(db: Session, review_id: int, user: User, payload: ReviewUpdate) -> Review:
     review = _get(db, review_id)
     if review.author_id != user.id:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "본인 리뷰만 수정할 수 있습니다.")
+        raise Forbidden("본인 리뷰만 수정할 수 있습니다.")
     created = aware(review.created_at)
     if created is not None and (now() - created).days > EDIT_WINDOW_DAYS:
-        raise HTTPException(
-            status.HTTP_409_CONFLICT,
-            f"작성 후 {EDIT_WINDOW_DAYS}일이 지나 수정할 수 없습니다.",
-        )
+        raise Conflict(f"작성 후 {EDIT_WINDOW_DAYS}일이 지나 수정할 수 없습니다.")
     apply_patch(review, payload)
     db.flush()
     recalc_rating(db, review.target_user_id)
@@ -135,9 +122,7 @@ def update_review(
 def delete_review(db: Session, review_id: int, user: User) -> None:
     review = _get(db, review_id)
     if review.author_id != user.id and not user.is_admin:
-        raise HTTPException(
-            status.HTTP_403_FORBIDDEN, "본인 또는 관리자만 삭제할 수 있습니다."
-        )
+        raise Forbidden("본인 또는 관리자만 삭제할 수 있습니다.")
     review.is_deleted = True
     db.flush()
     recalc_rating(db, review.target_user_id)

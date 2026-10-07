@@ -1,10 +1,10 @@
 import logging
 
-from fastapi import HTTPException, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core.db_utils import apply_patch, get_or_404, save
+from app.core.errors import Conflict
 from app.core.timeutils import is_past
 from app.models.prediction import Prediction, PredictionBet
 from app.models.user import User
@@ -33,9 +33,7 @@ def _is_open(prediction: Prediction) -> bool:
 
 
 # ==================== Prediction ====================
-def create_prediction(
-    db: Session, admin: User, payload: PredictionCreate
-) -> Prediction:
+def create_prediction(db: Session, admin: User, payload: PredictionCreate) -> Prediction:
     prediction = Prediction(
         title=payload.title,
         description=payload.description,
@@ -49,36 +47,27 @@ def create_prediction(
     return save(db, prediction)
 
 
-def list_predictions(
-    db: Session, status_filter: str | None = None
-) -> list[Prediction]:
+def list_predictions(db: Session, status_filter: str | None = None) -> list[Prediction]:
     q = db.query(Prediction)
     if status_filter:
         q = q.filter(Prediction.status == status_filter)
     return q.order_by(Prediction.created_at.desc()).all()
 
 
-def get_prediction(
-    db: Session, prediction_id: int, for_update: bool = False
-) -> Prediction:
+def get_prediction(db: Session, prediction_id: int, for_update: bool = False) -> Prediction:
     return get_or_404(
         db, Prediction, prediction_id, "명제를 찾을 수 없습니다.", for_update=for_update
     )
 
 
-def update_prediction(
-    db: Session, prediction_id: int, payload: PredictionUpdate
-) -> Prediction:
+def update_prediction(db: Session, prediction_id: int, payload: PredictionUpdate) -> Prediction:
     prediction = get_prediction(db, prediction_id)
     data = payload.model_dump(exclude_unset=True)
     # 마감 후에는 상태/결과(정산) 관련 필드만 허용
     if not _is_open(prediction):
         allowed = {"status", "result"}
         if set(data) - allowed:
-            raise HTTPException(
-                status.HTTP_409_CONFLICT,
-                "마감된 명제는 상태/결과만 변경할 수 있습니다.",
-            )
+            raise Conflict("마감된 명제는 상태/결과만 변경할 수 있습니다.")
     apply_patch(prediction, payload)
     return save(db, prediction)
 
@@ -94,9 +83,7 @@ def delete_prediction(db: Session, prediction_id: int) -> None:
         .exists()
     ).scalar()
     if has_bets:
-        raise HTTPException(
-            status.HTTP_409_CONFLICT, "베팅이 있는 명제는 삭제할 수 없습니다."
-        )
+        raise Conflict("베팅이 있는 명제는 삭제할 수 없습니다.")
     db.delete(prediction)
     db.commit()
 
@@ -107,10 +94,8 @@ def create_bet(
 ) -> PredictionBet:
     prediction = get_prediction(db, prediction_id)
     if not _is_open(prediction):
-        raise HTTPException(status.HTTP_409_CONFLICT, "마감된 명제입니다.")
-    point_service.spend(
-        db, user.id, payload.amount, "bet", f"예측 베팅 #{prediction_id}"
-    )
+        raise Conflict("마감된 명제입니다.")
+    point_service.spend(db, user.id, payload.amount, "bet", f"예측 베팅 #{prediction_id}")
     bet = PredictionBet(
         prediction_id=prediction_id,
         user_id=user.id,
@@ -151,9 +136,7 @@ def get_odds(db: Session, prediction_id: int) -> dict:
     }
 
 
-def settle_prediction(
-    db: Session, prediction_id: int, payload: PredictionSettleRequest
-) -> dict:
+def settle_prediction(db: Session, prediction_id: int, payload: PredictionSettleRequest) -> dict:
     """명제를 정산한다. 승리 포지션 베팅자에게 파리뮤추얼 방식으로 배당 (FR-PRD-04).
 
     - 승리 풀이 비어 있으면(아무도 정답을 고르지 않음) 전원 원금 환불.
@@ -162,11 +145,9 @@ def settle_prediction(
     # 정산 요청이 동시에 두 번 오면 배당이 이중 지급될 수 있으므로 명제 행을 잠그고 읽는다.
     prediction = get_prediction(db, prediction_id, for_update=True)
     if prediction.status == "settled":
-        raise HTTPException(status.HTTP_409_CONFLICT, "이미 정산된 명제입니다.")
+        raise Conflict("이미 정산된 명제입니다.")
     if not is_past(prediction.end_time):
-        raise HTTPException(
-            status.HTTP_409_CONFLICT, "마감 시간 전에는 정산할 수 없습니다."
-        )
+        raise Conflict("마감 시간 전에는 정산할 수 없습니다.")
 
     bets = db.query(PredictionBet).filter(*_pending_bets_filter(prediction_id)).all()
     total_pool = sum(b.amount for b in bets)
@@ -179,38 +160,59 @@ def settle_prediction(
 
     # 베팅자마다 한 번씩 조회하지 않고 한 쿼리로 가져온다.
     user_ids = {b.user_id for b in bets}
-    users = (
-        {u.id: u for u in db.query(User).filter(User.id.in_(user_ids))} if user_ids else {}
-    )
+    users = {u.id: u for u in db.query(User).filter(User.id.in_(user_ids))} if user_ids else {}
 
     if refunded:
         for b in bets:
-            _pay(db, users.get(b.user_id), b, b.amount, "refunded", "refund",
-                 f"예측 정산 환불 #{prediction_id}")
+            _pay(
+                db,
+                users.get(b.user_id),
+                b,
+                b.amount,
+                "refunded",
+                "refund",
+                f"예측 정산 환불 #{prediction_id}",
+            )
             total_payout += b.amount
             notification_service.notify(
-                db, b.user_id, "bet_result",
+                db,
+                b.user_id,
+                "bet_result",
                 f"'{prediction.title}' 정산: 승자가 없어 {b.amount} 포인트를 환불했습니다.",
-                "prediction", prediction_id,
+                "prediction",
+                prediction_id,
             )
     else:
         for b in winners:
             amount = b.amount * total_pool // winning_pool
-            _pay(db, users.get(b.user_id), b, amount, "won", "bet",
-                 f"예측 정산 배당 #{prediction_id}")
+            _pay(
+                db,
+                users.get(b.user_id),
+                b,
+                amount,
+                "won",
+                "bet",
+                f"예측 정산 배당 #{prediction_id}",
+            )
             total_payout += amount
             notification_service.notify(
-                db, b.user_id, "bet_result",
+                db,
+                b.user_id,
+                "bet_result",
                 f"'{prediction.title}' 베팅에 적중해 {amount} 포인트를 받았습니다.",
-                "prediction", prediction_id,
+                "prediction",
+                prediction_id,
             )
         for b in losers:
             b.result = "lost"
             b.payout = 0
             notification_service.notify(
-                db, b.user_id, "bet_result",
+                db,
+                b.user_id,
+                "bet_result",
                 f"'{prediction.title}' 베팅이 빗나갔습니다.",
-                "prediction", prediction_id,
+                "prediction",
+                prediction_id,
             )
 
     prediction.status = "settled"
@@ -218,7 +220,12 @@ def settle_prediction(
     db.commit()
     logger.info(
         "예측 정산 prediction_id=%s result=%s pool=%s winners=%s payout=%s refunded=%s",
-        prediction_id, payload.result, total_pool, len(winners), total_payout, refunded,
+        prediction_id,
+        payload.result,
+        total_pool,
+        len(winners),
+        total_payout,
+        refunded,
     )
 
     return {
@@ -261,15 +268,19 @@ def list_my_bets(db: Session, user_id: int) -> list[PredictionBet]:
 def cancel_bet(db: Session, bet_id: int, user: User) -> None:
     # 본인 베팅만 조회(남의 베팅이면 404)하고, 동시 취소로 이중 환불되지 않게 행을 잠근다.
     bet = get_or_404(
-        db, PredictionBet, bet_id, "베팅을 찾을 수 없습니다.",
-        PredictionBet.user_id == user.id, for_update=True,
+        db,
+        PredictionBet,
+        bet_id,
+        "베팅을 찾을 수 없습니다.",
+        PredictionBet.user_id == user.id,
+        for_update=True,
     )
     if bet.is_cancelled:
-        raise HTTPException(status.HTTP_409_CONFLICT, "이미 취소된 베팅입니다.")
+        raise Conflict("이미 취소된 베팅입니다.")
 
     prediction = get_prediction(db, bet.prediction_id)
     if not _is_open(prediction):
-        raise HTTPException(status.HTTP_409_CONFLICT, "마감 후에는 취소할 수 없습니다.")
+        raise Conflict("마감 후에는 취소할 수 없습니다.")
 
     bet.is_cancelled = True
     bet.result = "refunded"

@@ -39,6 +39,98 @@ export function useCall<TArgs extends unknown[], TResult>(
   return { data, error, loading, run, setData };
 }
 
+/* ---------- 화면 진입 시 불러오는 데이터 ---------- */
+/**
+ * 조회 실패를 빈 목록으로 숨기지 않고 `error` 로 구분해 돌려준다
+ * ("상품이 없습니다" 와 "불러오지 못했습니다" 는 다른 상황이다).
+ *
+ * - `deps` 가 바뀌면 다시 부르고, 늦게 도착한 이전 응답은 버린다 (필터를 빠르게 바꿀 때).
+ * - `initial` 이 있으면(서버 렌더링으로 받은 데이터) 첫 마운트의 요청은 건너뛴다.
+ * - `enabled=false` 면 부르지 않는다 (로그인 전 등).
+ */
+export function useLoad<T>(
+  load: () => Promise<T>,
+  deps: React.DependencyList,
+  { initial = null, enabled = true }: { initial?: T | null; enabled?: boolean } = {},
+) {
+  const [data, setData] = useState<T | null>(initial);
+  const [error, setError] = useState<string | null>(null);
+  const loadRef = useRef(load);
+  useEffect(() => {
+    loadRef.current = load;
+  });
+  const seq = useRef(0);
+  const skipFirst = useRef(initial !== null);
+
+  // 상태는 응답이 온 뒤에만 바꾼다 (effect 안에서 동기로 setState 하지 않도록).
+  const fetchLatest = useCallback(async () => {
+    const id = ++seq.current;
+    try {
+      const result = await loadRef.current();
+      if (id === seq.current) {
+        setData(result);
+        setError(null);
+      }
+      return result;
+    } catch (e) {
+      if (id === seq.current) setError(errorMessage(e));
+      return undefined;
+    }
+  }, []);
+
+  /** 사용자 동작(다시 시도, 등록 후 새로고침)에서 부른다. 오류 표시를 먼저 지운다. */
+  const reload = useCallback(() => {
+    setError(null);
+    return fetchLatest();
+  }, [fetchLatest]);
+
+  useEffect(() => {
+    if (skipFirst.current) {
+      skipFirst.current = false;
+      return;
+    }
+    if (enabled) fetchLatest();
+    // deps 는 호출부가 정한다 (useEffect 와 같은 규칙).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enabled, fetchLatest, ...deps]);
+
+  return { data, error, reload, setData };
+}
+
+/**
+ * useLoad 결과를 그린다: 불러오는 중 / 실패(다시 시도) / 비어 있음 / 내용.
+ * `empty` 를 주면 빈 배열일 때 그 문구를 보여준다.
+ */
+export function Loadable<T>({
+  data,
+  error,
+  onRetry,
+  empty,
+  children,
+}: {
+  data: T | null;
+  error: string | null;
+  onRetry?: () => void;
+  empty?: React.ReactNode;
+  children: (data: T) => React.ReactNode;
+}) {
+  if (error)
+    return (
+      <div className="empty">
+        <p className="hint hint--error">불러오지 못했습니다: {error}</p>
+        {onRetry && (
+          <button className="btn btn-sm" onClick={onRetry}>
+            다시 시도
+          </button>
+        )}
+      </div>
+    );
+  if (data === null) return <div className="empty">불러오는 중…</div>;
+  if (empty !== undefined && Array.isArray(data) && data.length === 0)
+    return <div className="empty">{empty}</div>;
+  return <>{children(data)}</>;
+}
+
 /* ---------- labelled input row ---------- */
 export function Field({
   label,
