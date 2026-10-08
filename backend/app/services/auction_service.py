@@ -390,7 +390,9 @@ def cancel_bid(db: Session, bid_id: int, user_id: int) -> None:
 def create_blind_bid(
     db: Session, item_id: int, bidder_id: int, payload: BlindBidCreate
 ) -> BlindBid:
-    item = get_item(db, item_id)
+    # 같은 사용자의 입찰 요청이 동시에 오면 둘 다 "기존 입찰 없음"을 보고 중복 입찰이 생긴다.
+    # 취소된 입찰은 남겨두므로 UNIQUE 제약을 걸 수 없어, 상품 행을 잠가 직렬화한다.
+    item = _lock_item(db, item_id)
     if item.auction_type != "blind":
         raise Conflict("블라인드 경매가 아닙니다.")
     _ensure_open(item)

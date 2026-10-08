@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { api, apiDelete, apiPatch, apiPost, errorMessage, getToken } from "../lib/api";
+import { useState } from "react";
+import { api, apiDelete, apiPatch, apiPost } from "../lib/api";
 import { toIso } from "../lib/format";
 import { PREDICTION_STATUS_LABEL, type Prediction } from "../lib/types";
-import { fetchMe } from "../lib/me";
+import { fetchMe, useHasToken } from "../lib/me";
 import { Card, ErrorText, Field, Loadable, PageHeader, useCall, useLoad } from "../lib/ui";
 
 type Report = {
@@ -36,9 +36,15 @@ const REPORT_STATUS_LABEL: Record<string, string> = {
 };
 
 export default function AdminPage() {
-  const [authChecked, setAuthChecked] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [authError, setAuthError] = useState<string | null>(null);
+  // 관리자 여부는 내 정보(is_admin)로 판단한다. 목록 조회 성공 여부로 추론하면
+  // 조회 실패를 삼키는 순간 일반 사용자에게도 관리자 화면이 열린다.
+  const hasToken = useHasToken();
+  const me = useLoad(fetchMe, [], { enabled: !!hasToken });
+  const isAdmin = !!hasToken && !!me.data?.is_admin;
+  const authError =
+    hasToken === false
+      ? "로그인이 필요합니다."
+      : (me.error ?? (me.data ? "관리자 권한이 필요합니다." : null));
 
   const [reportStatusFilter, setReportStatusFilter] = useState("pending");
   const reports = useLoad(
@@ -52,24 +58,6 @@ export default function AdminPage() {
   );
   const predictions = useLoad(() => api<Prediction[]>("/predictions"), [], { enabled: isAdmin });
   const [settleResults, setSettleResults] = useState<Record<number, SettleResult>>({});
-
-  // 관리자 여부는 내 정보(is_admin)로 판단한다. 목록 조회 성공 여부로 추론하면
-  // 조회 실패를 삼키는 순간 일반 사용자에게도 관리자 화면이 열린다.
-  useEffect(() => {
-    if (!getToken()) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setAuthChecked(true);
-      setAuthError("로그인이 필요합니다.");
-      return;
-    }
-    fetchMe()
-      .then((me) => {
-        if (me.is_admin) setIsAdmin(true);
-        else setAuthError("관리자 권한이 필요합니다.");
-      })
-      .catch((e) => setAuthError(errorMessage(e)))
-      .finally(() => setAuthChecked(true));
-  }, []);
 
   const updateReportCall = useCall((id: number, status: string) =>
     apiPatch<Report>(`/reports/${id}`, { status }),
@@ -137,11 +125,7 @@ export default function AdminPage() {
         </p>
       </PageHeader>
 
-      {!authChecked ? (
-        <div className="empty">확인 중…</div>
-      ) : !isAdmin ? (
-        <div className="empty">{authError ?? "관리자 권한이 필요합니다."}</div>
-      ) : (
+      {isAdmin ? (
         <>
           <Card
             title="신고 처리"
@@ -329,6 +313,8 @@ export default function AdminPage() {
             <ErrorText error={deletePredictionCall.error} />
           </Card>
         </>
+      ) : (
+        <div className="empty">{authError ?? "확인 중…"}</div>
       )}
     </div>
   );

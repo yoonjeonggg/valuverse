@@ -103,3 +103,37 @@ def test_vickrey_close_endpoint(client, make_user):
     body = r.json()
     assert body["winner_id"] == b2["id"]
     assert body["final_price"] == 4000
+
+
+# ---------- 중복 입찰 ----------
+def test_blind_bid_twice_conflicts_until_cancelled(client, make_user):
+    seller_h, _ = make_user()
+    bidder_h, _ = make_user()
+    item = _create(client, seller_h, auction_type="blind")
+    first = _blind_bid(client, bidder_h, item["id"], 3000)
+    assert first.status_code == 201, first.text
+    assert _blind_bid(client, bidder_h, item["id"], 4000).status_code == 409
+
+    r = client.delete(f"/blind-bids/{first.json()['id']}", headers=bidder_h)
+    assert r.status_code == 204, r.text
+    assert _blind_bid(client, bidder_h, item["id"], 4000).status_code == 201
+
+
+def test_blind_bid_locks_item_before_duplicate_check(client, make_user, monkeypatch):
+    """동시 요청이 둘 다 "기존 입찰 없음"을 보고 통과하지 않도록 상품 행을 잠그고 확인한다."""
+    from app.services import auction_service
+
+    seller_h, _ = make_user()
+    bidder_h, _ = make_user()
+    item = _create(client, seller_h, auction_type="blind")
+
+    locked = []
+    original = auction_service._lock_item
+
+    def spy(db, item_id):
+        locked.append(item_id)
+        return original(db, item_id)
+
+    monkeypatch.setattr(auction_service, "_lock_item", spy)
+    assert _blind_bid(client, bidder_h, item["id"], 3000).status_code == 201
+    assert locked == [item["id"]]

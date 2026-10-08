@@ -3,8 +3,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { POINTS_CHANGED, api, getToken } from "./lib/api";
-import { fetchMe, useMe } from "./lib/me";
+import { POINTS_CHANGED, api } from "./lib/api";
+import { fetchMe, useHasToken, useMe } from "./lib/me";
 import { Icon } from "./lib/ui";
 
 const NAV: [string, string][] = [
@@ -83,20 +83,22 @@ export function ThemeToggle() {
 }
 
 export function HeaderNotifications() {
-  const [signedIn, setSignedIn] = useState(false);
+  const hasToken = useHasToken();
   const [unread, setUnread] = useState(0);
 
   useEffect(() => {
-    const token = getToken();
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setSignedIn(!!token);
-    if (!token) return;
+    if (!hasToken) return;
+    let alive = true;
     api<{ unread: number }>("/users/me/notifications/unread-count", { auth: true })
-      .then((r) => setUnread(r.unread))
+      .then((r) => alive && setUnread(r.unread))
       .catch(() => {});
-  }, []);
+    return () => {
+      alive = false;
+      setUnread(0);
+    };
+  }, [hasToken]);
 
-  if (!signedIn) return null;
+  if (!hasToken) return null;
 
   return (
     <Link href="/notifications" className="util-link">
@@ -106,34 +108,34 @@ export function HeaderNotifications() {
 }
 
 export function HeaderAuth() {
-  const [ready, setReady] = useState(false);
-  const [signedIn, setSignedIn] = useState(false);
+  const hasToken = useHasToken();
   const [points, setPoints] = useState<number | null>(null);
 
   useEffect(() => {
-    // localStorage(외부 시스템)의 토큰을 읽어 렌더에 반영
-    const token = getToken();
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setSignedIn(!!token);
-    setReady(true);
-    if (!token) return;
+    if (!hasToken) return;
+    // 로그아웃 뒤에 도착한 응답이 다음 로그인 화면에 이전 잔액을 남기지 않게 한다.
+    let alive = true;
     fetchMe()
-      .then((u) => setPoints(u.points))
-      .catch(() => setPoints(null));
+      .then((u) => alive && setPoints(u.points))
+      .catch(() => alive && setPoints(null));
     const onChange = (e: Event) => setPoints((e as CustomEvent<number>).detail);
     window.addEventListener(POINTS_CHANGED, onChange);
-    return () => window.removeEventListener(POINTS_CHANGED, onChange);
-  }, []);
+    return () => {
+      alive = false;
+      window.removeEventListener(POINTS_CHANGED, onChange);
+      setPoints(null);
+    };
+  }, [hasToken]);
 
   // 토큰 확인 전에는 로그인 링크와 같은 크기의 빈 자리를 잡아 헤더가 밀리지 않게 한다.
-  if (!ready)
+  if (hasToken === null)
     return (
       <span className="util-link" style={{ visibility: "hidden" }} aria-hidden>
         로그인 · 회원가입
       </span>
     );
 
-  if (!signedIn)
+  if (!hasToken)
     return (
       <Link className="util-link" href="/auth">
         로그인 · 회원가입

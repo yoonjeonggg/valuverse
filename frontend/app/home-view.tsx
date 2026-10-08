@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
-import { api, getToken } from "./lib/api";
+import { api } from "./lib/api";
 import { AuctionCard, type AuctionCardItem, SkillCard, type SkillCardItem } from "./lib/cards";
+import { useHasToken } from "./lib/me";
 import type { Item, Mission, SkillItem } from "./lib/types";
 import { Icon, Loadable, useLoad } from "./lib/ui";
 
@@ -45,21 +45,15 @@ export function HomeView({
     [],
     { initial: initialSkillItems },
   );
-  const [missions, setMissions] = useState<Mission[] | null>(null);
-  const [loggedIn, setLoggedIn] = useState(false);
+  const hasToken = useHasToken();
+  const missions = useLoad(() => api<Mission[]>("/points/missions", { auth: true }), [], {
+    enabled: !!hasToken,
+  });
 
-  useEffect(() => {
-    const token = getToken();
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setLoggedIn(!!token);
-    if (token) {
-      api<Mission[]>("/points/missions", { auth: true })
-        .then(setMissions)
-        .catch(() => {});
-    }
-  }, []);
-
-  const claimable = missions?.filter((m) => m.achieved && !m.claimed).length ?? 0;
+  // 보상 안내는 부가 정보라 조회에 실패하면 그냥 띄우지 않는다.
+  const claimable = hasToken
+    ? (missions.data?.filter((m) => m.achieved && !m.claimed).length ?? 0)
+    : 0;
 
   // 마감이 가까운 순으로 몇 개만 오른쪽 보드에 올린다.
   const endingSoon = items.data
@@ -85,7 +79,7 @@ export function HomeView({
             <Link className="btn btn-primary btn-lg" href="/items">
               경매 둘러보기
             </Link>
-            {!loggedIn && (
+            {hasToken !== true && (
               <Link className="btn btn-lg" href="/auth">
                 회원가입
               </Link>

@@ -155,65 +155,49 @@ def settle_prediction(db: Session, prediction_id: int, payload: PredictionSettle
     losers = [b for b in bets if b.position != payload.result]
     winning_pool = sum(b.amount for b in winners)
 
-    total_payout = 0
     refunded = winning_pool == 0
 
     # 베팅자마다 한 번씩 조회하지 않고 한 쿼리로 가져온다.
     user_ids = {b.user_id for b in bets}
     users = {u.id: u for u in db.query(User).filter(User.id.in_(user_ids))} if user_ids else {}
 
+    # 베팅마다 (지급액, 결과, 거래 유형, 거래 메모, 알림 문구)를 정한 뒤 한 번에 처리한다.
+    title = prediction.title
     if refunded:
-        for b in bets:
-            _pay(
-                db,
-                users.get(b.user_id),
+        outcomes = [
+            (
                 b,
                 b.amount,
                 "refunded",
                 "refund",
                 f"예측 정산 환불 #{prediction_id}",
+                f"'{title}' 정산: 승자가 없어 {b.amount} 포인트를 환불했습니다.",
             )
-            total_payout += b.amount
-            notification_service.notify(
-                db,
-                b.user_id,
-                "bet_result",
-                f"'{prediction.title}' 정산: 승자가 없어 {b.amount} 포인트를 환불했습니다.",
-                "prediction",
-                prediction_id,
-            )
+            for b in bets
+        ]
     else:
+        outcomes = []
         for b in winners:
             amount = b.amount * total_pool // winning_pool
-            _pay(
-                db,
-                users.get(b.user_id),
-                b,
-                amount,
-                "won",
-                "bet",
-                f"예측 정산 배당 #{prediction_id}",
+            outcomes.append(
+                (
+                    b,
+                    amount,
+                    "won",
+                    "bet",
+                    f"예측 정산 배당 #{prediction_id}",
+                    f"'{title}' 베팅에 적중해 {amount} 포인트를 받았습니다.",
+                )
             )
-            total_payout += amount
-            notification_service.notify(
-                db,
-                b.user_id,
-                "bet_result",
-                f"'{prediction.title}' 베팅에 적중해 {amount} 포인트를 받았습니다.",
-                "prediction",
-                prediction_id,
-            )
-        for b in losers:
-            b.result = "lost"
-            b.payout = 0
-            notification_service.notify(
-                db,
-                b.user_id,
-                "bet_result",
-                f"'{prediction.title}' 베팅이 빗나갔습니다.",
-                "prediction",
-                prediction_id,
-            )
+        outcomes += [(b, 0, "lost", "bet", "", f"'{title}' 베팅이 빗나갔습니다.") for b in losers]
+
+    total_payout = 0
+    for bet, amount, bet_result, tx_type, memo, message in outcomes:
+        _pay(db, users.get(bet.user_id), bet, amount, bet_result, tx_type, memo)
+        total_payout += amount
+        notification_service.notify(
+            db, bet.user_id, "bet_result", message, "prediction", prediction_id
+        )
 
     prediction.status = "settled"
     prediction.result = payload.result

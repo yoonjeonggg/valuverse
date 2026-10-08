@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { ApiError, announcePoints, api, apiPost, errorMessage, getToken } from "../lib/api";
+import { announcePoints, api, apiPost } from "../lib/api";
+import { useHasToken } from "../lib/me";
 import type { Coupon, Mission } from "../lib/types";
 import { Card, ErrorText, Icon, Loadable, PageHeader, useCall, useLoad } from "../lib/ui";
 
@@ -34,16 +35,25 @@ const MISSION_ICONS: Record<string, Parameters<typeof Icon>[0]["name"]> = {
 const isExpired = (c: Coupon) => new Date(c.expires_at).getTime() <= Date.now();
 
 export default function PointsPage() {
-  const [loggedIn, setLoggedIn] = useState<boolean | null>(null);
-  const [summary, setSummary] = useState<Summary | null>(null);
-  const [summaryError, setSummaryError] = useState<string | null>(null);
-  const [hasToken, setHasToken] = useState(false);
+  // 토큰이 없거나 만료(401 -> api() 가 토큰을 지움)되면 false 로 바뀌어 비로그인 화면이 된다.
+  // null 은 아직 확인 전(서버 렌더링/hydration 중).
+  const loggedIn = useHasToken();
+  // 잔액/출석/광고 상태는 요약 엔드포인트 하나로 받는다.
+  const summaryLoad = useLoad(
+    () => api<Summary>("/users/me/points/summary", { auth: true }),
+    [],
+    { enabled: !!loggedIn },
+  );
+  const summary = summaryLoad.data;
+  const setSummary = summaryLoad.setData;
+  // 비로그인 상태가 된 뒤의 401 은 로그인 안내로 대신한다.
+  const summaryError = loggedIn ? summaryLoad.error : null;
   const catalog = useLoad(() => api<CouponCatalogRow[]>("/points/coupons/catalog"), []);
   const missionsLoad = useLoad(() => api<Mission[]>("/points/missions", { auth: true }), [], {
-    enabled: hasToken,
+    enabled: !!loggedIn,
   });
   const couponsLoad = useLoad(() => api<Coupon[]>("/users/me/coupons", { auth: true }), [], {
-    enabled: hasToken,
+    enabled: !!loggedIn,
   });
   const missions = missionsLoad.data;
   const setMissions = missionsLoad.setData;
@@ -51,25 +61,6 @@ export default function PointsPage() {
   const setCoupons = couponsLoad.setData;
   // 여러 행 중 어느 버튼이 처리 중인지 (나머지 행은 중복 요청만 막고 라벨은 그대로 둔다)
   const [pending, setPending] = useState<string | null>(null);
-
-  useEffect(() => {
-    // 잔액/출석/광고 상태는 요약 엔드포인트 하나로 받는다. 토큰이 없거나 만료됐으면 비로그인 상태.
-    const token = getToken();
-    (token
-      ? api<Summary>("/users/me/points/summary", { auth: true })
-      : Promise.reject(new Error("no token"))
-    )
-      .then((s) => {
-        setSummary(s);
-        setLoggedIn(true);
-      })
-      .catch((e) => {
-        // 토큰이 없거나 만료(401)면 비로그인. 그 외 오류는 로그인 안내로 덮지 않고 보여준다.
-        if (!token || (e instanceof ApiError && e.status === 401)) setLoggedIn(false);
-        else setSummaryError(errorMessage(e));
-      });
-    setHasToken(!!token);
-  }, []);
 
   // 광고 쿨다운 남은 초 (서버가 429 로 막기 전에 버튼을 미리 잠근다)
   const adAvailableAt = summary?.ad_next_available_at
@@ -91,7 +82,8 @@ export default function PointsPage() {
   const patchSummary = (patch: Partial<Summary>) => setSummary((s) => (s ? { ...s, ...patch } : s));
 
   // 이 화면에서 잔액이 바뀌면 헤더 잔액 표시에도 알린다.
-  const balance = summary?.balance ?? null;
+  // 로그아웃된 뒤 남아 있는 이전 잔액으로 교환 버튼이 열리지 않게 한다.
+  const balance = loggedIn ? (summary?.balance ?? null) : null;
   useEffect(() => {
     if (balance !== null) announcePoints(balance);
   }, [balance]);

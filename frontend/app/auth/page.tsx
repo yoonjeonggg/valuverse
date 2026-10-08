@@ -2,7 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { api, getToken, setToken } from "../lib/api";
+import { api, setToken } from "../lib/api";
+import { useHasToken } from "../lib/me";
 import { Card, ErrorText, Field, PageHeader, useCall } from "../lib/ui";
 
 export default function AuthPage() {
@@ -11,7 +12,8 @@ export default function AuthPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [nickname, setNickname] = useState("");
-  const [signedIn, setSignedIn] = useState(!!getToken());
+  // 렌더 중에 localStorage 를 바로 읽으면 서버 HTML 과 달라 hydration 오류가 난다.
+  const signedIn = useHasToken() === true;
 
   const signup = useCall(() =>
     api("/auth/signup", { method: "POST", body: { email, password, nickname } }),
@@ -31,16 +33,10 @@ export default function AuthPage() {
   });
   const submitLogin = async () => {
     const res = await login.run();
-    if (res) {
-      setSignedIn(true);
-      router.push("/me");
-    }
+    if (res) router.push("/me");
   };
 
-  const logout = () => {
-    setToken(null);
-    setSignedIn(false);
-  };
+  const logout = () => setToken(null);
 
   if (signedIn) {
     return (

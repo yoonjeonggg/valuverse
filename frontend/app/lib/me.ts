@@ -18,16 +18,23 @@ export function fetchMe(): Promise<Me> {
   return inflight;
 }
 
-/** 로그인 사용자 정보. 비로그인이거나 조회에 실패하면 null. */
+/** 로그인 사용자 정보. 비로그인이거나 조회에 실패하면 null. 로그인/로그아웃을 따라간다. */
 export function useMe(): Me | null {
+  const hasToken = useHasToken();
   const [me, setMe] = useState<Me | null>(null);
   useEffect(() => {
-    if (!getToken()) return;
+    if (!hasToken) return;
+    let alive = true;
     fetchMe()
-      .then(setMe)
-      .catch(() => setMe(null));
-  }, []);
-  return me;
+      .then((u) => alive && setMe(u))
+      .catch(() => alive && setMe(null));
+    return () => {
+      alive = false;
+      // 다른 계정으로 다시 로그인했을 때 이전 사용자 정보가 잠깐 보이지 않게 비운다.
+      setMe(null);
+    };
+  }, [hasToken]);
+  return hasToken ? me : null;
 }
 
 function subscribeAuth(onChange: () => void) {
