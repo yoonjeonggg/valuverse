@@ -7,36 +7,12 @@ from fastapi import HTTPException
 
 from app.core.timeutils import now
 from app.models.user import User
-from tests.conftest import TestingSessionLocal
-
-
-def _create_skill(client, headers, price=3000):
-    r = client.post(
-        "/skill-items",
-        json={"title": "1:1 파이썬 과외", "start_price": price},
-        headers=headers,
-    )
-    assert r.status_code == 201, r.text
-    return r.json()
-
-
-def _request(client, seller_h, skill_id, buyer_id, amount=3000):
-    """판매자의 예약 요청 (아직 포인트 차감 없음)."""
-    return client.post(
-        "/skill-bookings",
-        json={
-            "skill_item_id": skill_id,
-            "buyer_id": buyer_id,
-            "amount": amount,
-            "scheduled_at": (now() + timedelta(days=2)).isoformat(),
-        },
-        headers=seller_h,
-    )
+from tests.conftest import TestingSessionLocal, create_skill, request_booking
 
 
 def _book(client, seller_h, buyer_h, skill_id, buyer_id, amount=3000):
     """예약 요청 + 구매자 수락까지 (에스크로 보관된 진행중 예약)."""
-    r = _request(client, seller_h, skill_id, buyer_id, amount)
+    r = request_booking(client, seller_h, skill_id, buyer_id, amount)
     assert r.status_code == 201, r.text
     accepted = client.post(f"/skill-bookings/{r.json()['id']}/accept", headers=buyer_h)
     assert accepted.status_code == 200, accepted.text
@@ -48,9 +24,9 @@ def test_booking_deducts_buyer_points_into_escrow(client, make_user, set_points,
     seller_h, _seller = make_user()
     buyer_h, buyer = make_user()
     set_points(buyer["id"], 5000)
-    skill = _create_skill(client, seller_h)
+    skill = create_skill(client, seller_h)
 
-    req = _request(client, seller_h, skill["id"], buyer["id"], amount=3000)
+    req = request_booking(client, seller_h, skill["id"], buyer["id"], amount=3000)
     assert req.status_code == 201, req.text
     assert req.json()["status"] == "pending"
     assert get_points(buyer_h) == 5000  # 수락 전에는 차감되지 않는다
@@ -68,8 +44,8 @@ def test_booking_rejected_when_buyer_short_on_points(client, make_user, set_poin
     seller_h, _seller = make_user()
     buyer_h, buyer = make_user()
     set_points(buyer["id"], 1000)
-    skill = _create_skill(client, seller_h)
-    req = _request(client, seller_h, skill["id"], buyer["id"], amount=3000).json()
+    skill = create_skill(client, seller_h)
+    req = request_booking(client, seller_h, skill["id"], buyer["id"], amount=3000).json()
     r = client.post(f"/skill-bookings/{req['id']}/accept", headers=buyer_h)
     assert r.status_code == 400
 
@@ -79,8 +55,8 @@ def test_booking_rejected_for_non_seller(client, make_user, set_points):
     other_h, _other = make_user()
     _buyer_h, buyer = make_user()
     set_points(buyer["id"], 5000)
-    skill = _create_skill(client, seller_h)
-    r = _request(client, other_h, skill["id"], buyer["id"])
+    skill = create_skill(client, seller_h)
+    r = request_booking(client, other_h, skill["id"], buyer["id"])
     assert r.status_code == 403
 
 
@@ -90,9 +66,9 @@ def test_double_booking_conflicts(client, make_user, set_points):
     _b2_h, b2 = make_user()
     set_points(b1["id"], 5000)
     set_points(b2["id"], 5000)
-    skill = _create_skill(client, seller_h)
-    assert _request(client, seller_h, skill["id"], b1["id"]).status_code == 201
-    assert _request(client, seller_h, skill["id"], b2["id"]).status_code == 409
+    skill = create_skill(client, seller_h)
+    assert request_booking(client, seller_h, skill["id"], b1["id"]).status_code == 201
+    assert request_booking(client, seller_h, skill["id"], b2["id"]).status_code == 409
 
 
 # ---------- 완료 정산 ----------
@@ -100,7 +76,7 @@ def test_complete_settles_escrow_to_seller(client, make_user, set_points, get_po
     seller_h, _seller = make_user()
     buyer_h, buyer = make_user()
     set_points(buyer["id"], 5000)
-    skill = _create_skill(client, seller_h)
+    skill = create_skill(client, seller_h)
     booking = _book(client, seller_h, buyer_h, skill["id"], buyer["id"], amount=3000).json()
 
     r = client.post(f"/skill-bookings/{booking['id']}/complete", headers=buyer_h)
@@ -115,7 +91,7 @@ def test_complete_only_by_buyer(client, make_user, set_points):
     seller_h, _seller = make_user()
     buyer_h, buyer = make_user()
     set_points(buyer["id"], 5000)
-    skill = _create_skill(client, seller_h)
+    skill = create_skill(client, seller_h)
     booking = _book(client, seller_h, buyer_h, skill["id"], buyer["id"]).json()
     r = client.post(f"/skill-bookings/{booking['id']}/complete", headers=seller_h)
     assert r.status_code == 403
@@ -125,7 +101,7 @@ def test_complete_twice_conflicts(client, make_user, set_points):
     seller_h, _seller = make_user()
     buyer_h, buyer = make_user()
     set_points(buyer["id"], 5000)
-    skill = _create_skill(client, seller_h)
+    skill = create_skill(client, seller_h)
     booking = _book(client, seller_h, buyer_h, skill["id"], buyer["id"]).json()
     assert (
         client.post(f"/skill-bookings/{booking['id']}/complete", headers=buyer_h).status_code == 200
@@ -139,7 +115,7 @@ def test_seller_no_show_refunds_buyer(client, make_user, set_points, get_points)
     seller_h, _seller = make_user()
     buyer_h, buyer = make_user()
     set_points(buyer["id"], 5000)
-    skill = _create_skill(client, seller_h)
+    skill = create_skill(client, seller_h)
     booking = _book(client, seller_h, buyer_h, skill["id"], buyer["id"], amount=3000).json()
 
     r = client.post(
@@ -157,7 +133,7 @@ def test_buyer_no_show_settles_to_seller(client, make_user, set_points, get_poin
     seller_h, _seller = make_user()
     buyer_h, buyer = make_user()
     set_points(buyer["id"], 5000)
-    skill = _create_skill(client, seller_h)
+    skill = create_skill(client, seller_h)
     booking = _book(client, seller_h, buyer_h, skill["id"], buyer["id"], amount=3000).json()
 
     r = client.post(
@@ -175,7 +151,7 @@ def test_cancel_booking_refunds_buyer(client, make_user, set_points, get_points)
     seller_h, _seller = make_user()
     buyer_h, buyer = make_user()
     set_points(buyer["id"], 5000)
-    skill = _create_skill(client, seller_h)
+    skill = create_skill(client, seller_h)
     booking = _book(client, seller_h, buyer_h, skill["id"], buyer["id"], amount=3000).json()
 
     r = client.delete(f"/skill-bookings/{booking['id']}", headers=buyer_h)
@@ -188,7 +164,7 @@ def test_patch_booking_cannot_force_status(client, make_user, set_points):
     seller_h, _seller = make_user()
     buyer_h, buyer = make_user()
     set_points(buyer["id"], 5000)
-    skill = _create_skill(client, seller_h)
+    skill = create_skill(client, seller_h)
     booking = _book(client, seller_h, buyer_h, skill["id"], buyer["id"]).json()
     r = client.patch(
         f"/skill-bookings/{booking['id']}",
@@ -245,8 +221,8 @@ def test_seller_cannot_take_points_without_buyer_acceptance(
     seller_h, _ = make_user()
     victim_h, victim = make_user()
     set_points(victim["id"], 5000)
-    skill = _create_skill(client, seller_h)
-    req = _request(client, seller_h, skill["id"], victim["id"]).json()
+    skill = create_skill(client, seller_h)
+    req = request_booking(client, seller_h, skill["id"], victim["id"]).json()
 
     r = client.post(
         f"/skill-bookings/{req['id']}/no-show", json={"party": "buyer"}, headers=seller_h
@@ -260,8 +236,8 @@ def test_only_buyer_can_accept(client, make_user, set_points):
     seller_h, _ = make_user()
     _buyer_h, buyer = make_user()
     set_points(buyer["id"], 5000)
-    skill = _create_skill(client, seller_h)
-    req = _request(client, seller_h, skill["id"], buyer["id"]).json()
+    skill = create_skill(client, seller_h)
+    req = request_booking(client, seller_h, skill["id"], buyer["id"]).json()
     assert client.post(f"/skill-bookings/{req['id']}/accept", headers=seller_h).status_code == 403
 
 
@@ -269,8 +245,8 @@ def test_buyer_declines_request_reopens_item(client, make_user, set_points, get_
     seller_h, _ = make_user()
     buyer_h, buyer = make_user()
     set_points(buyer["id"], 5000)
-    skill = _create_skill(client, seller_h)
-    req = _request(client, seller_h, skill["id"], buyer["id"]).json()
+    skill = create_skill(client, seller_h)
+    req = request_booking(client, seller_h, skill["id"], buyer["id"]).json()
 
     assert client.delete(f"/skill-bookings/{req['id']}", headers=buyer_h).status_code == 204
     assert get_points(buyer_h) == 5000
@@ -285,7 +261,7 @@ def test_no_show_only_reportable_against_counterparty(
     seller_h, _ = make_user()
     buyer_h, buyer = make_user()
     set_points(buyer["id"], 5000)
-    skill = _create_skill(client, seller_h)
+    skill = create_skill(client, seller_h)
     booking = _book(client, seller_h, buyer_h, skill["id"], buyer["id"]).json()
 
     headers = seller_h if reporter == "seller" else buyer_h
@@ -301,7 +277,7 @@ def test_outsider_cannot_see_booking(client, make_user, set_points):
     buyer_h, buyer = make_user()
     other_h, _ = make_user()
     set_points(buyer["id"], 5000)
-    skill = _create_skill(client, seller_h)
+    skill = create_skill(client, seller_h)
     booking = _book(client, seller_h, buyer_h, skill["id"], buyer["id"]).json()
     assert client.get(f"/skill-bookings/{booking['id']}", headers=other_h).status_code == 404
 

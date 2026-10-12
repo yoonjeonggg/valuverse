@@ -3,7 +3,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-from app.schemas.common import ORMModel
+from app.schemas.common import ORMModel, reject_null
 
 
 # ----- Prediction -----
@@ -24,6 +24,8 @@ class PredictionUpdate(BaseModel):
     # "settled" 와 result 는 배당 지급이 함께 일어나야 하므로 정산 엔드포인트로만 바꾼다.
     # (PATCH 로 settled 를 찍으면 배당 없이 정산 완료로 막혀 베팅 포인트가 묶였다.)
     status: Literal["ongoing", "closed"] | None = None
+
+    _not_null = reject_null("title", "end_time", "yes_odds", "no_odds", "status")
 
 
 class PredictionResponse(ORMModel):

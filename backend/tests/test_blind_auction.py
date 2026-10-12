@@ -1,20 +1,8 @@
 """블라인드 경매 - 1st-price / Vickrey(2nd-price) 낙찰 및 타입 분리 테스트."""
 
-from datetime import timedelta
+from tests.conftest import create_item
 
-from app.core.timeutils import now
-
-
-def _create(client, headers, **ov):
-    body = {
-        "title": "블라인드 상품",
-        "start_price": 1000,
-        "end_time": (now() + timedelta(days=1)).isoformat(),
-    }
-    body.update(ov)
-    r = client.post("/items", json=body, headers=headers)
-    assert r.status_code == 201, r.text
-    return r.json()
+_create = create_item
 
 
 def _blind_bid(client, headers, item_id, amount):

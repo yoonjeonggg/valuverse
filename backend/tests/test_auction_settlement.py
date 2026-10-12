@@ -1,10 +1,10 @@
 """일반/블라인드 경매 낙찰·마감·자동연장 테스트."""
 
-from datetime import timedelta
+from functools import partial
 
 import pytest
 
-from app.core.timeutils import now
+from tests.conftest import create_item
 
 
 @pytest.fixture
@@ -13,17 +13,7 @@ def move_deadline(move_item):
     return move_item
 
 
-def _create_item(client, headers, **overrides):
-    body = {
-        "title": "테스트 상품",
-        "start_price": 1000,
-        "buy_now_price": 5000,
-        "end_time": (now() + timedelta(days=1)).isoformat(),
-    }
-    body.update(overrides)
-    r = client.post("/items", json=body, headers=headers)
-    assert r.status_code == 201, r.text
-    return r.json()
+_create_item = partial(create_item, buy_now_price=5000)
 
 
 # ---------- 즉시구매 ----------

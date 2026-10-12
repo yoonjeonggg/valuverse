@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.core.db_utils import apply_patch, get_or_404, save
 from app.core.errors import Conflict
-from app.core.timeutils import is_past
+from app.core.timeutils import is_past, require_future
 from app.models.prediction import Prediction, PredictionBet
 from app.models.user import User
 from app.schemas.prediction import (
@@ -34,6 +34,7 @@ def _is_open(prediction: Prediction) -> bool:
 
 # ==================== Prediction ====================
 def create_prediction(db: Session, admin: User, payload: PredictionCreate) -> Prediction:
+    require_future(payload.end_time)
     prediction = Prediction(
         title=payload.title,
         description=payload.description,
@@ -62,12 +63,13 @@ def get_prediction(db: Session, prediction_id: int, for_update: bool = False) ->
 
 def update_prediction(db: Session, prediction_id: int, payload: PredictionUpdate) -> Prediction:
     prediction = get_prediction(db, prediction_id)
-    data = payload.model_dump(exclude_unset=True)
-    # 마감 후에는 상태/결과(정산) 관련 필드만 허용
-    if not _is_open(prediction):
-        allowed = {"status", "result"}
-        if set(data) - allowed:
-            raise Conflict("마감된 명제는 상태/결과만 변경할 수 있습니다.")
+    # 정산이 끝난 명제를 다시 열면 새 베팅을 받고 재정산될 수 있으므로 막는다.
+    if prediction.status == "settled":
+        raise Conflict("정산된 명제는 변경할 수 없습니다.")
+    # 마감 후에는 상태만 바꿀 수 있다 (내용·배당 변경은 이미 걸린 베팅에 불공정).
+    if not _is_open(prediction) and payload.model_fields_set - {"status"}:
+        raise Conflict("마감된 명제는 상태만 변경할 수 있습니다.")
+    require_future(payload.end_time)
     apply_patch(prediction, payload)
     return save(db, prediction)
 

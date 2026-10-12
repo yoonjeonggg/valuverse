@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core.db_utils import apply_patch, get_or_404, save
 from app.core.errors import BadRequest, Conflict, Forbidden, NotFound
-from app.core.timeutils import aware, is_past, iso, now
+from app.core.timeutils import aware, is_past, iso, now, require_future
 from app.models.auction import Bid, BlindBid, Item
 from app.models.user import User
 from app.schemas.auction import (
@@ -105,7 +105,14 @@ def _finalize_if_ended(db: Session, item: Item) -> Item:
 
 
 # ==================== Item ====================
+def _check_prices(start_price: int, buy_now_price: int | None) -> None:
+    if buy_now_price is not None and buy_now_price <= start_price:
+        raise BadRequest("즉시구매가는 시작가보다 높아야 합니다.")
+
+
 def create_item(db: Session, seller_id: int, payload: ItemCreate) -> Item:
+    require_future(payload.end_time)
+    _check_prices(payload.start_price, payload.buy_now_price)
     item = Item(
         seller_id=seller_id,
         title=payload.title,
@@ -212,6 +219,11 @@ def update_item(db: Session, item_id: int, user_id: int, payload: ItemUpdate) ->
     item = _get_own_item(db, item_id, user_id, "수정")
     if _has_bids(db, item_id):
         raise Conflict("입찰이 시작된 상품은 수정할 수 없습니다.")
+    if item.status != "ongoing":
+        raise Conflict("마감된 경매는 수정할 수 없습니다.")
+    require_future(payload.end_time)
+    if "buy_now_price" in payload.model_fields_set:
+        _check_prices(item.start_price, payload.buy_now_price)
     apply_patch(item, payload)
     return save(db, item)
 
@@ -454,6 +466,8 @@ def cancel_blind_bid(db: Session, bid_id: int, user_id: int) -> None:
     bid = get_or_404(
         db, BlindBid, bid_id, "입찰을 찾을 수 없습니다.", BlindBid.bidder_id == user_id
     )
+    if bid.is_cancelled:
+        raise Conflict("이미 취소된 입찰입니다.")
     item = get_item(db, bid.item_id)
     if item.status == "closed" or is_past(item.end_time):
         raise Conflict("마감 후에는 취소할 수 없습니다.")

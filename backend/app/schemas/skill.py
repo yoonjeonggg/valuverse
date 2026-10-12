@@ -3,7 +3,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-from app.schemas.common import ORMModel
+from app.schemas.common import ORMModel, reject_null
 
 
 # ----- SkillItem -----
@@ -28,6 +28,8 @@ class SkillItemUpdate(BaseModel):
     provide_type: str | None = Field(default=None, max_length=50)
     available_schedule: str | None = None
     end_time: datetime | None = None
+
+    _not_null = reject_null("title")
 
 
 class SkillItemResponse(ORMModel):

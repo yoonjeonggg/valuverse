@@ -1,19 +1,12 @@
 """알림 생성/조회 테스트 (FR-COM-03)."""
 
 from datetime import timedelta
+from functools import partial
 
 from app.core.timeutils import now
+from tests.conftest import create_item
 
-
-def _item(client, headers, **ov):
-    body = {
-        "title": "알림 테스트 상품",
-        "start_price": 1000,
-        "buy_now_price": 9000,
-        "end_time": (now() + timedelta(days=1)).isoformat(),
-    }
-    body.update(ov)
-    return client.post("/items", json=body, headers=headers).json()
+_item = partial(create_item, buy_now_price=9000)
 
 
 def _notifs(client, headers, unread=False):

@@ -1,21 +1,9 @@
 """신고 접수 검증 + 어뷰징 처리 연동 테스트 (FR-COM-04)."""
 
-from datetime import timedelta
-
 from app.core.config import settings
-from app.core.timeutils import now
+from tests.conftest import create_item
 
-
-def _item(client, headers):
-    return client.post(
-        "/items",
-        json={
-            "title": "신고 대상 상품",
-            "start_price": 1000,
-            "end_time": (now() + timedelta(days=1)).isoformat(),
-        },
-        headers=headers,
-    ).json()
+_item = create_item
 
 
 def _report(client, headers, target_type, target_id, reason="어뷰징"):
@@ -158,3 +146,45 @@ def test_list_reports_filter_by_target(client, make_user):
 def test_list_reports_requires_admin(client, make_user):
     h, _ = make_user()
     assert client.get("/reports", headers=h).status_code == 403
+
+
+# ---------- 처리 완료 후 상태 변경 ----------
+def test_closed_report_cannot_be_reopened(client, make_user):
+    """resolved -> pending -> resolved 로 제재가 두 번 적용되던 문제."""
+    admin_h, _ = make_user(admin=True)
+    reporter_h, _ = make_user()
+    seller_h, _ = make_user()
+    item = _item(client, seller_h)
+    rep = _report(client, reporter_h, "item", item["id"]).json()
+    url = f"/reports/{rep['id']}"
+
+    assert client.patch(url, json={"status": "resolved"}, headers=admin_h).status_code == 200
+    for status in ("pending", "rejected"):
+        assert client.patch(url, json={"status": status}, headers=admin_h).status_code == 409
+
+
+def test_memo_update_does_not_resend_notification(client, make_user):
+    admin_h, _ = make_user(admin=True)
+    reporter_h, _ = make_user()
+    seller_h, _ = make_user()
+    item = _item(client, seller_h)
+    rep = _report(client, reporter_h, "item", item["id"]).json()
+    url = f"/reports/{rep['id']}"
+
+    client.patch(url, json={"status": "rejected"}, headers=admin_h)
+    r = client.patch(url, json={"status": "rejected", "admin_memo": "증거 부족"}, headers=admin_h)
+    assert r.status_code == 200
+    assert r.json()["admin_memo"] == "증거 부족"
+    assert _notif_types(client, reporter_h).count("report_rejected") == 1
+
+
+def test_get_report_detail(client, make_user):
+    admin_h, _ = make_user(admin=True)
+    reporter_h, _ = make_user()
+    seller_h, _ = make_user()
+    item = _item(client, seller_h)
+    rep = _report(client, reporter_h, "item", item["id"]).json()
+
+    assert client.get(f"/reports/{rep['id']}", headers=admin_h).json()["id"] == rep["id"]
+    assert client.get("/reports/999", headers=admin_h).status_code == 404
+    assert client.get(f"/reports/{rep['id']}", headers=reporter_h).status_code == 403

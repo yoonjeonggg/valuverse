@@ -3,7 +3,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-from app.schemas.common import ORMModel
+from app.schemas.common import ORMModel, reject_null
 
 
 # ----- Item -----
@@ -26,6 +26,8 @@ class ItemUpdate(BaseModel):
     image_url: str | None = Field(default=None, max_length=500)
     buy_now_price: int | None = Field(default=None, ge=0)
     end_time: datetime | None = None
+
+    _not_null = reject_null("title", "end_time")
 
 
 class ItemResponse(ORMModel):

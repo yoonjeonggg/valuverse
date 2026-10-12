@@ -139,7 +139,10 @@ pip install -r requirements.txt   # pytest 포함
 pytest
 ```
 
-`tests/` 는 인메모리 SQLite 로 격리 실행된다. 낙찰·자동연장·파리뮤추얼 정산 시나리오를 커버한다.
+`tests/` 는 인메모리 SQLite 로 격리 실행된다. 낙찰·자동연장·파리뮤추얼 정산 시나리오와
+각 엔드포인트의 예외 경로(권한 403/404, 상태 충돌 409, 입력 검증 400/422)를 커버한다.
+테스트에서는 bcrypt 비용을 최소(4라운드)로 낮춰 전체 실행이 1분 안쪽이다.
+공용 생성 헬퍼(`create_item`, `create_skill`, `request_booking`, `make_prediction` 등)는 `tests/conftest.py` 에 있다.
 
 ## 관리자 계정
 
@@ -159,4 +162,8 @@ db=SessionLocal(); db.query(User).filter(User.email=='you@example.com').update({
   LLM 없이 통계/규칙(템플릿·키워드 매칭)으로 구현했으며,
   개발명세서의 Ollama LLM/RAG/CV Gateway 는 별도 서비스로 분리 예정.
 - 블라인드 입찰 금액은 마감 전까지 응답에 노출하지 않는다(접근 제어).
+- 입력 검증: 상품/명제의 마감 시간은 현재 이후여야 하고(400), 즉시구매가는 시작가보다 높아야 한다(400).
+  PATCH 에서 필드를 생략하면 변경 없음, NOT NULL 필드에 명시적 null 을 보내면 422.
+- 상태 잠금: 마감된 경매·입찰 시작된 상품은 수정 불가, 정산된 명제는 변경 불가,
+  처리 완료(resolved/rejected)된 신고는 상태 변경 불가(같은 상태로 메모만 수정 가능, 제재·알림은 반복하지 않음).
 - 동시 입찰 정합성(NFR-02): 입찰 처리 시 상품 행을 `SELECT ... FOR UPDATE` 로 잠근다(SQLite 는 미지원이라 생략).

@@ -93,30 +93,30 @@ def get_report(db: Session, report_id: int) -> Report:
     return get_or_404(db, Report, report_id, "신고를 찾을 수 없습니다.")
 
 
+_CLOSED_STATUSES = ("resolved", "rejected")
+
+
 def update_report(db: Session, report_id: int, payload: ReportUpdate) -> Report:
     report = get_report(db, report_id)
-    was_resolved = report.status == "resolved"
+    # 처리가 끝난 신고를 다시 열면 재인용 때 제재가 두 번 적용됐다 (resolved -> pending -> resolved).
+    if report.status in _CLOSED_STATUSES and payload.status != report.status:
+        raise Conflict("처리가 끝난 신고의 상태는 바꿀 수 없습니다.")
+    # 같은 상태로 다시 보내면 메모만 고친다 (제재/알림을 반복하지 않는다).
+    entering = payload.status if payload.status != report.status else None
 
     report.status = payload.status
     if payload.admin_memo is not None:
         report.admin_memo = payload.admin_memo
 
-    if payload.status == "resolved" and not was_resolved:
+    if entering == "resolved":
         _apply_sanction(db, report)
+    if entering in _CLOSED_STATUSES:
+        verb = "처리" if entering == "resolved" else "반려"
         notification_service.notify(
             db,
             report.reporter_id,
-            "report_resolved",
-            f"신고(#{report.id})가 처리되었습니다.",
-            "report",
-            report.id,
-        )
-    elif payload.status == "rejected":
-        notification_service.notify(
-            db,
-            report.reporter_id,
-            "report_rejected",
-            f"신고(#{report.id})가 반려되었습니다.",
+            f"report_{entering}",
+            f"신고(#{report.id})가 {verb}되었습니다.",
             "report",
             report.id,
         )

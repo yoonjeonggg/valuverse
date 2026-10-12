@@ -3,18 +3,9 @@
 from datetime import timedelta
 
 from app.core.timeutils import now
+from tests.conftest import create_item
 
-
-def _item(client, headers):
-    return client.post(
-        "/items",
-        json={
-            "title": "거래 상품",
-            "start_price": 1000,
-            "end_time": (now() + timedelta(days=1)).isoformat(),
-        },
-        headers=headers,
-    ).json()
+_item = create_item
 
 
 def _won_item(client, seller_h, buyer_h):

@@ -1,27 +1,15 @@
 """실시간 입찰 WebSocket 테스트 (WS /items/{id}/bid)."""
 
-from datetime import timedelta
+from functools import partial
 
-from app.core.timeutils import now
+from tests.conftest import create_item
 
 
 def _token(headers) -> str:
     return headers["Authorization"].split(" ", 1)[1]
 
 
-def _item(client, headers):
-    r = client.post(
-        "/items",
-        json={
-            "title": "실시간 경매",
-            "start_price": 1000,
-            "buy_now_price": 9000,
-            "end_time": (now() + timedelta(days=1)).isoformat(),
-        },
-        headers=headers,
-    )
-    assert r.status_code == 201, r.text
-    return r.json()
+_item = partial(create_item, buy_now_price=9000)
 
 
 def test_ws_sends_snapshot_on_connect(client, make_user):

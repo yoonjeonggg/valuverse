@@ -2,7 +2,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field, model_validator
 
-from app.schemas.common import ORMModel
+from app.schemas.common import ORMModel, reject_null
 
 
 class ReviewCreate(BaseModel):
@@ -22,6 +22,8 @@ class ReviewCreate(BaseModel):
 class ReviewUpdate(BaseModel):
     rating: int | None = Field(default=None, ge=1, le=5)
     content: str | None = Field(default=None, max_length=2000)
+
+    _not_null = reject_null("rating")
 
 
 class ReviewResponse(ORMModel):
