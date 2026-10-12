@@ -83,3 +83,19 @@ def test_point_history_type_filter(client, make_user):
     assert rows
     assert all(r["type"] == "attendance" for r in rows)
     assert client.get("/users/me/point-transactions?type=bet", headers=h).json() == []
+
+
+def test_point_service_blocks_non_admin_adjusting_others(db, make_user):
+    """라우터가 관리자만 통과시키지만 서비스도 자체적으로 막는다 (다른 호출 경로 대비)."""
+    import pytest
+
+    from app.core.errors import Forbidden
+    from app.models.user import User
+    from app.schemas.point import PointTransactionCreate
+    from app.services import point_service
+
+    _, me = make_user()
+    _, other = make_user()
+    payload = PointTransactionCreate(user_id=other["id"], amount=100, memo="x")
+    with pytest.raises(Forbidden):
+        point_service.create_transaction(db, db.get(User, me["id"]), payload)

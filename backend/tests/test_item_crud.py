@@ -296,3 +296,27 @@ def test_cancel_blind_bid_after_close_conflicts(client, make_user, make_item):
     ).json()
     client.post(f"/items/{item['id']}/close", headers=seller_h)
     assert client.delete(f"/blind-bids/{bid['id']}", headers=buyer_h).status_code == 409
+
+
+def test_list_items_by_other_status(client, make_user, make_item):
+    h, _ = make_user()
+    make_item(h)
+    assert client.get("/items?status=awarded").json() == []
+
+
+def test_cannot_bid_on_own_item(client, make_user, make_item):
+    h, _ = make_user()
+    item = make_item(h)
+    r = client.post(f"/items/{item['id']}/bids", json={"amount": 2000}, headers=h)
+    assert r.status_code == 400
+
+
+def test_list_item_bids_highest_first(client, make_user, make_item):
+    seller_h, _ = make_user()
+    a_h, _ = make_user()
+    b_h, _ = make_user()
+    item = make_item(seller_h)
+    _bid(client, item["id"], a_h, 2000)
+    _bid(client, item["id"], b_h, 3000)
+    rows = client.get(f"/items/{item['id']}/bids").json()
+    assert [r["amount"] for r in rows] == [3000, 2000]

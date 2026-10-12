@@ -8,11 +8,21 @@ from app.core.config import settings
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-if settings.secret_key == "dev-secret-change-me":  # noqa: S105 - 기본값 사용 여부 검사
+_DEFAULT_SECRET_KEY = "dev-secret-change-me"  # noqa: S105 - config 기본값과 같아야 한다
+
+
+def warn_if_default_secret(secret_key: str) -> bool:
+    """기본 SECRET_KEY 로 뜨면 경고한다 (토큰 위조 가능). 경고했으면 True."""
+    if secret_key != _DEFAULT_SECRET_KEY:
+        return False
     warnings.warn(
         "SECRET_KEY 가 기본값입니다. 운영 환경에서는 .env 에 SECRET_KEY 를 설정하세요.",
         stacklevel=2,
     )
+    return True
+
+
+warn_if_default_secret(settings.secret_key)
 
 
 def hash_password(plain_password: str) -> str:

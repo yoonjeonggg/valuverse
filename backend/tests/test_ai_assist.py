@@ -1,22 +1,16 @@
 """AI 보조(통계·규칙 기반) 테스트 - 시세 추천 / 어뷰징 탐지."""
 
-from datetime import timedelta
-
-from app.core.timeutils import now
+from tests.conftest import create_item
 
 
-def _closed_sale(client, seller_h, buyer_h, category, price):
-    item = client.post(
-        "/items",
-        json={
-            "title": "판매품",
-            "category": category,
-            "start_price": 100,
-            "end_time": (now() + timedelta(days=1)).isoformat(),
-        },
-        headers=seller_h,
-    ).json()
-    client.post(f"/items/{item['id']}/bids", json={"amount": price}, headers=buyer_h)
+def _closed_sale(client, seller_h, buyer_h, category, price, **overrides):
+    item = create_item(
+        client, seller_h, title="판매품", category=category, start_price=100, **overrides
+    )
+    if overrides.get("auction_type") == "blind":
+        client.post(f"/items/{item['id']}/blind-bids", json={"amount": price}, headers=buyer_h)
+    else:
+        client.post(f"/items/{item['id']}/bids", json={"amount": price}, headers=buyer_h)
     client.post(f"/items/{item['id']}/close", headers=seller_h)
 
 
@@ -178,15 +172,7 @@ def test_chat_falls_back_to_default_when_no_faq_matches(client):
 
 def test_chat_includes_item_context_when_item_id_given(client, make_user):
     seller_h, _ = make_user()
-    item = client.post(
-        "/items",
-        json={
-            "title": "빈티지 카메라",
-            "start_price": 1000,
-            "end_time": "2999-01-01T00:00:00+09:00",
-        },
-        headers=seller_h,
-    ).json()
+    item = create_item(client, seller_h, title="빈티지 카메라")
 
     body = client.post(
         "/ai/chat", json={"message": "즉시구매 되나요?", "item_id": item["id"]}
@@ -222,3 +208,24 @@ def test_chat_does_not_require_auth(client):
 
 def test_chat_requires_message(client):
     assert client.post("/ai/chat", json={}).status_code == 422
+
+
+def test_price_suggestion_filters_by_auction_type(client, make_user):
+    seller_h, _ = make_user()
+    buyer_h, _ = make_user()
+    _closed_sale(client, seller_h, buyer_h, "lens", 10000)
+    _closed_sale(client, seller_h, buyer_h, "lens", 50000, auction_type="blind")
+
+    params = {"category": "lens", "auction_type": "blind"}
+    body = client.get("/ai/price-suggestion", params=params).json()
+    assert body["sample_size"] == 1
+    assert body["auction_type"] == "blind"
+
+
+def test_chat_blind_item_context_hides_price(client, make_user):
+    seller_h, _ = make_user()
+    item = create_item(client, seller_h, title="비공개 시계", auction_type="blind")
+    body = client.post("/ai/chat", json={"message": "입찰 방법", "item_id": item["id"]}).json()
+    assert "비공개 시계" in body["answer"]
+    assert "비공개" in body["answer"]
+    assert "현재가" not in body["answer"]

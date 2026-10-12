@@ -349,8 +349,6 @@ def create_bid(db: Session, item_id: int, bidder_id: int, payload: BidCreate) ->
 
 def _maybe_extend(item: Item) -> None:
     end = aware(item.end_time)
-    if end is None:
-        return
     remaining = (end - now()).total_seconds()
     if (
         0 < remaining <= settings.auction_extend_window_seconds

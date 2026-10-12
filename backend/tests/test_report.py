@@ -188,3 +188,29 @@ def test_get_report_detail(client, make_user):
     assert client.get(f"/reports/{rep['id']}", headers=admin_h).json()["id"] == rep["id"]
     assert client.get("/reports/999", headers=admin_h).status_code == 404
     assert client.get(f"/reports/{rep['id']}", headers=reporter_h).status_code == 403
+
+
+def test_resolve_report_on_vanished_target(client, make_user):
+    """신고 후 대상이 사라져도(입찰 없는 상품의 하드 삭제) 처리가 실패하지 않는다."""
+    admin_h, _ = make_user(admin=True)
+    reporter_h, _ = make_user()
+    seller_h, _ = make_user()
+    item = _item(client, seller_h)
+    rep = _report(client, reporter_h, "item", item["id"]).json()
+    client.delete(f"/items/{item['id']}", headers=seller_h)
+
+    r = client.patch(f"/reports/{rep['id']}", json={"status": "resolved"}, headers=admin_h)
+    assert r.status_code == 200, r.text
+    assert "report_resolved" in _notif_types(client, reporter_h)
+
+
+def test_list_reports_filter_by_status(client, make_user):
+    admin_h, _ = make_user(admin=True)
+    reporter_h, _ = make_user()
+    seller_h, _ = make_user()
+    a = _report(client, reporter_h, "item", _item(client, seller_h)["id"]).json()
+    b = _report(client, reporter_h, "item", _item(client, seller_h)["id"]).json()
+    client.patch(f"/reports/{a['id']}", json={"status": "rejected"}, headers=admin_h)
+
+    pending = client.get("/reports?status=pending", headers=admin_h).json()
+    assert [r["id"] for r in pending] == [b["id"]]

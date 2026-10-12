@@ -182,3 +182,24 @@ def test_skill_escrow_cannot_be_moved_directly(client, make_user, set_points, db
     escrow_id = db.query(Escrow.id).filter(Escrow.booking_id == booking["id"]).scalar()
     r = client.patch(f"/escrows/{escrow_id}", json={"status": "settled"}, headers=buyer_h)
     assert r.status_code == 409
+
+
+def test_escrow_to_self_rejected(client, make_user, make_item, set_points):
+    seller_h, seller = make_user()
+    set_points(seller["id"], 10_000)
+    item = make_item(seller_h)
+    r = client.post(
+        "/escrows",
+        json={"item_id": item["id"], "payee_id": seller["id"], "amount": 1000},
+        headers=seller_h,
+    )
+    assert r.status_code == 400
+
+
+def test_admin_can_view_any_booking(client, make_user):
+    seller_h, _ = make_user()
+    _, buyer = make_user()
+    admin_h, _ = make_user(admin=True)
+    skill = create_skill(client, seller_h)
+    booking = request_booking(client, seller_h, skill["id"], buyer["id"]).json()
+    assert client.get(f"/skill-bookings/{booking['id']}", headers=admin_h).status_code == 200
