@@ -30,8 +30,6 @@
 
 <a href="ValueVerse.mp4"><img src="docs/assets/valuverse-demo.gif" alt="ValueVerse 실시간 경매 시연" width="880"></a>
 
-**[🎬 원본 영상 보기 (MP4 · 34초)](ValueVerse.mp4)**
-
 </div>
 
 ---
