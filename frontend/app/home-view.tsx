@@ -66,6 +66,7 @@ export function HomeView({
     <div>
       <div className="home-top">
         <section className="hero">
+          <span className="eyebrow">AI 경매 플랫폼</span>
           <h1>
             최고가만이 답은 아니다.
             <br />

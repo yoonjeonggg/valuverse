@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import Script from "next/script";
+import { Noto_Sans_KR } from "next/font/google";
 import "./globals.css";
 import { SiteNav, HeaderNotifications, HeaderAuth, ThemeToggle } from "./site-chrome";
 
@@ -17,6 +18,15 @@ try {
 } catch (e) {}
 `;
 
+// 빌드 시 받아 자체 호스팅한다 (런타임 외부 요청 없음). 한글은 unicode-range 로 쪼개져 있어
+// 미리 받아둘(preload) 범위를 고를 수 없으므로 preload 는 끈다.
+const notoSansKr = Noto_Sans_KR({
+  weight: ["400", "500", "700", "800", "900"],
+  display: "swap",
+  preload: false,
+  variable: "--font-noto",
+});
+
 export const metadata: Metadata = {
   title: "Valuverse — 경매 플랫폼",
   description:
@@ -29,7 +39,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="ko" suppressHydrationWarning>
+    <html lang="ko" className={notoSansKr.variable} suppressHydrationWarning>
       <body>
         <Script
           id="theme-init"
@@ -37,16 +47,16 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }}
         />
         <header className="site-header">
-          <div className="site-util">
-            <HeaderNotifications />
-            <HeaderAuth />
-            <ThemeToggle />
-          </div>
           <div className="site-header__bar">
             <Link href="/" className="wordmark">
               Valu<b>verse</b>
             </Link>
             <SiteNav />
+            <div className="header-right">
+              <HeaderNotifications />
+              <HeaderAuth />
+              <ThemeToggle />
+            </div>
           </div>
         </header>
 

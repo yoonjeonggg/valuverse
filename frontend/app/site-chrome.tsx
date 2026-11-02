@@ -101,8 +101,13 @@ export function HeaderNotifications() {
   if (!hasToken) return null;
 
   return (
-    <Link href="/notifications" className="util-link">
-      알림{unread > 0 && <b>{unread > 99 ? "99+" : unread}</b>}
+    <Link
+      href="/notifications"
+      className="header-icon"
+      aria-label={unread > 0 ? `알림 ${unread}개 안 읽음` : "알림"}
+    >
+      <Icon name="bell" />
+      {unread > 0 && <b aria-hidden>{unread > 99 ? "99+" : unread}</b>}
     </Link>
   );
 }
@@ -130,26 +135,26 @@ export function HeaderAuth() {
   // 토큰 확인 전에는 로그인 링크와 같은 크기의 빈 자리를 잡아 헤더가 밀리지 않게 한다.
   if (hasToken === null)
     return (
-      <span className="util-link" style={{ visibility: "hidden" }} aria-hidden>
-        로그인 · 회원가입
+      <span className="btn btn-sm btn-pill" style={{ visibility: "hidden" }} aria-hidden>
+        로그인
       </span>
     );
 
   if (!hasToken)
     return (
-      <Link className="util-link" href="/auth">
-        로그인 · 회원가입
+      <Link className="btn btn-primary btn-sm btn-pill" href="/auth">
+        로그인
       </Link>
     );
 
   return (
     <>
       {points !== null && (
-        <Link className="util-link" href="/points">
-          보유 <span className="pointpill">{points.toLocaleString()}P</span>
+        <Link className="pointpill" href="/points" aria-label={`보유 포인트 ${points.toLocaleString()}P`}>
+          {points.toLocaleString()} P
         </Link>
       )}
-      <Link className="util-link" href="/me">
+      <Link className="btn btn-sm" href="/me">
         마이페이지
       </Link>
     </>
