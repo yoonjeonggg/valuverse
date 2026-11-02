@@ -1,16 +1,18 @@
-# AI 경매 플랫폼 API (FastAPI)
+# ValueVerse Backend 개발 문서
 
-「기능명세서 기본ver[CRUD]」 범위의 백엔드 구현. 회원 / 일반경매 상품·입찰 / 블라인드 입찰 /
-스킬상품·예약·에스크로 / 예측명제·베팅 / 포인트 / 리뷰 / 신고 엔티티의 기본 CRUD 를 제공한다.
+백엔드를 개발할 때 참고하는 문서다. 프로젝트 소개와 전체 구조는 [루트 README](../README.md) 를 본다.
 
 ## 스택
 
 - FastAPI + Uvicorn
-- SQLAlchemy 2.0 (기본 SQLite)
+- SQLAlchemy 2.0 + Alembic (로컬 기본 SQLite, Docker 는 PostgreSQL)
 - Pydantic v2 / pydantic-settings
 - JWT 인증 (python-jose), 비밀번호 해시 (passlib + bcrypt)
+- WebSocket + Redis pub/sub (실시간 입찰 브로드캐스트)
 
 ## 실행
+
+Python 3.13 기준이다 (CI 와 동일). 3.14 는 `psycopg-binary` 설치가 되지 않는다.
 
 ```bash
 python -m venv venv
@@ -55,12 +57,27 @@ alembic revision --autogenerate -m "설명"   # 모델 변경 후 새 리비전 
 | `AUTO_CREATE_TABLES` | 시작 시 테이블 자동 생성 (alembic 사용 시 `false`) | `true` |
 | `REDIS_URL` | Redis 주소 (`WS_BROADCAST_BACKEND=redis` 일 때 사용) | `redis://localhost:6379/0` |
 | `WS_BROADCAST_BACKEND` | WS 브로드캐스트 방식. `memory`(단일 인스턴스) / `redis`(여러 대, pub/sub) | `memory` |
+| `CORS_ORIGINS` | 허용 오리진 (쉼표로 구분). 운영에서는 재정의 | `http://localhost:3000,http://127.0.0.1:3000` |
 | `AUCTION_EXTEND_WINDOW_SECONDS` | 마감 임박 판정 구간(초) | `180` |
 | `AUCTION_EXTEND_BY_SECONDS` | 자동 연장 시간(초) | `180` |
 | `AUCTION_MAX_EXTENSIONS` | 자동 연장 최대 횟수 | `10` |
+| `BID_CANCEL_WINDOW_SECONDS` | 입찰 후 취소 가능 시간(초) | `300` |
+| `POINT_CHECKIN_BASE` | 출석 기본 지급 포인트 | `10` |
+| `POINT_CHECKIN_STREAK_BONUS` | 연속 출석 1일당 추가 포인트 | `2` |
+| `POINT_CHECKIN_STREAK_CAP` | 보너스가 붙는 최대 연속일수 | `7` |
+| `POINT_AD_REWARD` | 광고 1회 시청 지급 포인트 | `5` |
+| `POINT_AD_DAILY_LIMIT` | 하루 광고 보상 횟수 상한 | `5` |
+| `POINT_AD_MIN_INTERVAL_SECONDS` | 광고 보상 사이 최소 간격(초) | `30` |
+| `POINT_ADMIN_ADJUST_MAX` | 관리자 수동 조정 1회 한도 (절댓값) | `1000000` |
+| `SPOTLIGHT_COST` | 상단 노출권 가격 | `100` |
+| `SPOTLIGHT_HOURS` | 상단 노출 지속 시간 | `24` |
+| `COUPON_VALID_DAYS` | 교환한 쿠폰 유효기간(일) | `30` |
+| `REPORT_AUTO_DEACTIVATE_THRESHOLD` | 처리 완료된 신고가 이 수 이상 쌓이면 대상 계정 자동 비활성화 | `3` |
 | `LOG_LEVEL` | 로그 레벨 (`DEBUG`/`INFO`/`WARNING`/`ERROR`) | `INFO` |
 | `LOG_FORMAT` | `text` 또는 `json` (로그 수집기용 한 줄 JSON) | `text` |
-| `LOG_FILE` | 지정 시 파일에도 기록, 10MB 초과 시 교체·5개 보관 (예: `logs/app.log`) | (콘솔만) |
+| `LOG_FILE` | 지정 시 파일에도 기록 (예: `logs/app.log`) | (콘솔만) |
+| `LOG_FILE_MAX_BYTES` | 이 크기를 넘으면 로그 파일 교체 | `10485760` (10MB) |
+| `LOG_FILE_BACKUP_COUNT` | 보관할 이전 로그 파일 수 | `5` |
 | `LOG_SQL` | 실행 SQL 전체 로그 (개발용) | `false` |
 
 키 생성:
@@ -87,11 +104,12 @@ python -c "import secrets; print(secrets.token_urlsafe(48))"
 
 ```
 app/
-  core/        설정(config), 보안(security), 의존성(deps), 로깅(logging_setup), 시간 유틸
+  core/        설정(config), 보안(security), 의존성(deps), 예외(errors), DB 헬퍼(db_utils),
+               로깅(logging_setup), 시간 유틸
   models/      SQLAlchemy 모델
   schemas/     Pydantic 요청/응답 스키마
-  services/    비즈니스 로직
-  routers/     엔드포인트
+  services/    비즈니스 로직, WS 브로드캐스트(ws_manager)
+  routers/     REST·WebSocket 엔드포인트
   database.py  엔진 / 세션
   main.py      앱 엔트리포인트
 alembic/       마이그레이션 (env.py, versions/)
@@ -99,7 +117,22 @@ alembic.ini    alembic 설정
 tests/         pytest
 ```
 
-## 낙찰/정산 로직 (CRUD 이후 추가)
+## 코드 규칙
+
+- 라우터는 요청/응답만 다루고 비즈니스 로직은 `services/` 에 둔다.
+- API 오류는 `HTTPException` 을 직접 만들지 않고 `core/errors.py` 의 클래스를 쓴다
+  (`BadRequest`, `Unauthorized`, `Forbidden`, `NotFound`, `Conflict`, `TooManyRequests`).
+- 조회·저장은 `core/db_utils.py` 의 헬퍼(`get_or_404`, `save`, `apply_patch`, `commit_or_conflict`)를 쓴다.
+  금액이나 상태가 바뀌는 경로는 `get_or_404(..., for_update=True)` 로 행을 잠근 뒤 검증한다.
+- 포인트 잔액은 직접 고치지 않고 `point_service` 를 거친다 (사용자 행 잠금 + 내역 기록).
+- 모델을 바꾸면 Alembic 리비전을 함께 만든다. 모델과 마이그레이션의 동기화는 테스트에서 검증한다.
+- CI 가 ruff 를 강제한다. 커밋 전에 아래를 실행한다.
+
+```bash
+ruff check --fix . && ruff format .
+```
+
+## 낙찰/정산 로직
 
 기본 CRUD 위에 「개발명세서」 Phase 1~3 / 「기획서」 로드맵 1·2·4단계의 정산 로직을 얹었다.
 
@@ -111,7 +144,8 @@ tests/         pytest
 | 자동 마감 | (조회 시 자동) | `end_time` 이 지난 경매는 조회 시 낙찰 확정 처리 |
 | 배당률 조회 | `GET /predictions/{id}/odds` | 현재 베팅 풀 기준 파리뮤추얼 배당 배수 (FR-PRD-03) |
 | 명제 정산 | `POST /predictions/{id}/settle` | 관리자, 결과 확정 후 승자에게 파리뮤추얼 배당 포인트 지급 (FR-PRD-04) |
-| 스킬 예약(낙찰) | `POST /skill-bookings` | 판매자가 낙찰가로 예약 생성. 구매자 포인트가 차감돼 에스크로에 보관 (FR-SKL-02·03) |
+| 스킬 예약 요청(낙찰) | `POST /skill-bookings` | 판매자가 낙찰가로 구매자에게 예약 요청(`pending`). 포인트는 아직 차감되지 않는다 (FR-SKL-02) |
+| 스킬 예약 수락 | `POST /skill-bookings/{id}/accept` | 구매자가 수락하면 포인트를 차감해 에스크로에 보관(`in_progress`). 구매자 동의 없는 차감을 막기 위해 차감은 이 시점에만 한다 (FR-SKL-03) |
 | 스킬 완료 정산 | `POST /skill-bookings/{id}/complete` | 구매자가 완료 확인 → 에스크로를 판매자에게 정산 |
 | 마이페이지 요약 | `GET /users/me/dashboard` | 포인트·알림·출석·경매/스킬/베팅/리뷰/신고 현황 집계 (FR-COM-02) |
 | 실시간 입찰 | `WS /items/{id}/bid` | 접속 시 스냅샷 수신, `{token, amount}` 로 입찰, 입찰/마감 이벤트를 방 전체에 브로드캐스트 (FR-AUC-02) |
@@ -128,8 +162,10 @@ tests/         pytest
 - 블라인드 경매 낙찰 규칙은 `blind_price_rule` 로 정한다: `first`(제시가 그대로) / `second`(Vickrey, 2위 금액으로 결제, FR-BLD-04). 입찰자가 1명이면 본인 제시가.
 - 정산 시 승리 포지션 풀이 비어 있으면 전원 원금 환불한다.
 - 리뷰(`POST /reviews`)는 낙찰이 완료된 일반 경매 또는 완료된 스킬 거래의 당사자만, 거래당 1회 작성할 수 있다 (FR-SKL-04).
-- 스킬 예약 취소(`DELETE /skill-bookings/{id}`) 시 보관중 에스크로는 구매자에게 환불된다.
-- 에스크로 상태 변경(`PATCH /escrows/{id}`)은 실제 포인트 이동을 동반한다.
+- 스킬 예약 취소(`DELETE /skill-bookings/{id}`): 수락 전이면 요청 거절로 처리해 상품을 다시 모집중으로 돌리고,
+  수락 후면 보관중 에스크로를 구매자에게 환불하고 상품을 마감한다.
+- 에스크로 상태 변경(`PATCH /escrows/{id}`)은 실제 포인트 이동을 동반하며, 일반 경매 상품 대금에만 쓴다.
+  정산은 결제자, 환불은 수취인(또는 관리자)만 확정할 수 있다. 스킬 예약 에스크로는 예약 엔드포인트로만 움직인다.
 - 포인트는 출석·미션·광고로만 적립된다. 수동 조정(`POST /point-transactions`)은 관리자 전용이다.
 
 ## 테스트
@@ -145,6 +181,13 @@ WebSocket 오류·Redis 재연결·로깅까지 커버한다 (라인 커버리�
 테스트에서는 bcrypt 비용을 최소(4라운드)로 낮춰 전체 실행이 1분 안쪽이다.
 공용 생성 헬퍼(`create_item`, `create_skill`, `request_booking`, `make_prediction` 등)는 `tests/conftest.py` 에 있다.
 
+커버리지는 `pytest-cov` 를 따로 설치해 확인한다 (`requirements.txt` 에는 없음).
+
+```bash
+pip install pytest-cov
+pytest --cov=app --cov-report=term-missing
+```
+
 ## 관리자 계정
 
 예측명제 등록/수정, 신고 조회/처리는 관리자 권한이 필요하다. 첫 관리자는 DB 에서 직접 지정한다.
@@ -159,7 +202,8 @@ db=SessionLocal(); db.query(User).filter(User.email=='you@example.com').update({
 - AI 보조: `GET /ai/price-suggestion?category=`(과거 낙찰가 기반 시세·시작가 추천, FR-BLD-05),
   `POST /ai/abuse-check`(규칙 기반 어뷰징 문구 탐지, FR-AI-03),
   `POST /ai/description-suggestion`(상품 설명 초안 생성 + 보완 체크리스트, FR-AI-01),
-  `POST /ai/skill-tag-suggestion`(스킬 소개글 기반 카테고리/난이도 태깅, FR-SKL-06).
+  `POST /ai/skill-tag-suggestion`(스킬 소개글 기반 카테고리/난이도 태깅, FR-SKL-06),
+  `POST /ai/chat`(규칙 기반 FAQ 입찰 상담, 답변 근거 함께 반환, FR-AI-02).
   LLM 없이 통계/규칙(템플릿·키워드 매칭)으로 구현했으며,
   개발명세서의 Ollama LLM/RAG/CV Gateway 는 별도 서비스로 분리 예정.
 - 블라인드 입찰 금액은 마감 전까지 응답에 노출하지 않는다(접근 제어).
