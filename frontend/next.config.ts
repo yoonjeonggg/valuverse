@@ -1,8 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Docker 이미지용 독립 실행 번들
-  output: "standalone",
+  // Docker 이미지용 독립 실행 번들. Vercel 은 자체 빌드 방식과 충돌하므로 끈다 (VERCEL=1 자동 주입).
+  output: process.env.VERCEL ? undefined : "standalone",
   async headers() {
     return [
       {
