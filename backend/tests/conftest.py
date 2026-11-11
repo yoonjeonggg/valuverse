@@ -160,6 +160,14 @@ def move_item():
     return _deadline_mover(Item)
 
 
+@pytest.fixture
+def move_skill():
+    """skill_items.end_time 을 현재 기준 delta(초) 만큼 이동."""
+    from app.models.skill import SkillItem
+
+    return _deadline_mover(SkillItem)
+
+
 # ---------- 생성 헬퍼 ----------
 def in_days(days: float) -> str:
     from datetime import timedelta
@@ -179,25 +187,43 @@ def create_item(client, headers, **overrides):
 
 
 def create_skill(client, headers, **overrides):
-    body = {"title": "1:1 파이썬 과외", "start_price": 3000}
+    body = {"title": "1:1 파이썬 과외", "start_price": 3000, "end_time": in_days(1)}
     body.update(overrides)
     r = client.post("/skill-items", json=body, headers=headers)
     assert r.status_code == 201, r.text
     return r.json()
 
 
-def request_booking(client, seller_headers, skill_id, buyer_id, amount=3000):
-    """판매자의 스킬 예약 요청 (구매자 수락 전이라 포인트는 아직 차감되지 않는다). 응답을 그대로 돌려준다."""
+def award_skill(client, seller_headers, buyer_headers, skill_id, amount=3000):
+    """구매자가 입찰하고 판매자가 조기 마감해 구매자를 낙찰자로 만든다. 상품 JSON 을 돌려준다.
+
+    구매자에게 입찰 금액 이상의 포인트가 있어야 한다.
+    """
+    bid = client.post(
+        f"/skill-items/{skill_id}/bids", json={"amount": amount}, headers=buyer_headers
+    )
+    assert bid.status_code == 201, bid.text
+    closed = client.post(f"/skill-items/{skill_id}/close", headers=seller_headers)
+    assert closed.status_code == 200, closed.text
+    return closed.json()
+
+
+def post_booking(client, headers, skill_id):
+    """낙찰된 스킬 상품에 예약 요청을 보낸다. 응답을 그대로 돌려준다."""
     return client.post(
         "/skill-bookings",
-        json={
-            "skill_item_id": skill_id,
-            "buyer_id": buyer_id,
-            "amount": amount,
-            "scheduled_at": in_days(2),
-        },
-        headers=seller_headers,
+        json={"skill_item_id": skill_id, "scheduled_at": in_days(2)},
+        headers=headers,
     )
+
+
+def request_booking(client, seller_headers, buyer_headers, skill_id, amount=3000):
+    """낙찰(입찰 + 조기 마감) 후 판매자가 낙찰자에게 예약을 요청한다.
+
+    구매자 수락 전이라 포인트는 아직 차감되지 않는다. 예약 요청 응답을 그대로 돌려준다.
+    """
+    award_skill(client, seller_headers, buyer_headers, skill_id, amount)
+    return post_booking(client, seller_headers, skill_id)
 
 
 @pytest.fixture

@@ -18,7 +18,12 @@ from app.routers.point import router as point_router
 from app.routers.prediction import bet_router, prediction_router
 from app.routers.report import router as report_router
 from app.routers.review import router as review_router
-from app.routers.skill import booking_router, escrow_router, skill_item_router
+from app.routers.skill import (
+    booking_router,
+    escrow_router,
+    skill_bid_router,
+    skill_item_router,
+)
 from app.routers.user import auth_router, user_router
 from app.services.ws_manager import manager as ws_manager
 
@@ -77,6 +82,7 @@ app.include_router(item_router)
 app.include_router(bid_router)
 app.include_router(auction_ws_router)
 app.include_router(skill_item_router)
+app.include_router(skill_bid_router)
 app.include_router(booking_router)
 app.include_router(escrow_router)
 app.include_router(prediction_router)

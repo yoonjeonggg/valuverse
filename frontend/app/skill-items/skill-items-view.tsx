@@ -3,13 +3,14 @@
 import { useState } from "react";
 import { api, apiPost } from "../lib/api";
 import { SkillCard, type SkillCardItem } from "../lib/cards";
+import { toIso } from "../lib/format";
 import type { SkillItem } from "../lib/types";
 import { Card, ErrorText, Field, Loadable, PageHeader, useCall, useLoad } from "../lib/ui";
 
 const STATUS_LABEL: Record<string, string> = {
-  recruiting: "모집중",
-  awarded: "예약 확정",
-  closed: "거래 종료",
+  recruiting: "입찰중",
+  awarded: "낙찰",
+  closed: "종료",
 };
 
 export function SkillItemsView({ initialFeed }: { initialFeed: SkillCardItem[] | null }) {
@@ -28,6 +29,7 @@ export function SkillItemsView({ initialFeed }: { initialFeed: SkillCardItem[] |
   const [durationMinutes, setDurationMinutes] = useState("60");
   const [provideType, setProvideType] = useState("");
   const [availableSchedule, setAvailableSchedule] = useState("");
+  const [endTime, setEndTime] = useState("");
 
   const create = useCall(() =>
     apiPost("/skill-items", {
@@ -38,6 +40,7 @@ export function SkillItemsView({ initialFeed }: { initialFeed: SkillCardItem[] |
       duration_minutes: durationMinutes ? Number(durationMinutes) : undefined,
       provide_type: provideType || undefined,
       available_schedule: availableSchedule || undefined,
+      end_time: toIso(endTime),
     }),
   );
   const submitCreate = async () => {
@@ -57,8 +60,8 @@ export function SkillItemsView({ initialFeed }: { initialFeed: SkillCardItem[] |
     <div>
       <PageHeader title="스킬 경매">
         <p>
-          무형의 재능을 거래합니다. 예약 생성이 곧 낙찰이며, 낙찰금은
-          에스크로에 보관됐다가 완료·노쇼에 따라 정산·환불됩니다.
+          무형의 재능을 경매로 거래합니다. 마감 시 최고 입찰자가 낙찰되고, 판매자와 일정을
+          잡아 예약하면 낙찰금이 에스크로에 보관됐다가 완료·노쇼에 따라 정산·환불됩니다.
         </p>
       </PageHeader>
 
@@ -66,9 +69,9 @@ export function SkillItemsView({ initialFeed }: { initialFeed: SkillCardItem[] |
         title="스킬 상품"
         right={
           <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-            <option value="recruiting">모집중</option>
-            <option value="awarded">예약 확정</option>
-            <option value="closed">거래 종료</option>
+            <option value="recruiting">입찰중</option>
+            <option value="awarded">낙찰 (예약 진행)</option>
+            <option value="closed">종료</option>
           </select>
         }
       >
@@ -119,7 +122,7 @@ export function SkillItemsView({ initialFeed }: { initialFeed: SkillCardItem[] |
         )}
         <Field label="카테고리" value={category} onChange={(e) => setCategory(e.target.value)} />
         <Field
-          label="가격"
+          label="시작가"
           type="number"
           value={startPrice}
           onChange={(e) => setStartPrice(e.target.value)}
@@ -142,8 +145,18 @@ export function SkillItemsView({ initialFeed }: { initialFeed: SkillCardItem[] |
           onChange={(e) => setAvailableSchedule(e.target.value)}
           placeholder="예: 평일 저녁, 주말"
         />
+        <Field
+          label="입찰 마감 시간"
+          type="datetime-local"
+          value={endTime}
+          onChange={(e) => setEndTime(e.target.value)}
+        />
         <div className="actions">
-          <button className="btn btn-primary" onClick={submitCreate} disabled={create.loading || !title}>
+          <button
+            className="btn btn-primary"
+            onClick={submitCreate}
+            disabled={create.loading || !title || !endTime}
+          >
             등록
           </button>
         </div>

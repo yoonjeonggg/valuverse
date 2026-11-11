@@ -8,7 +8,7 @@
 **동시 입찰 정합성, 입찰가 보호, 에스크로 정산** 등 거래 신뢰성에 집중한 풀스택 프로젝트
 
 [![CI](https://github.com/yoonjeonggg/valuverse/actions/workflows/ci.yml/badge.svg)](https://github.com/yoonjeonggg/valuverse/actions/workflows/ci.yml)
-![Tests](https://img.shields.io/badge/tests-298%20passed-2ea44f)
+![Tests](https://img.shields.io/badge/tests-319%20passed-2ea44f)
 ![Coverage](https://img.shields.io/badge/coverage-100%25-2ea44f)
 
 ![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=flat-square&logo=fastapi&logoColor=white)
@@ -141,7 +141,7 @@ flowchart LR
 
 ## 5. 🗄 ERD
 
-총 16개 테이블로 구성됩니다. 주요 관계는 아래와 같습니다.
+총 17개 테이블로 구성됩니다. 주요 관계는 아래와 같습니다.
 
 ```mermaid
 erDiagram
@@ -152,7 +152,9 @@ erDiagram
     ITEMS ||--o{ BLIND_BIDS : "비공개 입찰"
 
     USERS ||--o{ SKILL_ITEMS : "판매"
-    SKILL_ITEMS ||--o{ SKILL_BOOKINGS : "예약"
+    SKILL_ITEMS ||--o{ SKILL_BIDS : "입찰"
+    USERS ||--o{ SKILL_BIDS : "입찰"
+    SKILL_ITEMS ||--o{ SKILL_BOOKINGS : "낙찰 후 예약"
     USERS ||--o{ SKILL_BOOKINGS : "구매"
     SKILL_BOOKINGS ||--o{ ESCROWS : "대금 보관"
     ITEMS |o--o{ ESCROWS : "대금 보관"
@@ -226,8 +228,8 @@ valuverse
 
 ### 스킬 경매 · 에스크로 `#에스크로`
 
-- 시간과 능력을 거래하는 스킬 상품 등록과 예약
-- 판매자 예약 요청 → **구매자 수락 시 포인트를 에스크로에 보관**
+- 시간과 능력을 경매로 거래: 공개 입찰 → 마감 시 **최고 입찰자 낙찰** (일반 경매와 같은 행 잠금 · 자동 연장)
+- 판매자가 낙찰자에게 일정을 정해 예약 요청 → **낙찰자 수락 시 낙찰가를 에스크로에 보관**
 - 완료 시 판매자 정산, 노쇼 시 귀책에 따라 정산 또는 환불, 취소 시 환불
 
 ### 예측시장 · 포인트 이코노미 `#파리뮤추얼`
@@ -260,7 +262,7 @@ valuverse
 
 ### 테스트
 
-- 백엔드 테스트 **298개 전체 통과**, 라인 커버리지 **100%** (`app/` 기준 2,368 라인)
+- 백엔드 테스트 **319개 전체 통과**, 라인 커버리지 **100%** (`app/` 기준 2,480 라인)
 - 권한 403/404, 상태 충돌 409, 입력 검증 400/422 등 예외 경로와 WebSocket 오류, Redis 재연결까지 검증
 
 ### 확장성
@@ -345,7 +347,7 @@ valuverse
 ## 11. API 엔드포인트
 
 - **Swagger UI**: `http://localhost:8000/docs`
-- **규모**: REST 80개 + WebSocket 1개
+- **규모**: REST 84개 + WebSocket 1개
 - 정책과 환경 변수는 [`backend/README.md`](backend/README.md)를 참고하세요.
 
 | 카테고리 | 주요 엔드포인트 |
@@ -354,7 +356,7 @@ valuverse
 | **경매** | `POST /items` `GET /items` `GET /items/{id}` `POST /items/{id}/close` `POST /items/{id}/buy-now` `POST /items/{id}/spotlight` |
 | **입찰** | `POST /items/{id}/bids` `GET /items/{id}/bids` `DELETE /bids/{id}` `WS /items/{id}/bid` |
 | **블라인드 입찰** | `POST /items/{id}/blind-bids` `GET /items/{id}/blind-bids/my-rank` `GET /items/{id}/blind-bids/results` |
-| **스킬 · 에스크로** | `POST /skill-items` `POST /skill-bookings` `POST /skill-bookings/{id}/accept` `POST /skill-bookings/{id}/complete` `POST /skill-bookings/{id}/no-show` `GET /escrows/{id}` |
+| **스킬 · 에스크로** | `POST /skill-items` `POST /skill-items/{id}/bids` `POST /skill-items/{id}/close` `POST /skill-bookings` `POST /skill-bookings/{id}/accept` `POST /skill-bookings/{id}/complete` `POST /skill-bookings/{id}/no-show` `GET /escrows/{id}` |
 | **예측시장** | `GET /predictions` `GET /predictions/{id}/odds` `POST /predictions/{id}/bets` `POST /predictions/{id}/settle` |
 | **포인트** | `GET /users/me/points/balance` `POST /points/check-in` `POST /points/missions/{key}/claim` `POST /points/ad-reward` `POST /points/coupons/{key}/redeem` |
 | **AI 보조** | `GET /ai/price-suggestion` `POST /ai/abuse-check` `POST /ai/description-suggestion` `POST /ai/skill-tag-suggestion` `POST /ai/chat` |

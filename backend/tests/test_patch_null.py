@@ -23,6 +23,7 @@ def targets(client, make_user, make_prediction):
         ("items", "title"),
         ("items", "end_time"),
         ("skill-items", "title"),
+        ("skill-items", "end_time"),
         ("predictions", "title"),
         ("predictions", "end_time"),
         ("predictions", "yes_odds"),

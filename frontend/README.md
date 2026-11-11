@@ -56,7 +56,7 @@ app/
     chat-widget.tsx 입찰 상담 챗봇
     format.ts      toIso, formatDateTime
   items/           일반·블라인드 경매 목록, 상세, 실시간 입찰
-  skill-items/     스킬 경매 목록, 상세, 예약
+  skill-items/     스킬 경매 목록, 상세(입찰·낙찰·예약)
   predictions/     예측시장 목록, 베팅
   points/          포인트 센터 (출석, 미션, 광고, 쿠폰)
   me/              마이페이지

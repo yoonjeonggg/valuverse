@@ -24,13 +24,33 @@ class SkillItem(Base):
     category = Column(String(50), nullable=True, index=True)
     image_url = Column(String(500), nullable=True)
     start_price = Column(Integer, nullable=False)
+    # 현재 최고 입찰가. 입찰이 없으면 시작가와 같다.
+    current_price = Column(Integer, nullable=False, default=0, server_default="0")
     duration_minutes = Column(Integer, nullable=True)
     provide_type = Column(String(50), nullable=True)  # 온라인/오프라인/파일 등
     available_schedule = Column(Text, nullable=True)
+    # 입찰 마감 시각. 예전 데이터는 비어 있을 수 있어 nullable 로 두고, 신규 등록은 필수.
     end_time = Column(DateTime(timezone=True), nullable=True)
-    # recruiting | awarded | closed
+    # recruiting(입찰중) | awarded(낙찰, 예약 진행) | closed(거래 종료 또는 유찰)
     status = Column(String(20), nullable=False, default="recruiting", index=True)
+    # 낙찰 결과 (마감 시 최고 입찰자로 채워짐). 유찰이면 winner_id 는 NULL.
+    winner_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
+    final_price = Column(Integer, nullable=True)
+    # 마감 임박 입찰로 자동 연장된 횟수 (스나이핑 방지)
+    extended_count = Column(Integer, nullable=False, default=0, server_default="0")
     is_deleted = Column(Boolean, nullable=False, default=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class SkillBid(Base):
+    """스킬 경매 입찰."""
+
+    __tablename__ = "skill_bids"
+
+    id = Column(Integer, primary_key=True, index=True)
+    skill_item_id = Column(Integer, ForeignKey("skill_items.id"), nullable=False, index=True)
+    bidder_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    amount = Column(Integer, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -43,7 +63,7 @@ class SkillBooking(Base):
     skill_item_id = Column(Integer, ForeignKey("skill_items.id"), nullable=False, index=True)
     seller_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     buyer_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
-    # 낙찰가. 예약 생성 시 구매자 포인트에서 차감돼 에스크로에 보관된다.
+    # 낙찰가. 구매자가 예약을 수락하면 포인트에서 차감돼 에스크로에 보관된다.
     amount = Column(Integer, nullable=False, default=0)
     scheduled_at = Column(DateTime(timezone=True), nullable=False)
     # pending(구매자 수락 대기) | in_progress | completed | no_show | cancelled

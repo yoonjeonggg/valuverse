@@ -16,7 +16,7 @@ class SkillItemCreate(BaseModel):
     duration_minutes: int | None = Field(default=None, ge=0)
     provide_type: str | None = Field(default=None, max_length=50)
     available_schedule: str | None = None
-    end_time: datetime | None = None
+    end_time: datetime
 
 
 class SkillItemUpdate(BaseModel):
@@ -29,7 +29,7 @@ class SkillItemUpdate(BaseModel):
     available_schedule: str | None = None
     end_time: datetime | None = None
 
-    _not_null = reject_null("title")
+    _not_null = reject_null("title", "end_time")
 
 
 class SkillItemResponse(ORMModel):
@@ -40,19 +40,35 @@ class SkillItemResponse(ORMModel):
     category: str | None = None
     image_url: str | None = None
     start_price: int
+    current_price: int
     duration_minutes: int | None = None
     provide_type: str | None = None
     available_schedule: str | None = None
     end_time: datetime | None = None
     status: str
+    winner_id: int | None = None
+    final_price: int | None = None
+    extended_count: int = 0
+    created_at: datetime
+
+
+# ----- SkillBid -----
+class SkillBidCreate(BaseModel):
+    amount: int = Field(gt=0)
+
+
+class SkillBidResponse(ORMModel):
+    id: int
+    skill_item_id: int
+    bidder_id: int
+    amount: int
     created_at: datetime
 
 
 # ----- SkillBooking -----
 class SkillBookingCreate(BaseModel):
+    # 구매자와 금액은 낙찰 결과(winner_id, final_price)로 정해지므로 받지 않는다.
     skill_item_id: int
-    buyer_id: int
-    amount: int = Field(gt=0)
     scheduled_at: datetime
 
 

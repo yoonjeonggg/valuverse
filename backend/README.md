@@ -144,7 +144,9 @@ ruff check --fix . && ruff format .
 | 자동 마감 | (조회 시 자동) | `end_time` 이 지난 경매는 조회 시 낙찰 확정 처리 |
 | 배당률 조회 | `GET /predictions/{id}/odds` | 현재 베팅 풀 기준 파리뮤추얼 배당 배수 (FR-PRD-03) |
 | 명제 정산 | `POST /predictions/{id}/settle` | 관리자, 결과 확정 후 승자에게 파리뮤추얼 배당 포인트 지급 (FR-PRD-04) |
-| 스킬 예약 요청(낙찰) | `POST /skill-bookings` | 판매자가 낙찰가로 구매자에게 예약 요청(`pending`). 포인트는 아직 차감되지 않는다 (FR-SKL-02) |
+| 스킬 입찰 | `POST /skill-items/{id}/bids`, `GET /skill-items/{id}/bids`, `GET /users/me/skill-bids` | 첫 입찰은 시작가 이상, 이후는 현재가 초과. 보유 포인트 이내로만 입찰. 상품 행 잠금·자동 연장은 일반 경매와 같다 |
+| 스킬 마감(낙찰) | `POST /skill-items/{id}/close`, (조회 시 자동) | 판매자 조기 마감 또는 `end_time` 경과 시 최고 입찰자를 낙찰자로 확정(`awarded`), 입찰이 없으면 유찰(`closed`) |
+| 스킬 예약 요청 | `POST /skill-bookings` | 판매자가 일정(`scheduled_at`)만 정해 낙찰자에게 예약 요청(`pending`). 구매자·금액은 낙찰 결과(`winner_id`, `final_price`)로 정해지고, 포인트는 아직 차감되지 않는다 (FR-SKL-02) |
 | 스킬 예약 수락 | `POST /skill-bookings/{id}/accept` | 구매자가 수락하면 포인트를 차감해 에스크로에 보관(`in_progress`). 구매자 동의 없는 차감을 막기 위해 차감은 이 시점에만 한다 (FR-SKL-03) |
 | 스킬 완료 정산 | `POST /skill-bookings/{id}/complete` | 구매자가 완료 확인 → 에스크로를 판매자에게 정산 |
 | 마이페이지 요약 | `GET /users/me/dashboard` | 포인트·알림·출석·경매/스킬/베팅/리뷰/신고 현황 집계 (FR-COM-02) |
@@ -162,8 +164,10 @@ ruff check --fix . && ruff format .
 - 블라인드 경매 낙찰 규칙은 `blind_price_rule` 로 정한다: `first`(제시가 그대로) / `second`(Vickrey, 2위 금액으로 결제, FR-BLD-04). 입찰자가 1명이면 본인 제시가.
 - 정산 시 승리 포지션 풀이 비어 있으면 전원 원금 환불한다.
 - 리뷰(`POST /reviews`)는 낙찰이 완료된 일반 경매 또는 완료된 스킬 거래의 당사자만, 거래당 1회 작성할 수 있다 (FR-SKL-04).
-- 스킬 예약 취소(`DELETE /skill-bookings/{id}`): 수락 전이면 요청 거절로 처리해 상품을 다시 모집중으로 돌리고,
-  수락 후면 보관중 에스크로를 구매자에게 환불하고 상품을 마감한다.
+- 스킬 상품 상태: `recruiting`(입찰중) → `awarded`(낙찰, 예약 진행) → `closed`(거래 종료). 입찰이 없으면 바로 `closed`(유찰).
+  입찰이 들어온 뒤에는 상품을 수정·삭제할 수 없다.
+- 스킬 예약 취소(`DELETE /skill-bookings/{id}`): 수락 전이면 요청 거절로 처리하고 낙찰은 유지해 판매자가 다른 일정으로
+  다시 요청할 수 있고, 수락 후면 보관중 에스크로를 구매자에게 환불하고 상품을 마감한다.
 - 에스크로 상태 변경(`PATCH /escrows/{id}`)은 실제 포인트 이동을 동반하며, 일반 경매 상품 대금에만 쓴다.
   정산은 결제자, 환불은 수취인(또는 관리자)만 확정할 수 있다. 스킬 예약 에스크로는 예약 엔드포인트로만 움직인다.
 - 포인트는 출석·미션·광고로만 적립된다. 수동 조정(`POST /point-transactions`)은 관리자 전용이다.

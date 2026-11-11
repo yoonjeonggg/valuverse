@@ -45,11 +45,23 @@ export type SkillItem = {
   description: string | null;
   category: string | null;
   start_price: number;
+  current_price: number;
   duration_minutes: number | null;
   provide_type: string | null;
   available_schedule: string | null;
   end_time: string | null;
   status: string;
+  winner_id: number | null;
+  final_price: number | null;
+  extended_count: number;
+};
+
+export type SkillBid = {
+  id: number;
+  skill_item_id: number;
+  bidder_id: number;
+  amount: number;
+  created_at: string;
 };
 
 export type Booking = {

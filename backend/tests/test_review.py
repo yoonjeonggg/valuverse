@@ -1,9 +1,6 @@
 """리뷰 작성 조건(완료된 거래 당사자) 검증 테스트."""
 
-from datetime import timedelta
-
-from app.core.timeutils import now
-from tests.conftest import create_item
+from tests.conftest import create_item, create_skill, request_booking
 
 _item = create_item
 
@@ -78,19 +75,8 @@ def test_review_after_completed_skill_booking(client, make_user, set_points):
     seller_h, seller = make_user()
     buyer_h, buyer = make_user()
     set_points(buyer["id"], 5000)
-    skill = client.post(
-        "/skill-items", json={"title": "과외", "start_price": 3000}, headers=seller_h
-    ).json()
-    booking = client.post(
-        "/skill-bookings",
-        json={
-            "skill_item_id": skill["id"],
-            "buyer_id": buyer["id"],
-            "amount": 3000,
-            "scheduled_at": (now() + timedelta(days=1)).isoformat(),
-        },
-        headers=seller_h,
-    ).json()
+    skill = create_skill(client, seller_h, title="과외")
+    booking = request_booking(client, seller_h, buyer_h, skill["id"]).json()
 
     # 완료 전에는 불가
     early = _review(

@@ -13,7 +13,7 @@ export const HOME_SKILL_ITEMS_QUERY = { status: "recruiting", limit: 4 };
 const MODES: [href: string, name: string, desc: string][] = [
   ["/items", "일반 경매", "공개 입찰, 마감 직전 입찰 시 자동 연장"],
   ["/items", "블라인드 경매", "밀봉 입찰 후 마감 때 일괄 공개"],
-  ["/skill-items", "스킬 경매", "시간과 재능을 사고파는 예약형 경매"],
+  ["/skill-items", "스킬 경매", "시간과 재능에 입찰하고, 낙찰 후 일정을 잡는 경매"],
   ["/predictions", "예측시장", "포인트로 결과를 맞히는 시장"],
 ];
 
@@ -190,7 +190,7 @@ export function HomeView({
         onRetry={skillItems.reload}
         empty={
           <>
-            모집중인 스킬 상품이 없습니다. <Link href="/skill-items">스킬을 등록</Link>해 보세요.
+            입찰중인 스킬 상품이 없습니다. <Link href="/skill-items">스킬을 등록</Link>해 보세요.
           </>
         }
       >

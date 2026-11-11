@@ -7,14 +7,16 @@ import { api, getToken, errorMessage, apiDelete, apiPost } from "../../lib/api";
 import { ChatWidget } from "../../lib/chat-widget";
 import { toIso } from "../../lib/format";
 import { useMe } from "../../lib/me";
-import type { Booking, Review, SkillItem } from "../../lib/types";
-import { Card, ErrorText, Field, Icon, useCall } from "../../lib/ui";
+import type { Booking, Review, SkillBid, SkillItem } from "../../lib/types";
+import { Card, Countdown, ErrorText, Field, Icon, useCall } from "../../lib/ui";
 
 const ITEM_STATUS_LABEL: Record<string, string> = {
-  recruiting: "모집중",
-  awarded: "예약 진행중",
-  closed: "거래 종료",
+  recruiting: "입찰중",
+  awarded: "낙찰 · 예약 진행",
+  closed: "종료",
 };
+
+const OPEN_BOOKING = ["pending", "in_progress"];
 
 const BOOKING_STATUS_LABEL: Record<string, string> = {
   pending: "구매자 수락 대기",
@@ -40,14 +42,27 @@ export function SkillItemView({
   const [myBooking, setMyBooking] = useState<Booking | null>(null);
   const [reviews, setReviews] = useState<Review[] | null>(initialReviews);
 
-  const [buyerId, setBuyerId] = useState("");
-  const [bookingAmount, setBookingAmount] = useState("");
+  const [bids, setBids] = useState<SkillBid[]>([]);
+  const [bidAmount, setBidAmount] = useState("");
+  const bidCall = useCall(() =>
+    apiPost<SkillBid>(`/skill-items/${itemId}/bids`, { amount: Number(bidAmount) }),
+  );
+  const closeCall = useCall(() => apiPost<SkillItem>(`/skill-items/${itemId}/close`));
+
+  const loadItem = () =>
+    api<SkillItem>(`/skill-items/${itemId}`)
+      .then(setItem)
+      .catch(() => {});
+  const loadBids = () =>
+    api<SkillBid[]>(`/skill-items/${itemId}/bids`)
+      .then(setBids)
+      .catch(() => {});
+
+  // 구매자와 금액은 낙찰 결과로 정해지므로 판매자는 일정만 보낸다.
   const [scheduledAt, setScheduledAt] = useState("");
   const createBooking = useCall(() =>
     apiPost<Booking>("/skill-bookings", {
       skill_item_id: itemId,
-      buyer_id: Number(buyerId),
-      amount: Number(bookingAmount),
       scheduled_at: toIso(scheduledAt),
     }),
   );
@@ -74,7 +89,7 @@ export function SkillItemView({
     const res = await bookingAction.run(action);
     if (res) {
       setMyBooking(res);
-      api<SkillItem>(`/skill-items/${itemId}`).then(setItem).catch(() => {});
+      loadItem();
     }
   };
 
@@ -102,11 +117,14 @@ export function SkillItemView({
         .then(setItem)
         .catch((e) => setLoadError(errorMessage(e)));
     if (!initialReviews || initialItem?.id !== itemId) loadReviews();
+    loadBids();
 
     if (getToken()) {
       api<Booking[]>("/skill-bookings", { auth: true })
         .then((list) => {
-          const mine = list.find((b) => b.skill_item_id === itemId);
+          // 거절 후 다시 요청할 수 있어 예약이 여러 건일 수 있다: 진행중인 것, 없으면 최신 것.
+          const forItem = list.filter((b) => b.skill_item_id === itemId);
+          const mine = forItem.find((b) => OPEN_BOOKING.includes(b.status)) ?? forItem[0];
           if (mine) setMyBooking(mine);
         })
         .catch(() => {});
@@ -114,12 +132,22 @@ export function SkillItemView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [itemId]);
 
+  const submitBid = async () => {
+    const res = await bidCall.run();
+    if (res) {
+      setBidAmount("");
+      // 현재가·자동 연장된 마감 시간을 다시 맞춘다.
+      loadItem();
+      loadBids();
+    }
+  };
+  const submitClose = async () => {
+    const res = await closeCall.run();
+    if (res) setItem(res);
+  };
   const submitBooking = async () => {
     const res = await createBooking.run();
-    if (res) {
-      setMyBooking(res);
-      setItem((it) => (it ? { ...it, status: "awarded" } : it));
-    }
+    if (res) setMyBooking(res);
   };
   const submitReview = async () => {
     const res = await createReview.run();
@@ -133,6 +161,10 @@ export function SkillItemView({
   if (!item) return <div className="empty">불러오는 중…</div>;
 
   const isOwner = meId === item.seller_id;
+  const isWinner = meId !== null && meId === item.winner_id;
+  const isRecruiting = item.status === "recruiting";
+  const hasOpenBooking = !!myBooking && OPEN_BOOKING.includes(myBooking.status);
+  const minBid = bids.length === 0 ? item.start_price : item.current_price + 1;
 
   return (
     <div>
@@ -145,7 +177,10 @@ export function SkillItemView({
             {isOwner && " (나)"}
           </p>
         </div>
-        <span className="badge badge--red">{ITEM_STATUS_LABEL[item.status] ?? item.status}</span>
+        <div>
+          <span className="badge badge--red">{ITEM_STATUS_LABEL[item.status] ?? item.status}</span>
+          {isRecruiting && <Countdown endTime={item.end_time} />}
+        </div>
       </div>
 
       {item.description && <p>{item.description}</p>}
@@ -153,7 +188,7 @@ export function SkillItemView({
       <Card title="상세 정보">
         <div className="meta-grid">
           <div>
-            <div className="k">가격</div>
+            <div className="k">시작가</div>
             <div className="v">{item.start_price.toLocaleString()}원</div>
           </div>
           <div>
@@ -172,6 +207,71 @@ export function SkillItemView({
           </div>
         </div>
       </Card>
+
+      <Card title={isRecruiting ? "입찰" : "경매 결과"}>
+        <div className="price-now">
+          <span className="label">{isRecruiting ? "현재가" : "낙찰가"}</span>
+          {(item.final_price ?? item.current_price).toLocaleString()}원
+        </div>
+        {isRecruiting ? (
+          <>
+            <div className="row bidform">
+              <input
+                type="number"
+                placeholder={`${minBid.toLocaleString()}원 이상`}
+                value={bidAmount}
+                onChange={(e) => setBidAmount(e.target.value)}
+              />
+              <button
+                className="btn btn-primary"
+                onClick={submitBid}
+                disabled={bidCall.loading || isOwner || !bidAmount}
+              >
+                입찰
+              </button>
+              {isOwner && (
+                <button onClick={submitClose} disabled={closeCall.loading}>
+                  지금 마감
+                </button>
+              )}
+            </div>
+            <p className="hint">
+              {isOwner
+                ? "본인 상품에는 입찰할 수 없습니다. 지금 마감하면 현재 최고 입찰자가 낙찰됩니다."
+                : "보유 포인트 이내에서 입찰할 수 있습니다. 낙찰되면 판매자가 일정을 정해 예약을 요청하고, 수락할 때 낙찰가가 에스크로에 보관됩니다."}
+            </p>
+            <ErrorText error={bidCall.error} />
+            <ErrorText error={closeCall.error} />
+          </>
+        ) : (
+          <p className="hint">
+            {item.winner_id
+              ? `낙찰 완료 — 낙찰자 #${item.winner_id}${isWinner ? " (나)" : ""}`
+              : "입찰자가 없어 유찰되었습니다."}
+          </p>
+        )}
+        {bids.length === 0 ? (
+          <div className="empty">아직 입찰이 없습니다.</div>
+        ) : (
+          <ul className="bidlist">
+            {bids.map((b) => (
+              <li key={b.id} className={meId === b.bidder_id ? "mine" : undefined}>
+                <span>
+                  입찰자 #{b.bidder_id}
+                  {meId === b.bidder_id && " (나)"}
+                </span>
+                <span className="amt">{b.amount.toLocaleString()}원</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
+
+      {isWinner && item.status === "awarded" && !hasOpenBooking && (
+        <Card title="낙찰 안내">
+          <p className="hint">판매자가 일정을 정해 예약을 요청하면 이곳에서 수락할 수 있습니다.</p>
+        </Card>
+      )}
 
       {myBooking && (
         <Card
@@ -232,19 +332,13 @@ export function SkillItemView({
         </Card>
       )}
 
-      {isOwner && item.status === "recruiting" && (
-        <Card title="예약 요청 (낙찰자 지정)">
+      {isOwner && item.status === "awarded" && !hasOpenBooking && (
+        <Card title="낙찰자에게 예약 요청">
           <p className="hint">
-            협의가 끝난 구매자의 회원 ID로 예약을 요청합니다. 구매자가 수락하면 낙찰금이
-            구매자 포인트에서 차감되어 에스크로에 보관됩니다.
+            낙찰자 #{item.winner_id}에게 일정을 정해 예약을 요청합니다. 낙찰자가 수락하면 낙찰가{" "}
+            {item.final_price?.toLocaleString()}P가 낙찰자 포인트에서 차감되어 에스크로에
+            보관됩니다.
           </p>
-          <Field label="buyer_id" value={buyerId} onChange={(e) => setBuyerId(e.target.value)} />
-          <Field
-            label="금액"
-            type="number"
-            value={bookingAmount}
-            onChange={(e) => setBookingAmount(e.target.value)}
-          />
           <Field
             label="일정"
             type="datetime-local"
@@ -252,7 +346,11 @@ export function SkillItemView({
             onChange={(e) => setScheduledAt(e.target.value)}
           />
           <div className="actions">
-            <button className="btn btn-primary" onClick={submitBooking} disabled={createBooking.loading}>
+            <button
+              className="btn btn-primary"
+              onClick={submitBooking}
+              disabled={createBooking.loading || !scheduledAt}
+            >
               예약 요청
             </button>
           </div>

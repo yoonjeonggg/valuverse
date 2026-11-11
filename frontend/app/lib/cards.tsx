@@ -10,7 +10,7 @@ export type AuctionCardItem = Pick<
 >;
 export type SkillCardItem = Pick<
   SkillItem,
-  "id" | "title" | "category" | "start_price" | "duration_minutes" | "status"
+  "id" | "title" | "category" | "current_price" | "duration_minutes" | "end_time" | "status"
 >;
 
 export const toAuctionCardItem = (it: Item): AuctionCardItem => ({
@@ -28,8 +28,9 @@ export const toSkillCardItem = (it: SkillItem): SkillCardItem => ({
   id: it.id,
   title: it.title,
   category: it.category,
-  start_price: it.start_price,
+  current_price: it.current_price,
   duration_minutes: it.duration_minutes,
+  end_time: it.end_time,
   status: it.status,
 });
 
@@ -74,7 +75,7 @@ export function SkillCard({
   priceSuffix,
   meta,
 }: {
-  item: Omit<SkillCardItem, "duration_minutes" | "status">;
+  item: Pick<SkillCardItem, "id" | "title" | "category" | "current_price">;
   priceSuffix?: string;
   meta?: React.ReactNode;
 }) {
@@ -83,7 +84,8 @@ export function SkillCard({
       <span className="cat">{item.category || "미분류"}</span>
       <span className="ttl">{item.title}</span>
       <span className="price">
-        {item.start_price.toLocaleString()}원{priceSuffix}
+        <span className="price-label">현재가</span>
+        {item.current_price.toLocaleString()}원{priceSuffix}
       </span>
       {meta && <span className="meta">{meta}</span>}
     </Link>

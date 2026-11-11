@@ -1,6 +1,6 @@
 """AI 보조(통계·규칙 기반) 테스트 - 시세 추천 / 어뷰징 탐지."""
 
-from tests.conftest import create_item
+from tests.conftest import create_item, create_skill
 
 
 def _closed_sale(client, seller_h, buyer_h, category, price, **overrides):
@@ -184,11 +184,7 @@ def test_chat_includes_item_context_when_item_id_given(client, make_user):
 
 def test_chat_supports_skill_item_context(client, make_user):
     seller_h, _ = make_user()
-    skill = client.post(
-        "/skill-items",
-        json={"title": "로고 디자인", "start_price": 5000},
-        headers=seller_h,
-    ).json()
+    skill = create_skill(client, seller_h, title="로고 디자인", start_price=5000)
 
     body = client.post(
         "/ai/chat",

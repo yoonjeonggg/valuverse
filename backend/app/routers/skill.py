@@ -5,6 +5,8 @@ from app.schemas.skill import (
     EscrowCreate,
     EscrowResponse,
     EscrowUpdate,
+    SkillBidCreate,
+    SkillBidResponse,
     SkillBookingCreate,
     SkillBookingNoShow,
     SkillBookingResponse,
@@ -16,6 +18,7 @@ from app.schemas.skill import (
 from app.services import skill_service
 
 skill_item_router = APIRouter(prefix="/skill-items", tags=["Skill Item"])
+skill_bid_router = APIRouter(tags=["Skill Bid"])
 booking_router = APIRouter(prefix="/skill-bookings", tags=["Skill Booking"])
 escrow_router = APIRouter(prefix="/escrows", tags=["Escrow"])
 
@@ -57,9 +60,34 @@ def delete_skill_item(item_id: int, db: DbSession, user: CurrentUser):
     skill_service.delete_skill_item(db, item_id, user.id)
 
 
+@skill_item_router.post("/{item_id}/close", response_model=SkillItemResponse)
+def close_skill_item(item_id: int, db: DbSession, user: CurrentUser):
+    """판매자가 입찰을 조기 마감하고 최고 입찰자를 낙찰자로 확정한다."""
+    return skill_service.close_skill_item(db, item_id, user.id)
+
+
+# ==================== SkillBid ====================
+@skill_item_router.post(
+    "/{item_id}/bids", response_model=SkillBidResponse, status_code=status.HTTP_201_CREATED
+)
+def create_skill_bid(item_id: int, payload: SkillBidCreate, db: DbSession, user: CurrentUser):
+    return skill_service.create_bid(db, item_id, user, payload)
+
+
+@skill_item_router.get("/{item_id}/bids", response_model=list[SkillBidResponse])
+def list_skill_bids(item_id: int, db: DbSession):
+    return skill_service.list_bids(db, item_id)
+
+
+@skill_bid_router.get("/users/me/skill-bids", response_model=list[SkillBidResponse])
+def list_my_skill_bids(db: DbSession, user: CurrentUser):
+    return skill_service.list_my_bids(db, user.id)
+
+
 # ==================== SkillBooking ====================
 @booking_router.post("", response_model=SkillBookingResponse, status_code=status.HTTP_201_CREATED)
 def create_booking(payload: SkillBookingCreate, db: DbSession, user: CurrentUser):
+    """판매자가 낙찰자에게 일정을 정해 예약을 요청한다. 구매자·금액은 낙찰 결과로 정해진다."""
     return skill_service.create_booking(db, user, payload)
 
 
