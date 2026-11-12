@@ -1,5 +1,6 @@
-from sqlalchemy import Boolean, Column, DateTime, Float, Integer, String, func
+from sqlalchemy import Boolean, Column, Float, Integer, String, func
 
+from app.core.db_types import UTCDateTime
 from app.database import Base
 
 
@@ -15,4 +16,4 @@ class User(Base):
     rating = Column(Float, default=0.0, nullable=False)
     is_active = Column(Boolean, default=True, nullable=False)
     is_admin = Column(Boolean, default=False, nullable=False)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_at = Column(UTCDateTime(), server_default=func.now())

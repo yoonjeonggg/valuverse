@@ -1,7 +1,6 @@
 from sqlalchemy import (
     Boolean,
     Column,
-    DateTime,
     ForeignKey,
     Integer,
     String,
@@ -9,6 +8,7 @@ from sqlalchemy import (
     func,
 )
 
+from app.core.db_types import UTCDateTime
 from app.database import Base
 
 
@@ -30,7 +30,7 @@ class SkillItem(Base):
     provide_type = Column(String(50), nullable=True)  # 온라인/오프라인/파일 등
     available_schedule = Column(Text, nullable=True)
     # 입찰 마감 시각. 예전 데이터는 비어 있을 수 있어 nullable 로 두고, 신규 등록은 필수.
-    end_time = Column(DateTime(timezone=True), nullable=True)
+    end_time = Column(UTCDateTime(), nullable=True)
     # recruiting(입찰중) | awarded(낙찰, 예약 진행) | closed(거래 종료 또는 유찰)
     status = Column(String(20), nullable=False, default="recruiting", index=True)
     # 낙찰 결과 (마감 시 최고 입찰자로 채워짐). 유찰이면 winner_id 는 NULL.
@@ -39,7 +39,7 @@ class SkillItem(Base):
     # 마감 임박 입찰로 자동 연장된 횟수 (스나이핑 방지)
     extended_count = Column(Integer, nullable=False, default=0, server_default="0")
     is_deleted = Column(Boolean, nullable=False, default=False)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_at = Column(UTCDateTime(), server_default=func.now())
 
 
 class SkillBid(Base):
@@ -51,7 +51,7 @@ class SkillBid(Base):
     skill_item_id = Column(Integer, ForeignKey("skill_items.id"), nullable=False, index=True)
     bidder_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     amount = Column(Integer, nullable=False)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_at = Column(UTCDateTime(), server_default=func.now())
 
 
 class SkillBooking(Base):
@@ -65,10 +65,10 @@ class SkillBooking(Base):
     buyer_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     # 낙찰가. 구매자가 예약을 수락하면 포인트에서 차감돼 에스크로에 보관된다.
     amount = Column(Integer, nullable=False, default=0)
-    scheduled_at = Column(DateTime(timezone=True), nullable=False)
+    scheduled_at = Column(UTCDateTime(), nullable=False)
     # pending(구매자 수락 대기) | in_progress | completed | no_show | cancelled
     status = Column(String(20), nullable=False, default="in_progress", index=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_at = Column(UTCDateTime(), server_default=func.now())
 
 
 class Escrow(Base):
@@ -84,5 +84,5 @@ class Escrow(Base):
     amount = Column(Integer, nullable=False)
     # holding | settled | refunded
     status = Column(String(20), nullable=False, default="holding", index=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    created_at = Column(UTCDateTime(), server_default=func.now())
+    updated_at = Column(UTCDateTime(), onupdate=func.now())

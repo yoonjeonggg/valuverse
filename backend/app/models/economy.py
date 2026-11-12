@@ -1,7 +1,6 @@
 from sqlalchemy import (
     Boolean,
     Column,
-    DateTime,
     ForeignKey,
     Integer,
     String,
@@ -9,6 +8,7 @@ from sqlalchemy import (
     func,
 )
 
+from app.core.db_types import UTCDateTime
 from app.database import Base
 
 
@@ -23,7 +23,7 @@ class Attendance(Base):
     check_date = Column(String(10), nullable=False)  # YYYY-MM-DD (UTC)
     streak = Column(Integer, nullable=False, default=1)
     reward = Column(Integer, nullable=False, default=0)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_at = Column(UTCDateTime(), server_default=func.now())
 
 
 class MissionClaim(Base):
@@ -36,7 +36,7 @@ class MissionClaim(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     mission_key = Column(String(40), nullable=False)
     reward = Column(Integer, nullable=False, default=0)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_at = Column(UTCDateTime(), server_default=func.now())
 
 
 class Coupon(Base):
@@ -50,6 +50,6 @@ class Coupon(Base):
     discount_percent = Column(Integer, nullable=False)
     cost = Column(Integer, nullable=False)
     is_used = Column(Boolean, nullable=False, default=False, index=True)
-    used_at = Column(DateTime(timezone=True), nullable=True)
-    expires_at = Column(DateTime(timezone=True), nullable=False)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    used_at = Column(UTCDateTime(), nullable=True)
+    expires_at = Column(UTCDateTime(), nullable=False)
+    created_at = Column(UTCDateTime(), server_default=func.now())

@@ -1,7 +1,6 @@
 from sqlalchemy import (
     Boolean,
     Column,
-    DateTime,
     ForeignKey,
     Integer,
     String,
@@ -9,6 +8,7 @@ from sqlalchemy import (
     func,
 )
 
+from app.core.db_types import UTCDateTime
 from app.database import Base
 
 
@@ -32,7 +32,7 @@ class Item(Base):
     )
     # 블라인드 낙찰 규칙: first(1st-price) | second(Vickrey 2nd-price)
     blind_price_rule = Column(String(10), nullable=False, default="first", server_default="first")
-    end_time = Column(DateTime(timezone=True), nullable=False)
+    end_time = Column(UTCDateTime(), nullable=False)
     # ongoing | closed
     status = Column(String(20), nullable=False, default="ongoing", index=True)
     is_deleted = Column(Boolean, nullable=False, default=False)
@@ -42,8 +42,8 @@ class Item(Base):
     # 마감 임박 입찰로 자동 연장된 횟수 (스나이핑 방지)
     extended_count = Column(Integer, nullable=False, default=0)
     # 상단 노출권 만료 시각. 이 시각 이전이면 목록 상단에 노출된다 (FR-PRD-08).
-    spotlight_until = Column(DateTime(timezone=True), nullable=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    spotlight_until = Column(UTCDateTime(), nullable=True)
+    created_at = Column(UTCDateTime(), server_default=func.now())
 
 
 class Bid(Base):
@@ -56,7 +56,7 @@ class Bid(Base):
     bidder_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     amount = Column(Integer, nullable=False)
     is_cancelled = Column(Boolean, nullable=False, default=False)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_at = Column(UTCDateTime(), server_default=func.now())
 
 
 class BlindBid(Base):
@@ -70,4 +70,4 @@ class BlindBid(Base):
     # 순위 계산에만 사용, 마감 전 직렬화 금지
     amount = Column(Integer, nullable=False)
     is_cancelled = Column(Boolean, nullable=False, default=False)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_at = Column(UTCDateTime(), server_default=func.now())

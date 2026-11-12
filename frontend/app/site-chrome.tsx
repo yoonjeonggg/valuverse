@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { POINTS_CHANGED, api } from "./lib/api";
+import { POINTS_CHANGED, POINTS_STALE, api } from "./lib/api";
 import { fetchMe, useHasToken, useMe } from "./lib/me";
 import { Icon } from "./lib/ui";
 
@@ -124,10 +124,17 @@ export function HeaderAuth() {
       .then((u) => alive && setPoints(u.points))
       .catch(() => alive && setPoints(null));
     const onChange = (e: Event) => setPoints((e as CustomEvent<number>).detail);
+    const onStale = () => {
+      fetchMe()
+        .then((u) => alive && setPoints(u.points))
+        .catch(() => {});
+    };
     window.addEventListener(POINTS_CHANGED, onChange);
+    window.addEventListener(POINTS_STALE, onStale);
     return () => {
       alive = false;
       window.removeEventListener(POINTS_CHANGED, onChange);
+      window.removeEventListener(POINTS_STALE, onStale);
       setPoints(null);
     };
   }, [hasToken]);

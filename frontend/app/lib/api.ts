@@ -32,6 +32,10 @@ export function setToken(token: string | null) {
 // 포인트 잔액이 바뀐 화면이 알리면, 헤더의 잔액 표시가 새로고침 없이 따라간다.
 export const POINTS_CHANGED = "valuverse:points-changed";
 
+// 로그인한 사용자의 변경 요청(입찰·예약 수락·정산 등)이 성공하면 잔액이 바뀌었을 수 있다.
+// 화면마다 잔액을 알리지 않아도 헤더가 이 이벤트를 듣고 잔액을 다시 읽는다.
+export const POINTS_STALE = "valuverse:points-stale";
+
 export function announcePoints(balance: number) {
   if (typeof window === "undefined") return;
   window.dispatchEvent(new CustomEvent<number>(POINTS_CHANGED, { detail: balance }));
@@ -127,6 +131,9 @@ export async function api<T = unknown>(
     );
   }
 
+  if (auth && method !== "GET" && typeof window !== "undefined") {
+    window.dispatchEvent(new Event(POINTS_STALE));
+  }
   return parsed as T;
 }
 

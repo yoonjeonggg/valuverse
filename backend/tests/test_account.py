@@ -6,6 +6,8 @@ from app.core.security import create_access_token
 def test_missing_token_is_401(client):
     r = client.get("/users/me")
     assert r.status_code == 401
+    assert r.json()["detail"] == "로그인이 필요합니다."
+    assert r.headers["WWW-Authenticate"] == "Bearer"
 
 
 def test_malformed_token_is_401(client):

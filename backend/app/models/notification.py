@@ -1,5 +1,6 @@
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, func
+from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, func
 
+from app.core.db_types import UTCDateTime
 from app.database import Base
 
 
@@ -16,4 +17,4 @@ class Notification(Base):
     related_type = Column(String(30), nullable=True)  # item | skill_item | prediction
     related_id = Column(Integer, nullable=True)
     is_read = Column(Boolean, nullable=False, default=False, index=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_at = Column(UTCDateTime(), server_default=func.now())

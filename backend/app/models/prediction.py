@@ -1,7 +1,6 @@
 from sqlalchemy import (
     Boolean,
     Column,
-    DateTime,
     Float,
     ForeignKey,
     Integer,
@@ -10,6 +9,7 @@ from sqlalchemy import (
     func,
 )
 
+from app.core.db_types import UTCDateTime
 from app.database import Base
 
 
@@ -21,7 +21,7 @@ class Prediction(Base):
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String(300), nullable=False)
     description = Column(Text, nullable=True)
-    end_time = Column(DateTime(timezone=True), nullable=False)
+    end_time = Column(UTCDateTime(), nullable=False)
     # ongoing | closed | settled
     status = Column(String(20), nullable=False, default="ongoing", index=True)
     yes_odds = Column(Float, nullable=False, default=2.0)
@@ -29,7 +29,7 @@ class Prediction(Base):
     # 정산 시 확정된 결과: yes | no | null
     result = Column(String(10), nullable=True)
     created_by = Column(Integer, ForeignKey("users.id"), nullable=False)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_at = Column(UTCDateTime(), server_default=func.now())
 
 
 class PredictionBet(Base):
@@ -47,4 +47,4 @@ class PredictionBet(Base):
     # 정산 시 지급된 포인트 (원금 + 배당). 미정산/패배는 0.
     payout = Column(Integer, nullable=False, default=0)
     is_cancelled = Column(Boolean, nullable=False, default=False)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_at = Column(UTCDateTime(), server_default=func.now())

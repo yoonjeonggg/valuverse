@@ -9,7 +9,9 @@ from app.core.security import decode_access_token
 from app.database import get_db
 from app.models.user import User
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
+# auto_error=False: 토큰이 없을 때 FastAPI 기본 영문 메시지("Not authenticated") 대신
+# get_current_user 가 한국어 메시지로 401 을 낸다.
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login", auto_error=False)
 
 
 def lookup_user_by_token(db: Session, token: str | None) -> User | None:
@@ -28,9 +30,11 @@ DbSession = Annotated[Session, Depends(get_db)]
 
 def get_current_user(
     request: Request,
-    token: Annotated[str, Depends(oauth2_scheme)],
+    token: Annotated[str | None, Depends(oauth2_scheme)],
     db: DbSession,
 ) -> User:
+    if not token:
+        raise Unauthorized("로그인이 필요합니다.")
     user = lookup_user_by_token(db, token)
     if user is None:
         raise Unauthorized("인증 정보가 유효하지 않습니다.")

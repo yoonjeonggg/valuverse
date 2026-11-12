@@ -1,5 +1,6 @@
-from sqlalchemy import Column, DateTime, ForeignKey, Index, Integer, String, func
+from sqlalchemy import Column, ForeignKey, Index, Integer, String, func
 
+from app.core.db_types import UTCDateTime
 from app.database import Base
 
 
@@ -20,4 +21,4 @@ class PointTransaction(Base):
     type = Column(String(30), nullable=False, index=True)
     memo = Column(String(255), nullable=True)
     balance_after = Column(Integer, nullable=False)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_at = Column(UTCDateTime(), server_default=func.now())
